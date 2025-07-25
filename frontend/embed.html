@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>印章預覽小工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft JhengHei', sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .widget {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        h3 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+            font-size: 14px;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #e74c3c;
+        }
+        
+        .font-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .font-btn {
+            padding: 15px;
+            border: 2px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 5px;
+            text-align: center;
+            transition: all 0.3s;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .font-btn:hover {
+            border-color: #e74c3c;
+            background: #fee;
+        }
+        
+        .font-btn.selected {
+            border-color: #e74c3c;
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .preview-box {
+            height: 180px;
+            background: #f9f9f9;
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        .mini-stamp {
+            width: 120px;
+            height: 120px;
+            border: 3px solid #e74c3c;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            font-size: 32px;
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        
+        .generate-btn {
+            width: 100%;
+            padding: 15px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .generate-btn:hover {
+            background: #c0392b;
+        }
+        
+        .generate-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .placeholder {
+            color: #999;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="widget">
+        <h3>🎯 印章預覽</h3>
+        
+        <div class="form-group">
+            <label>印章文字（最多4字）</label>
+            <input type="text" id="text" placeholder="例如：王大明" maxlength="4">
+        </div>
+        
+        <div class="form-group">
+            <label>選擇字體</label>
+            <div class="font-options">
+                <button class="font-btn" onclick="selectFont(1, this)">楷書</button>
+                <button class="font-btn" onclick="selectFont(2, this)">隸書</button>
+                <button class="font-btn" onclick="selectFont(3, this)">篆書</button>
+                <button class="font-btn" onclick="selectFont(4, this)">行書</button>
+            </div>
+        </div>
+        
+        <div class="preview-box" id="preview">
+            <p class="placeholder">預覽區域</p>
+        </div>
+        
+        <button class="generate-btn" onclick="generate()">確認選擇</button>
+    </div>
+    
+    <script>
+        let selectedFont = null;
+        let selectedFontName = '';
+        
+        function selectFont(id, element) {
+            // 清除其他選擇
+            document.querySelectorAll('.font-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            
+            // 設定選擇
+            element.classList.add('selected');
+            selectedFont = id;
+            selectedFontName = element.textContent;
+            
+            // 自動預覽
+            updatePreview();
+        }
+        
+        function updatePreview() {
+            const text = document.getElementById('text').value;
+            if (text && selectedFont) {
+                document.getElementById('preview').innerHTML = 
+                    `<div class="mini-stamp">${text}</div>`;
+            }
+        }
+        
+        function generate() {
+            const text = document.getElementById('text').value;
+            
+            if (!text) {
+                alert('請輸入印章文字！');
+                return;
+            }
+            
+            if (!selectedFont) {
+                alert('請選擇字體！');
+                return;
+            }
+            
+            // 顯示確認訊息
+            alert(`已選擇：${text} - ${selectedFontName}`);
+            
+            // 如果在 iframe 中，傳送訊息給父視窗
+            if (window.parent !== window) {
+                window.parent.postMessage({
+                    type: 'stampSelected',
+                    data: {
+                        text: text,
+                        font: selectedFont,
+                        fontName: selectedFontName
+                    }
+                }, '*');
+            }
+        }
+        
+        // 監聽文字輸入
+        document.getElementById('text').addEventListener('input', updatePreview);
+    </script>
+</body>
+</html>
