@@ -8,7 +8,7 @@
 (function() {
     // 防止重複載入
     if (window._STAMP_FONT_WIDGET_LOADED) return;
-    window._STAMP_FONT_WIDGET_LOADED = true;
+    window._STAMP_FONT_WIDGET_LOADED = true;QF
 
     // 建立樣式
     const styles = `
