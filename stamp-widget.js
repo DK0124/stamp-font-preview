@@ -1,14 +1,15 @@
 /**
  * 印章字體預覽系統 Widget
  * @author DK0124
- * @version 1.0.0
- * @description 整合印章預覽與自訂字體的完整系統
+ * @version 1.1.0
+ * @date 2025-07-26
+ * @description 整合印章預覽與自訂字體的完整系統，支援雙向同步
  */
 
 (function() {
     // 防止重複載入
     if (window._STAMP_FONT_WIDGET_LOADED) return;
-    window._STAMP_FONT_WIDGET_LOADED = true;QF
+    window._STAMP_FONT_WIDGET_LOADED = true;
 
     // 建立樣式
     const styles = `
@@ -418,6 +419,7 @@
 
         loadedFonts: {},
         isLoading: false,
+        bvShopListeners: [],
 
         // 初始化
         init: function() {
@@ -436,10 +438,91 @@
 
             this.bindEvents();
             
-            // 延遲載入初始值
+            // 延遲載入初始值並設定監聽器
             setTimeout(() => {
+                this.setupBVShopListeners();
                 this.loadFromBVShop();
             }, 500);
+        },
+
+        // 設定 BV SHOP 監聽器
+        setupBVShopListeners: function() {
+            // 清除舊的監聽器
+            this.bvShopListeners.forEach(listener => {
+                listener.element.removeEventListener(listener.event, listener.handler);
+            });
+            this.bvShopListeners = [];
+
+            // 監聽字體選擇變化
+            const fontSelect = this.findBVSelect('字體');
+            if (fontSelect) {
+                const fontHandler = (e) => {
+                    const selectedFont = e.target.value;
+                    this.selectFontByName(selectedFont);
+                };
+                fontSelect.addEventListener('change', fontHandler);
+                this.bvShopListeners.push({ element: fontSelect, event: 'change', handler: fontHandler });
+            }
+            
+            // 監聽文字輸入
+            const textInput = document.querySelector('input[placeholder="輸入六字內"]');
+            if (textInput) {
+                const textHandler = (e) => {
+                    this.elements.textInput.value = e.target.value;
+                    this.currentSelection.text = e.target.value;
+                    this.updateAllPreviews();
+                };
+                textInput.addEventListener('input', textHandler);
+                this.bvShopListeners.push({ element: textInput, event: 'input', handler: textHandler });
+            }
+            
+            // 監聽形狀選擇
+            const shapeSelect = this.findBVSelect('形狀');
+            if (shapeSelect) {
+                const shapeHandler = (e) => {
+                    this.elements.shapeSelect.value = e.target.value;
+                    this.currentSelection.shape = e.target.value;
+                    this.updateAllPreviews();
+                };
+                shapeSelect.addEventListener('change', shapeHandler);
+                this.bvShopListeners.push({ element: shapeSelect, event: 'change', handler: shapeHandler });
+            }
+            
+            // 監聽圖案選擇
+            const patternSelect = this.findBVSelect('圖案');
+            if (patternSelect) {
+                const patternHandler = (e) => {
+                    this.elements.patternSelect.value = e.target.value;
+                    this.currentSelection.pattern = e.target.value;
+                    this.updateAllPreviews();
+                };
+                patternSelect.addEventListener('change', patternHandler);
+                this.bvShopListeners.push({ element: patternSelect, event: 'change', handler: patternHandler });
+            }
+        },
+
+        // 根據字體名稱選中卡片
+        selectFontByName: function(fontName) {
+            const widget = document.getElementById('stamp-custom-font-widget');
+            
+            // 先清除所有選中狀態
+            widget.querySelectorAll('.scfw-font-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            // 找到對應的字體卡片並選中
+            const fontData = this.availableFonts.find(f => f.name === fontName);
+            if (fontData) {
+                const targetCard = widget.querySelector(`[data-font-name="${fontName}"]`);
+                if (targetCard) {
+                    targetCard.classList.add('selected');
+                    this.currentSelection.font = fontName;
+                    this.currentSelection.fontId = fontData.id;
+                    
+                    // 更新所有預覽
+                    this.updateAllPreviews();
+                }
+            }
         },
 
         // 載入字體
@@ -560,6 +643,14 @@
             
             this.elements.loadBtn.style.display = 'none';
             this.isLoading = false;
+            
+            // 載入完成後，如果 BV SHOP 已有選擇，同步選中
+            setTimeout(() => {
+                const fontSelect = this.findBVSelect('字體');
+                if (fontSelect && fontSelect.value) {
+                    this.selectFontByName(fontSelect.value);
+                }
+            }, 100);
         },
 
         // 顯示同步狀態
@@ -686,6 +777,14 @@
                 this.elements.patternSelect.value = patternSelect.value;
                 this.currentSelection.pattern = patternSelect.value;
             }
+            
+            // 重要：同步字體選擇
+            const fontSelect = this.findBVSelect('字體');
+            if (fontSelect && fontSelect.value) {
+                this.selectFontByName(fontSelect.value);
+            }
+            
+            this.updateAllPreviews();
         }
     };
 
