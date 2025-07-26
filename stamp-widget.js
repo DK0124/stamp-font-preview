@@ -1,9 +1,9 @@
 /**
  * 印章字體預覽系統 Widget
  * @author DK0124
- * @version 1.1.0
+ * @version 1.2.0
  * @date 2025-07-26
- * @description 整合印章預覽與自訂字體的完整系統，支援雙向同步
+ * @description 整合印章預覽與自訂字體的完整系統，支援雙向同步，自動載入字體
  */
 
 (function() {
@@ -93,32 +93,6 @@
             outline: none;
             border-color: #80bdff;
             box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
-        }
-        
-        /* 載入按鈕 */
-        #stamp-custom-font-widget .scfw-load-btn {
-            width: 100%;
-            padding: 12px;
-            background: #B5D5B0;
-            color: #333;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-bottom: 20px;
-            transition: all 0.2s;
-        }
-        
-        #stamp-custom-font-widget .scfw-load-btn:hover {
-            background: #97BF90;
-            transform: translateY(-2px);
-        }
-        
-        #stamp-custom-font-widget .scfw-load-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
         }
         
         /* 字體網格 */
@@ -273,6 +247,34 @@
             animation: slideIn 0.3s ease;
         }
         
+        /* 載入提示 */
+        #stamp-custom-font-widget .scfw-loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        
+        #stamp-custom-font-widget .scfw-loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #B5D5B0;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
         @keyframes slideIn {
             from {
                 transform: translateX(100%);
@@ -301,7 +303,7 @@
         }
     `;
 
-    // 建立 HTML 結構
+    // 建立 HTML 結構（移除載入按鈕）
     const html = `
         <div id="stamp-custom-font-widget">
             <!-- 同步狀態 -->
@@ -358,14 +360,11 @@
                 </div>
             </div>
             
-            <!-- 載入字體按鈕 -->
-            <button class="scfw-load-btn" id="scfw-load-btn">
-                載入所有字體預覽
-            </button>
-            
             <!-- 字體網格 -->
             <div class="scfw-font-grid" id="scfw-font-grid">
-                <div class="scfw-loading">點擊上方按鈕載入字體</div>
+                <div class="scfw-loading-overlay">
+                    <div class="scfw-loading-spinner"></div>
+                </div>
             </div>
         </div>
     `;
@@ -432,7 +431,6 @@
                 patternSelect: widget.querySelector('#scfw-pattern'),
                 colorSelect: widget.querySelector('#scfw-color'),
                 fontGrid: widget.querySelector('#scfw-font-grid'),
-                loadBtn: widget.querySelector('#scfw-load-btn'),
                 syncStatus: document.getElementById('scfw-sync-status')
             };
 
@@ -442,6 +440,8 @@
             setTimeout(() => {
                 this.setupBVShopListeners();
                 this.loadFromBVShop();
+                // 自動載入所有字體
+                this.loadAllFonts();
             }, 500);
         },
 
@@ -632,8 +632,11 @@
             if (this.isLoading) return;
             
             this.isLoading = true;
-            this.elements.loadBtn.disabled = true;
-            this.elements.loadBtn.textContent = '載入中...';
+            this.elements.fontGrid.innerHTML = '<div class="scfw-loading-overlay"><div class="scfw-loading-spinner"></div></div>';
+            
+            // 稍微延遲以顯示載入動畫
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
             this.elements.fontGrid.innerHTML = '';
             
             for (const fontData of this.availableFonts) {
@@ -641,7 +644,6 @@
                 this.elements.fontGrid.appendChild(card);
             }
             
-            this.elements.loadBtn.style.display = 'none';
             this.isLoading = false;
             
             // 載入完成後，如果 BV SHOP 已有選擇，同步選中
@@ -751,10 +753,6 @@
             this.elements.colorSelect.addEventListener('change', (e) => {
                 this.currentSelection.color = e.target.value;
                 this.updateAllPreviews();
-            });
-            
-            this.elements.loadBtn.addEventListener('click', () => {
-                this.loadAllFonts();
             });
         },
 
