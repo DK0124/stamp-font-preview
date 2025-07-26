@@ -1,7 +1,7 @@
 /**
  * 印章字體預覽系統 Widget
  * @author DK0124
- * @version 1.3.0
+ * @version 1.2.1
  * @date 2025-01-26
  * @description 整合印章預覽與自訂字體的完整系統，支援雙向同步，自動載入字體
  */
@@ -232,6 +232,21 @@
             color: #999;
         }
         
+        /* 同步狀態 */
+        #stamp-custom-font-widget .scfw-sync-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            display: none;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+        }
+        
         /* 載入提示 */
         #stamp-custom-font-widget .scfw-loading-overlay {
             position: absolute;
@@ -260,6 +275,17 @@
             100% { transform: rotate(360deg); }
         }
         
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
         /* 響應式 */
         @media (max-width: 768px) {
             #stamp-custom-font-widget .scfw-control-grid {
@@ -277,9 +303,12 @@
         }
     `;
 
-    // 建立 HTML 結構（移除同步狀態提示）
+    // 建立 HTML 結構（移除載入按鈕）
     const html = `
         <div id="stamp-custom-font-widget">
+            <!-- 同步狀態 -->
+            <div class="scfw-sync-status" id="scfw-sync-status">✅ 已同步</div>
+            
             <!-- 主容器 -->
             <div class="scfw-header">
                 <h2 class="scfw-title">🎯 印章字體即時預覽系統</h2>
@@ -378,6 +407,21 @@
             '小花': '🌸'
         },
 
+        // 顏色對應表
+        colorMap: {
+            '朱紅': '#dc3545',
+            '黑色': '#000000',
+            '藍色': '#0066cc',
+            '綠色': '#28a745'
+        },
+
+        colorTextMap: {
+            '#dc3545': '朱紅',
+            '#000000': '黑色',
+            '#0066cc': '藍色',
+            '#28a745': '綠色'
+        },
+
         currentSelection: {
             text: '印章預覽',
             font: '',
@@ -401,7 +445,8 @@
                 shapeSelect: widget.querySelector('#scfw-shape'),
                 patternSelect: widget.querySelector('#scfw-pattern'),
                 colorSelect: widget.querySelector('#scfw-color'),
-                fontGrid: widget.querySelector('#scfw-font-grid')
+                fontGrid: widget.querySelector('#scfw-font-grid'),
+                syncStatus: document.getElementById('scfw-sync-status')
             };
 
             this.bindEvents();
@@ -475,14 +520,7 @@
             if (colorSelect) {
                 const colorHandler = (e) => {
                     const selectedColor = e.target.value;
-                    // 對應 BV SHOP 的顏色值到實際顏色
-                    const colorMap = {
-                        '朱紅': '#dc3545',
-                        '黑色': '#000000',
-                        '藍色': '#0066cc',
-                        '綠色': '#28a745'
-                    };
-                    const actualColor = colorMap[selectedColor] || '#dc3545';
+                    const actualColor = this.colorMap[selectedColor] || '#dc3545';
                     this.elements.colorSelect.value = actualColor;
                     this.currentSelection.color = actualColor;
                     this.updateAllPreviews();
@@ -646,6 +684,14 @@
             }, 100);
         },
 
+        // 顯示同步狀態
+        showSyncStatus: function() {
+            this.elements.syncStatus.style.display = 'block';
+            setTimeout(() => {
+                this.elements.syncStatus.style.display = 'none';
+            }, 2000);
+        },
+
         // 同步到 BV SHOP
         syncToBVShop: function(field, value) {
             try {
@@ -697,19 +743,14 @@
                     case 'color':
                         const colorSelect = this.findBVSelect('顏色');
                         if (colorSelect) {
-                            // 轉換顏色值為文字
-                            const colorTextMap = {
-                                '#dc3545': '朱紅',
-                                '#000000': '黑色',
-                                '#0066cc': '藍色',
-                                '#28a745': '綠色'
-                            };
-                            const colorText = colorTextMap[value] || '朱紅';
+                            const colorText = this.colorTextMap[value] || '朱紅';
                             colorSelect.value = colorText;
                             colorSelect.dispatchEvent(new Event('change', { bubbles: true }));
                         }
                         break;
                 }
+                
+                this.showSyncStatus();
             } catch (error) {
                 console.error('同步錯誤:', error);
             }
@@ -777,13 +818,7 @@
             // 載入顏色
             const colorSelect = this.findBVSelect('顏色');
             if (colorSelect && colorSelect.value) {
-                const colorMap = {
-                    '朱紅': '#dc3545',
-                    '黑色': '#000000',
-                    '藍色': '#0066cc',
-                    '綠色': '#28a745'
-                };
-                const actualColor = colorMap[colorSelect.value] || '#dc3545';
+                const actualColor = this.colorMap[colorSelect.value] || '#dc3545';
                 this.elements.colorSelect.value = actualColor;
                 this.currentSelection.color = actualColor;
             }
