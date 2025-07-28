@@ -1156,7 +1156,6 @@
                         font-family: ${fontFamily};
                         font-size: 36px;
                         color: ${this.currentSelection.color};
-                        font-weight: bold;
                         text-align: center;
                         padding: 0 10px;
                     ">${this.currentSelection.text}</span>
