@@ -661,3 +661,24 @@ function decryptFont(encryptedData) {
     return decrypted;
 }
 
+// 例如：匯出設定
+function exportSettings() {
+    const settings = {
+        fonts: uploadedData.fonts,
+        shapes: uploadedData.shapes,
+        patterns: uploadedData.patterns,
+        colors: uploadedData.colors,
+        timestamp: new Date().toISOString(),
+        version: '1.0.0'
+    };
+    
+    const blob = new Blob([JSON.stringify(settings, null, 2)], {
+        type: 'application/json'
+    });
+    
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `stamp-settings-${Date.now()}.json`;
+    a.click();
+}
