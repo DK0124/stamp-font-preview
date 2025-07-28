@@ -1,260 +1,439 @@
 // stamp-selector.js
-// 印章選擇器 Widget v1.0
-// 確保在各種載入情況下都能正常執行
-
 (function() {
-    'use strict';
-    
-    console.log('[Stamp Selector] Script loaded');
-    
-    // 主要初始化函數
-    function initStampSelector() {
-        console.log('[Stamp Selector] Initializing...');
-        
-        const container = document.getElementById('stamp-selector-root');
-        if (!container) {
-            console.error('[Stamp Selector] Container #stamp-selector-root not found');
-            return false;
-        }
-        
-        // 防止重複初始化
-        if (container.hasAttribute('data-initialized')) {
-            console.log('[Stamp Selector] Already initialized');
-            return false;
-        }
-        
-        container.setAttribute('data-initialized', 'true');
-        console.log('[Stamp Selector] Container found, building UI...');
-        
-        // 注入樣式
-        if (!document.getElementById('stamp-selector-styles')) {
-            const styles = `
-                #stamp-selector-root {
-                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", sans-serif;
-                    background: #f5f6fa;
-                    padding: 20px;
-                    border-radius: 12px;
-                    min-height: 500px;
+    // 防止重複載入
+    if (window._STAMP_SELECTOR_LOADED) return;
+    window._STAMP_SELECTOR_LOADED = true;
+
+    // 注入 CSS
+    const injectStyles = () => {
+        const styleId = 'stamp-selector-styles';
+        if (document.getElementById(styleId)) return;
+
+        const styles = `
+            /* 所有 CSS 樣式 */
+            #stamp-selector-root * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            #stamp-selector-root {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", sans-serif;
+                background: #f5f6fa;
+                color: #2c3e50;
+                padding: 20px;
+                border-radius: 20px;
+            }
+
+            /* 預覽區 */
+            #stamp-selector-root .preview-section {
+                background: white;
+                border-radius: 20px;
+                padding: 30px;
+                margin-bottom: 30px;
+                box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            }
+
+            #stamp-selector-root .live-preview {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 250px;
+                background: #fafbfc;
+                border-radius: 15px;
+            }
+
+            /* 主選擇區 */
+            #stamp-selector-root .selection-area {
+                display: grid;
+                grid-template-columns: 1fr 320px;
+                gap: 20px;
+            }
+
+            /* 字體選擇 */
+            #stamp-selector-root .font-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+                gap: 15px;
+                max-height: 500px;
+                overflow-y: auto;
+            }
+
+            #stamp-selector-root .font-card {
+                background: #fafbfc;
+                border: 3px solid transparent;
+                border-radius: 15px;
+                padding: 20px;
+                cursor: pointer;
+                transition: all 0.3s;
+                text-align: center;
+            }
+
+            #stamp-selector-root .font-card:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            }
+
+            #stamp-selector-root .font-card.selected {
+                border-color: #3498db;
+                background: #e3f2fd;
+            }
+
+            /* 選項面板 */
+            #stamp-selector-root .option-section {
+                background: white;
+                border-radius: 20px;
+                padding: 25px;
+                margin-bottom: 20px;
+                box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            }
+
+            /* 形狀選擇 */
+            #stamp-selector-root .shape-options {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+                margin-top: 15px;
+            }
+
+            #stamp-selector-root .shape-card {
+                aspect-ratio: 1;
+                background: #fafbfc;
+                border: 3px solid transparent;
+                border-radius: 12px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                transition: all 0.3s;
+            }
+
+            #stamp-selector-root .shape-card.selected {
+                border-color: #3498db;
+                background: #e3f2fd;
+            }
+
+            /* 顏色選擇 */
+            #stamp-selector-root .color-palette {
+                display: grid;
+                grid-template-columns: repeat(5, 1fr);
+                gap: 10px;
+                margin-top: 15px;
+            }
+
+            #stamp-selector-root .color-main {
+                width: 40px;
+                height: 40px;
+                border-radius: 8px;
+                cursor: pointer;
+                border: 3px solid transparent;
+                transition: all 0.3s;
+            }
+
+            #stamp-selector-root .color-main.selected {
+                border-color: #2c3e50;
+                transform: scale(1.1);
+            }
+
+            /* 響應式設計 */
+            @media (max-width: 768px) {
+                #stamp-selector-root .selection-area {
+                    grid-template-columns: 1fr;
                 }
                 
-                #stamp-selector-root * {
-                    box-sizing: border-box;
-                }
-                
-                #stamp-selector-root .preview-section {
-                    background: white;
-                    border-radius: 12px;
-                    padding: 30px;
-                    margin-bottom: 20px;
-                    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
-                }
-                
-                #stamp-selector-root .stamp-preview {
-                    width: 150px;
-                    height: 150px;
-                    border: 4px solid #e74c3c;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    margin: 0 auto;
-                    background: white;
-                    font-size: 36px;
-                    color: #e74c3c;
-                    font-weight: bold;
-                    font-family: KaiTi, "標楷體", serif;
-                }
-                
-                #stamp-selector-root .controls {
-                    background: white;
-                    border-radius: 12px;
-                    padding: 20px;
-                    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
-                }
-                
-                #stamp-selector-root input {
-                    width: 100%;
-                    padding: 10px;
-                    border: 2px solid #ddd;
-                    border-radius: 6px;
-                    font-size: 16px;
-                    margin: 10px 0;
-                }
-                
-                #stamp-selector-root .font-options {
-                    display: grid;
+                #stamp-selector-root .font-grid {
                     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-                    gap: 10px;
-                    margin: 20px 0;
                 }
-                
-                #stamp-selector-root .font-card {
-                    background: #f8f9fa;
-                    border: 2px solid #e0e0e0;
-                    border-radius: 8px;
-                    padding: 15px;
-                    text-align: center;
-                    cursor: pointer;
-                    transition: all 0.3s;
-                }
-                
-                #stamp-selector-root .font-card:hover {
-                    border-color: #3498db;
-                    transform: translateY(-2px);
-                }
-                
-                #stamp-selector-root .font-card.selected {
-                    background: #e3f2fd;
-                    border-color: #3498db;
-                }
-                
-                #stamp-selector-root .color-options {
-                    display: flex;
-                    gap: 10px;
-                    margin-top: 10px;
-                }
-                
-                #stamp-selector-root .color-box {
-                    width: 40px;
-                    height: 40px;
-                    border-radius: 8px;
-                    cursor: pointer;
-                    border: 3px solid transparent;
-                    transition: all 0.3s;
-                }
-                
-                #stamp-selector-root .color-box.selected {
-                    border-color: #333;
-                    transform: scale(1.1);
-                }
-            `;
-            
-            const styleSheet = document.createElement('style');
-            styleSheet.id = 'stamp-selector-styles';
-            styleSheet.textContent = styles;
-            document.head.appendChild(styleSheet);
-            console.log('[Stamp Selector] Styles injected');
-        }
-        
-        // 創建 HTML
-        container.innerHTML = `
+            }
+        `;
+
+        const styleSheet = document.createElement('style');
+        styleSheet.id = styleId;
+        styleSheet.textContent = styles;
+        document.head.appendChild(styleSheet);
+    };
+
+    // 創建 HTML 結構
+    const createHTML = () => {
+        return `
             <div class="preview-section">
-                <h2 style="text-align: center; margin-bottom: 20px;">印章預覽</h2>
-                <div class="stamp-preview" id="stamp-preview">
-                    印章
+                <h2 style="text-align: center; margin-bottom: 30px;">印章即時預覽</h2>
+                <div class="live-preview">
+                    <div id="stamp-preview-container">
+                        <!-- 動態生成預覽 -->
+                    </div>
                 </div>
             </div>
-            
-            <div class="controls">
-                <h3>印章文字</h3>
-                <input type="text" id="stamp-text-input" placeholder="輸入印章文字" value="印章" maxlength="6">
-                
-                <h3 style="margin-top: 20px;">選擇字體</h3>
-                <div class="font-options">
-                    <div class="font-card selected" data-font="KaiTi" style="font-family: KaiTi, '標楷體', serif;">
-                        <div style="font-size: 24px; margin-bottom: 5px;">印章</div>
-                        <small>楷書</small>
-                    </div>
-                    <div class="font-card" data-font="SimSun" style="font-family: SimSun, '宋體', serif;">
-                        <div style="font-size: 24px; margin-bottom: 5px;">印章</div>
-                        <small>宋體</small>
-                    </div>
-                    <div class="font-card" data-font="SimHei" style="font-family: SimHei, '微軟正黑體', sans-serif;">
-                        <div style="font-size: 24px; margin-bottom: 5px;">印章</div>
-                        <small>黑體</small>
+
+            <div class="selection-area">
+                <!-- 字體選擇區 -->
+                <div class="font-selection" style="background: white; border-radius: 20px; padding: 30px;">
+                    <h3 style="margin-bottom: 20px;">選擇字體</h3>
+                    <div class="font-grid" id="font-grid">
+                        <!-- 動態生成字體卡片 -->
                     </div>
                 </div>
-                
-                <h3 style="margin-top: 20px;">選擇顏色</h3>
-                <div class="color-options">
-                    <div class="color-box selected" style="background: #e74c3c;" data-color="#e74c3c"></div>
-                    <div class="color-box" style="background: #3498db;" data-color="#3498db"></div>
-                    <div class="color-box" style="background: #27ae60;" data-color="#27ae60"></div>
-                    <div class="color-box" style="background: #2c3e50;" data-color="#2c3e50"></div>
+
+                <!-- 選項面板 -->
+                <div class="options-panel">
+                    <!-- 文字輸入 -->
+                    <div class="option-section">
+                        <h4>印章文字</h4>
+                        <input type="text" id="stamp-text" placeholder="輸入文字" maxlength="6" 
+                               style="width: 100%; padding: 10px; margin-top: 10px; border: 2px solid #e0e0e0; border-radius: 8px;">
+                    </div>
+
+                    <!-- 形狀選擇 -->
+                    <div class="option-section">
+                        <h4>印章形狀</h4>
+                        <div class="shape-options" id="shape-options">
+                            <!-- 動態生成形狀選項 -->
+                        </div>
+                    </div>
+
+                    <!-- 顏色選擇 -->
+                    <div class="option-section">
+                        <h4>印章顏色</h4>
+                        <div class="color-palette" id="color-palette">
+                            <!-- 動態生成顏色選項 -->
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
-        
-        console.log('[Stamp Selector] HTML created');
-        
-        // 綁定事件
-        const preview = document.getElementById('stamp-preview');
-        const textInput = document.getElementById('stamp-text-input');
-        
-        if (!preview || !textInput) {
-            console.error('[Stamp Selector] Required elements not found');
-            return false;
-        }
-        
-        // 文字輸入事件
-        textInput.addEventListener('input', function(e) {
-            const text = e.target.value || '印章';
-            preview.textContent = text;
-            
-            // 更新所有字體卡片的預覽文字
-            container.querySelectorAll('.font-card > div').forEach(div => {
-                div.textContent = text;
-            });
-        });
-        
-        // 字體選擇事件
-        container.querySelectorAll('.font-card').forEach(card => {
-            card.addEventListener('click', function() {
-                container.querySelectorAll('.font-card').forEach(c => c.classList.remove('selected'));
-                this.classList.add('selected');
-                const font = this.dataset.font;
-                preview.style.fontFamily = this.style.fontFamily;
-                console.log('[Stamp Selector] Font changed to:', font);
-            });
-        });
-        
-        // 顏色選擇事件
-        container.querySelectorAll('.color-box').forEach(box => {
-            box.addEventListener('click', function() {
-                container.querySelectorAll('.color-box').forEach(b => b.classList.remove('selected'));
-                this.classList.add('selected');
-                const color = this.dataset.color;
-                preview.style.color = color;
-                preview.style.borderColor = color;
-                console.log('[Stamp Selector] Color changed to:', color);
-            });
-        });
-        
-        console.log('[Stamp Selector] Initialization complete!');
-        return true;
-    }
-    
-    // 嘗試多種初始化時機
-    function tryInit() {
-        if (initStampSelector()) {
-            return;
-        }
-        
-        // 如果失敗，稍後再試
-        setTimeout(tryInit, 100);
-    }
-    
-    // 1. 如果 DOM 已經載入完成
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        console.log('[Stamp Selector] DOM ready, init immediately');
-        tryInit();
-    } 
-    // 2. 等待 DOMContentLoaded
-    else {
-        console.log('[Stamp Selector] Waiting for DOMContentLoaded');
-        document.addEventListener('DOMContentLoaded', tryInit);
-    }
-    
-    // 3. 備用方案：window.onload
-    window.addEventListener('load', function() {
-        console.log('[Stamp Selector] Window loaded, ensuring init');
-        tryInit();
-    });
-    
-    // 4. 暴露手動初始化方法
-    window.initStampSelector = initStampSelector;
-    
-})();
+    };
 
-// 立即執行檢查
-console.log('[Stamp Selector] Script execution complete');
+    // 主要邏輯類
+    class StampSelector {
+        constructor(containerId) {
+            this.container = document.getElementById(containerId);
+            if (!this.container) {
+                console.error('找不到容器元素:', containerId);
+                return;
+            }
+
+            this.state = {
+                text: '印章範例',
+                font: '楷書',
+                fontFamily: 'KaiTi',
+                shape: 'circle',
+                color: '#e74c3c',
+                pattern: null
+            };
+
+            this.fonts = [
+                { name: '楷書', family: 'KaiTi, "標楷體", serif' },
+                { name: '隸書', family: '"隸書", FangSong, serif' },
+                { name: '宋體', family: 'SimSun, "宋體", serif' },
+                { name: '黑體', family: 'SimHei, "微軟正黑體", sans-serif' }
+            ];
+
+            this.shapes = [
+                { id: 'circle', name: '圓形', svg: 'M 50,50 m -40,0 a 40,40 0 1,0 80,0 a 40,40 0 1,0 -80,0' },
+                { id: 'square', name: '方形', svg: 'M 10,10 h 80 v 80 h -80 z' },
+                { id: 'rounded', name: '圓角方', svg: 'M 20,10 h 60 a 10,10 0 0 1 10,10 v 60 a 10,10 0 0 1 -10,10 h -60 a 10,10 0 0 1 -10,-10 v -60 a 10,10 0 0 1 10,-10' },
+                { id: 'ellipse', name: '橢圓形', svg: 'M 50,50 m -40,0 a 40,30 0 1,0 80,0 a 40,30 0 1,0 -80,0' }
+            ];
+
+            this.colors = [
+                { main: '#e74c3c', shades: ['#c0392b', '#e74c3c', '#ec7063'] },
+                { main: '#3498db', shades: ['#2980b9', '#3498db', '#5dade2'] },
+                { main: '#27ae60', shades: ['#229954', '#27ae60', '#52be80'] },
+                { main: '#f1c40f', shades: ['#f39c12', '#f1c40f', '#f4d03f'] },
+                { main: '#2c3e50', shades: ['#1c2833', '#2c3e50', '#34495e'] }
+            ];
+
+            this.init();
+        }
+
+        init() {
+            // 注入樣式
+            injectStyles();
+
+            // 創建 HTML
+            this.container.innerHTML = createHTML();
+
+            // 初始化各個部分
+            this.initFonts();
+            this.initShapes();
+            this.initColors();
+            this.initTextInput();
+            this.updatePreview();
+
+            // 綁定到全域以供外部訪問
+            window.stampSelector = this;
+        }
+
+        initFonts() {
+            const fontGrid = document.getElementById('font-grid');
+            
+            this.fonts.forEach((font, index) => {
+                const card = document.createElement('div');
+                card.className = 'font-card';
+                if (index === 0) card.classList.add('selected');
+                
+                card.innerHTML = `
+                    <div style="font-family: ${font.family}; font-size: 24px; margin-bottom: 10px;">
+                        ${this.state.text}
+                    </div>
+                    <div style="font-size: 14px; color: #7f8c8d;">${font.name}</div>
+                `;
+                
+                card.addEventListener('click', () => {
+                    document.querySelectorAll('.font-card').forEach(c => c.classList.remove('selected'));
+                    card.classList.add('selected');
+                    this.state.font = font.name;
+                    this.state.fontFamily = font.family;
+                    this.updatePreview();
+                    this.triggerChange();
+                });
+                
+                fontGrid.appendChild(card);
+            });
+        }
+
+        initShapes() {
+            const shapeOptions = document.getElementById('shape-options');
+            
+            this.shapes.forEach((shape, index) => {
+                const card = document.createElement('div');
+                card.className = 'shape-card';
+                if (index === 0) card.classList.add('selected');
+                
+                card.innerHTML = `
+                    <svg width="60" height="60" viewBox="0 0 100 100">
+                        <path d="${shape.svg}" fill="none" stroke="#e74c3c" stroke-width="3"/>
+                    </svg>
+                    <span style="font-size: 12px; color: #7f8c8d; margin-top: 5px;">${shape.name}</span>
+                `;
+                
+                card.addEventListener('click', () => {
+                    document.querySelectorAll('.shape-card').forEach(c => c.classList.remove('selected'));
+                    card.classList.add('selected');
+                    this.state.shape = shape.id;
+                    this.updatePreview();
+                    this.triggerChange();
+                });
+                
+                shapeOptions.appendChild(card);
+            });
+        }
+
+        initColors() {
+            const colorPalette = document.getElementById('color-palette');
+            
+            this.colors.forEach((colorGroup, index) => {
+                const group = document.createElement('div');
+                group.className = 'color-group';
+                
+                const mainColor = document.createElement('div');
+                mainColor.className = 'color-main';
+                if (index === 0) mainColor.classList.add('selected');
+                mainColor.style.backgroundColor = colorGroup.main;
+                
+                mainColor.addEventListener('click', () => {
+                    document.querySelectorAll('.color-main').forEach(c => c.classList.remove('selected'));
+                    mainColor.classList.add('selected');
+                    this.state.color = colorGroup.main;
+                    this.updatePreview();
+                    this.triggerChange();
+                });
+                
+                group.appendChild(mainColor);
+                colorPalette.appendChild(group);
+            });
+        }
+
+        initTextInput() {
+            const textInput = document.getElementById('stamp-text');
+            textInput.value = this.state.text;
+            
+            textInput.addEventListener('input', (e) => {
+                this.state.text = e.target.value || '印章範例';
+                this.updatePreview();
+                this.updateFontPreviews();
+                this.triggerChange();
+            });
+        }
+
+        updateFontPreviews() {
+            document.querySelectorAll('.font-card').forEach((card, index) => {
+                const previewText = card.querySelector('div');
+                previewText.textContent = this.state.text;
+            });
+        }
+
+        updatePreview() {
+            const container = document.getElementById('stamp-preview-container');
+            const shape = this.shapes.find(s => s.id === this.state.shape);
+            
+            let shapeStyle = '';
+            switch(this.state.shape) {
+                case 'circle':
+                    shapeStyle = 'border-radius: 50%;';
+                    break;
+                case 'square':
+                    shapeStyle = 'border-radius: 0;';
+                    break;
+                case 'rounded':
+                    shapeStyle = 'border-radius: 15%;';
+                    break;
+                case 'ellipse':
+                    shapeStyle = 'border-radius: 50%; width: 200px; height: 150px;';
+                    break;
+            }
+            
+            container.innerHTML = `
+                <div style="
+                    width: 180px;
+                    height: 180px;
+                    border: 4px solid ${this.state.color};
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: white;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                    ${shapeStyle}
+                ">
+                    <span style="
+                        font-family: ${this.state.fontFamily};
+                        font-size: 48px;
+                        color: ${this.state.color};
+                        font-weight: bold;
+                    ">${this.state.text}</span>
+                </div>
+            `;
+        }
+
+        triggerChange() {
+            // 觸發自訂事件，讓外部程式可以監聽變化
+            const event = new CustomEvent('stampChange', { 
+                detail: this.state 
+            });
+            this.container.dispatchEvent(event);
+        }
+
+        // 取得當前狀態
+        getState() {
+            return { ...this.state };
+        }
+
+        // 設定狀態
+        setState(newState) {
+            this.state = { ...this.state, ...newState };
+            this.updatePreview();
+        }
+    }
+
+    // 自動初始化或等待手動初始化
+    document.addEventListener('DOMContentLoaded', () => {
+        const autoInit = document.querySelector('[data-stamp-selector-auto]');
+        if (autoInit) {
+            new StampSelector(autoInit.id);
+        }
+    });
+
+    // 暴露到全域
+    window.StampSelector = StampSelector;
+})();
