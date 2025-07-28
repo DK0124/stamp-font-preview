@@ -1078,11 +1078,11 @@
         isLoading: false,
         bvShopListeners: [],
 
-        // 初始化
+        // 初始化       
         init: function() {
             const widget = document.getElementById('stamp-custom-font-widget');
             if (!widget) return;
-
+        
             this.elements = {
                 textInput: widget.querySelector('#scfw-text'),
                 fontSearch: widget.querySelector('#scfw-font-search'),
@@ -1094,18 +1094,61 @@
                 mainPreview: widget.querySelector('#scfw-main-preview')
             };
 
-            this.initializeShapes();
-            this.initializeBorderStyles();
-            this.initializeColors();
-            this.initializePatterns();
-            this.bindEvents();
-            this.updateMainPreview();
+            // 先載入自訂設定
+            this.loadCustomConfig().then(() => {
+                // 設定載入完成後，初始化介面
+                this.initializeShapes();
+                this.initializeBorderStyles();
+                this.initializeColors();
+                this.initializePatterns();
+                this.bindEvents();
+                this.updateMainPreview();
+        
+                setTimeout(() => {
+                    this.setupBVShopListeners();
+                    this.loadFromBVShop();
+                    this.loadAllFonts();
+                }, 500);
+            });
+        },
 
-            setTimeout(() => {
-                this.setupBVShopListeners();
-                this.loadFromBVShop();
-                this.loadAllFonts();
-            }, 500);
+        // 從 GitHub 載入自訂設定
+        loadCustomConfig: async function() {
+            try {
+                const response = await fetch(
+                    'https://raw.githubusercontent.com/DK0124/stamp-font-preview/main/config/stamp-config.json'
+                );
+                
+                if (response.ok) {
+                    const config = await response.json();
+                    console.log('載入自訂設定:', config);
+                    
+                    // 合併自訂字體
+                    if (config.fonts && config.fonts.length > 0) {
+                        // 將自訂字體加到列表前面
+                        this.availableFonts = [...config.fonts, ...this.availableFonts];
+                    }
+                    
+                    // 合併自訂顏色
+                    if (config.colors && config.colors.length > 0) {
+                        this.colorGroups = [...config.colors, ...this.colorGroups];
+                    }
+                    
+                    // 如果有自訂形狀
+                    if (config.shapes && config.shapes.length > 0) {
+                        this.shapes = [...config.shapes, ...this.shapes];
+                    }
+                    
+                    // 如果有自訂圖案
+                    if (config.patterns && config.patterns.length > 0) {
+                        this.patterns = [...config.patterns, ...this.patterns];
+                    }
+                    
+                    console.log('設定載入完成');
+                }
+            } catch (error) {
+                console.error('載入自訂設定失敗:', error);
+            }
         },
 
         // 初始化形狀
