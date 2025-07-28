@@ -1019,3 +1019,117 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// 在 admin.js 中加入 GitHub API 整合
+const GitHubIntegration = {
+    owner: 'DK0124',
+    repo: 'stamp-font-preview',
+    token: 'YOUR_GITHUB_TOKEN', // 需要在 GitHub 生成 Personal Access Token
+    
+    // 儲存設定到 GitHub
+    async saveConfig() {
+        const config = {
+            fonts: uploadedData.fonts.map(f => ({
+                id: f.id,
+                name: f.name,
+                filename: f.name + '.ttf',
+                displayName: f.name,
+                category: 'custom',
+                weight: f.weight
+            })),
+            shapes: uploadedData.shapes,
+            patterns: uploadedData.patterns,
+            colors: uploadedData.colors,
+            lastUpdate: new Date().toISOString(),
+            version: '1.0.0'
+        };
+        
+        const content = btoa(JSON.stringify(config, null, 2));
+        
+        try {
+            // 更新 config.json
+            const response = await fetch(
+                `https://api.github.com/repos/${this.owner}/${this.repo}/contents/config/stamp-config.json`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${this.token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: `Update stamp config - ${new Date().toLocaleString()}`,
+                        content: content,
+                        sha: await this.getFileSha('config/stamp-config.json')
+                    })
+                }
+            );
+            
+            if (response.ok) {
+                showNotification('設定已儲存到 GitHub', 'success');
+            }
+        } catch (error) {
+            console.error('儲存失敗:', error);
+            showNotification('儲存失敗', 'danger');
+        }
+    },
+    
+    // 取得檔案 SHA
+    async getFileSha(path) {
+        const response = await fetch(
+            `https://api.github.com/repos/${this.owner}/${this.repo}/contents/${path}`,
+            {
+                headers: {
+                    'Authorization': `token ${this.token}`
+                }
+            }
+        );
+        const data = await response.json();
+        return data.sha;
+    },
+    
+    // 上傳字體檔案
+    async uploadFont(fontData) {
+        const content = fontData.url.split(',')[1]; // 取得 base64 內容
+        
+        try {
+            const response = await fetch(
+                `https://api.github.com/repos/${this.owner}/${this.repo}/contents/fonts/${fontData.name}.ttf`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${this.token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: `Add font: ${fontData.name}`,
+                        content: content
+                    })
+                }
+            );
+            
+            if (response.ok) {
+                showNotification('字體已上傳到 GitHub', 'success');
+            }
+        } catch (error) {
+            console.error('上傳失敗:', error);
+        }
+    }
+};
+
+// 修改 admin.js 中的儲存按鈕
+function saveAllSettings() {
+    GitHubIntegration.saveConfig();
+}
+
+// 在後台頁面加入儲存按鈕
+function addSaveButton() {
+    const header = document.querySelector('.admin-header');
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'btn btn-success';
+    saveBtn.innerHTML = `
+        <span class="material-icons">cloud_upload</span>
+        儲存到 GitHub
+    `;
+    saveBtn.onclick = saveAllSettings;
+    header.appendChild(saveBtn);
+}
