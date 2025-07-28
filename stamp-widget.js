@@ -912,12 +912,12 @@
 
         currentSelection: {
             text: '印章範例',
-            font: '楷書',
-            fontId: 8,
-            shape: 'circle',
-            borderStyle: 'solid',
-            pattern: 'none',
-            color: '#e57373',
+            font: '粗線體不等寬',          // 原本是 '楷書'
+            fontId: 4,                      // 原本是 8，改為 4（粗線體不等寬的 ID）
+            shape: 'circle',                // 保持圓形
+            borderStyle: 'solid',           
+            pattern: 'none',                // 保持無圖案
+            color: '#ff9800',               // 原本是 '#e57373'，改為深黃色（琥珀黃的深色）
             category: 'all'
         },
 
