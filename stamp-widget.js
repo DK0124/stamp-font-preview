@@ -1,9 +1,9 @@
 /**
- * 印章字體預覽系統 Widget - Apple Glass Design
+ * 印章字體預覽系統 Widget - 響應式優化版
  * @author DK0124
- * @version 3.0.0
+ * @version 4.0.0
  * @date 2025-01-28
- * @description 採用 Apple 玻璃質感設計的印章預覽系統
+ * @description 針對商品頁面優化的響應式印章預覽系統
  */
 
 (function() {
@@ -36,14 +36,16 @@
             --selected-bg: rgba(159, 178, 142, 0.2);
         }
         
-        /* 主容器 */
+        /* 主容器 - 適應商品頁面 */
         #stamp-custom-font-widget {
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", "Microsoft JhengHei", sans-serif;
             background: var(--primary-bg);
-            border-radius: 24px;
-            padding: 32px;
+            border-radius: 16px;
+            padding: 16px;
             position: relative;
             overflow: hidden;
+            max-width: 100%;
+            box-sizing: border-box;
         }
         
         #stamp-custom-font-widget::before {
@@ -76,66 +78,44 @@
                 inset 0 1px 0 rgba(255, 255, 255, 0.2);
         }
         
-        /* 頂部預覽區 */
+        /* 頂部預覽區 - 簡化版 */
         #stamp-custom-font-widget .scfw-preview-section {
             position: relative;
             z-index: 1;
-            margin-bottom: 32px;
+            margin-bottom: 20px;
         }
         
         #stamp-custom-font-widget .scfw-preview-container {
             background: linear-gradient(135deg, var(--accent-color) 0%, rgba(159, 178, 142, 0.8) 100%);
-            border-radius: 20px;
-            padding: 48px;
+            border-radius: 12px;
+            padding: 24px;
             text-align: center;
             position: relative;
             overflow: hidden;
         }
         
-        #stamp-custom-font-widget .scfw-preview-container::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -50%;
-            width: 200%;
-            height: 200%;
-            background: 
-                radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 40%),
-                radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
-            animation: float 20s ease-in-out infinite;
-        }
-        
-        @keyframes float {
-            0%, 100% { transform: translate(0, 0) rotate(0deg); }
-            50% { transform: translate(-20px, -20px) rotate(180deg); }
-        }
-        
         #stamp-custom-font-widget .scfw-preview-title {
             color: white;
-            font-size: 20px;
+            font-size: 16px;
             font-weight: 600;
-            margin-bottom: 24px;
-            position: relative;
-            z-index: 1;
+            margin-bottom: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 12px;
+            gap: 8px;
         }
         
         #stamp-custom-font-widget .scfw-preview-title .material-icons {
-            font-size: 24px;
-            opacity: 0.9;
+            font-size: 20px;
         }
         
         #stamp-custom-font-widget .scfw-stamp-preview-wrapper {
             display: inline-block;
-            padding: 40px;
+            padding: 20px;
             background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
+            border-radius: 12px;
             position: relative;
             z-index: 1;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
         }
         
         #stamp-custom-font-widget .scfw-stamp-display {
@@ -143,19 +123,19 @@
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
-        /* 主內容區 */
+        /* 主內容區 - 單欄式佈局 */
         #stamp-custom-font-widget .scfw-content {
             display: grid;
-            grid-template-columns: 1fr 400px;
-            gap: 24px;
+            grid-template-columns: 1fr;
+            gap: 20px;
             position: relative;
             z-index: 1;
         }
         
         /* 字體選擇區 */
         #stamp-custom-font-widget .scfw-fonts-section {
-            border-radius: 20px;
-            padding: 32px;
+            border-radius: 12px;
+            padding: 20px;
             display: flex;
             flex-direction: column;
         }
@@ -164,45 +144,45 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 24px;
+            margin-bottom: 16px;
         }
         
         #stamp-custom-font-widget .scfw-section-title {
-            font-size: 22px;
+            font-size: 18px;
             font-weight: 600;
             color: var(--text-primary);
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 8px;
         }
         
         #stamp-custom-font-widget .scfw-section-title .material-icons {
-            font-size: 28px;
+            font-size: 24px;
             color: var(--accent-color);
         }
         
         /* 搜尋框 */
         #stamp-custom-font-widget .scfw-search-container {
             position: relative;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
         
         #stamp-custom-font-widget .scfw-search-icon {
             position: absolute;
-            left: 16px;
+            left: 12px;
             top: 50%;
             transform: translateY(-50%);
             color: var(--text-secondary);
-            font-size: 20px;
+            font-size: 18px;
         }
         
         #stamp-custom-font-widget .scfw-search-input {
             width: 100%;
-            padding: 14px 16px 14px 48px;
+            padding: 10px 12px 10px 40px;
             background: rgba(255, 255, 255, 0.6);
             border: 1px solid var(--glass-border);
-            border-radius: 12px;
-            font-size: 16px;
+            border-radius: 8px;
+            font-size: 14px;
             color: var(--text-primary);
             transition: all 0.3s;
         }
@@ -211,204 +191,187 @@
             outline: none;
             background: rgba(255, 255, 255, 0.8);
             border-color: var(--accent-color);
-            box-shadow: 0 0 0 4px rgba(159, 178, 142, 0.1);
-        }
-        
-        #stamp-custom-font-widget .scfw-search-input::placeholder {
-            color: var(--text-secondary);
+            box-shadow: 0 0 0 3px rgba(159, 178, 142, 0.1);
         }
         
         /* 分類標籤 */
         #stamp-custom-font-widget .scfw-categories {
             display: flex;
-            gap: 12px;
-            margin-bottom: 24px;
-            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        
+        #stamp-custom-font-widget .scfw-categories::-webkit-scrollbar {
+            display: none;
         }
         
         #stamp-custom-font-widget .scfw-category {
-            padding: 10px 20px;
+            padding: 6px 12px;
             background: rgba(255, 255, 255, 0.5);
             border: 1px solid transparent;
-            border-radius: 12px;
-            font-size: 14px;
+            border-radius: 8px;
+            font-size: 12px;
             font-weight: 500;
             color: var(--text-primary);
             cursor: pointer;
             transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        #stamp-custom-font-widget .scfw-category::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: var(--accent-color);
-            opacity: 0;
-            transition: opacity 0.3s;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
         
         #stamp-custom-font-widget .scfw-category:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px var(--shadow-color);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px var(--shadow-color);
         }
         
         #stamp-custom-font-widget .scfw-category.active {
             background: var(--accent-color);
             color: white;
-            border-color: var(--accent-color);
         }
         
-        #stamp-custom-font-widget .scfw-category span {
-            position: relative;
-            z-index: 1;
-        }
-        
-        /* 字體網格 */
+        /* 字體網格 - 優化空間 */
         #stamp-custom-font-widget .scfw-fonts-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-            gap: 16px;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
             overflow-y: auto;
-            max-height: 600px;
-            padding-right: 8px;
-            flex: 1;
+            max-height: 400px;
+            padding-right: 4px;
         }
         
         #stamp-custom-font-widget .scfw-font-item {
             background: rgba(255, 255, 255, 0.6);
             border: 2px solid transparent;
-            border-radius: 16px;
-            padding: 24px;
+            border-radius: 12px;
+            padding: 16px;
             cursor: pointer;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             overflow: hidden;
-        }
-        
-        #stamp-custom-font-widget .scfw-font-item::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(135deg, transparent 0%, var(--hover-bg) 100%);
-            opacity: 0;
-            transition: opacity 0.3s;
+            text-align: center;
         }
         
         #stamp-custom-font-widget .scfw-font-item:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 24px var(--shadow-color);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px var(--shadow-color);
             border-color: var(--glass-border);
-        }
-        
-        #stamp-custom-font-widget .scfw-font-item:hover::before {
-            opacity: 1;
         }
         
         #stamp-custom-font-widget .scfw-font-item.selected {
             background: rgba(159, 178, 142, 0.15);
             border-color: var(--accent-color);
-            box-shadow: 
-                0 8px 24px rgba(159, 178, 142, 0.2),
-                inset 0 1px 0 rgba(255, 255, 255, 0.5);
         }
         
         #stamp-custom-font-widget .scfw-font-item.selected::after {
-            content: '';
+            content: '✓';
             position: absolute;
-            top: 12px;
-            right: 12px;
-            width: 24px;
-            height: 24px;
+            top: 8px;
+            right: 8px;
+            width: 20px;
+            height: 20px;
             background: var(--accent-color);
+            color: white;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 2px 8px rgba(159, 178, 142, 0.3);
-        }
-        
-        #stamp-custom-font-widget .scfw-font-item.selected::before {
-            content: '✓';
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            width: 24px;
-            height: 24px;
-            color: white;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1;
         }
         
         #stamp-custom-font-widget .scfw-font-preview {
-            font-size: 36px;
+            font-size: 24px;
             color: var(--text-primary);
-            text-align: center;
-            margin-bottom: 12px;
-            height: 60px;
+            margin-bottom: 8px;
+            height: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
-            position: relative;
-            z-index: 1;
         }
         
         #stamp-custom-font-widget .scfw-font-label {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 500;
             color: var(--text-secondary);
-            text-align: center;
-            position: relative;
-            z-index: 1;
         }
         
-        /* 右側選項面板 */
-        #stamp-custom-font-widget .scfw-options-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        
-        #stamp-custom-font-widget .scfw-option-card {
-            border-radius: 20px;
-            padding: 24px;
+        /* 標籤頁樣式 */
+        #stamp-custom-font-widget .scfw-options-tabs {
+            background: rgba(255, 255, 255, 0.6);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 20px;
         }
         
-        #stamp-custom-font-widget .scfw-option-header {
+        #stamp-custom-font-widget .scfw-tabs-header {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        
+        #stamp-custom-font-widget .scfw-tabs-header::-webkit-scrollbar {
+            display: none;
+        }
+        
+        #stamp-custom-font-widget .scfw-tab-btn {
             display: flex;
             align-items: center;
-            gap: 12px;
-            margin-bottom: 20px;
+            gap: 6px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid transparent;
+            border-radius: 8px;
+            font-size: 14px;
             color: var(--text-primary);
-            font-weight: 600;
-            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
         
-        #stamp-custom-font-widget .scfw-option-header .material-icons {
-            font-size: 20px;
-            color: var(--accent-color);
+        #stamp-custom-font-widget .scfw-tab-btn .material-icons {
+            font-size: 18px;
+        }
+        
+        #stamp-custom-font-widget .scfw-tab-btn:hover {
+            background: rgba(255, 255, 255, 0.8);
+            transform: translateY(-1px);
+        }
+        
+        #stamp-custom-font-widget .scfw-tab-btn.active {
+            background: var(--accent-color);
+            color: white;
+        }
+        
+        #stamp-custom-font-widget .scfw-tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        #stamp-custom-font-widget .scfw-tab-content.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
         /* 文字輸入 */
         #stamp-custom-font-widget .scfw-text-input {
             width: 100%;
-            padding: 16px;
+            padding: 12px;
             background: rgba(255, 255, 255, 0.6);
             border: 1px solid var(--glass-border);
-            border-radius: 12px;
+            border-radius: 8px;
             font-size: 16px;
             color: var(--text-primary);
             text-align: center;
@@ -419,35 +382,34 @@
             outline: none;
             background: rgba(255, 255, 255, 0.8);
             border-color: var(--accent-color);
-            box-shadow: 0 0 0 4px rgba(159, 178, 142, 0.1);
+            box-shadow: 0 0 0 3px rgba(159, 178, 142, 0.1);
         }
         
         /* 形狀選擇 */
         #stamp-custom-font-widget .scfw-shapes-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 16px;
         }
         
         #stamp-custom-font-widget .scfw-shape-item {
             aspect-ratio: 1;
             background: rgba(255, 255, 255, 0.5);
             border: 2px solid transparent;
-            border-radius: 12px;
+            border-radius: 8px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            gap: 4px;
             cursor: pointer;
             transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
         }
         
         #stamp-custom-font-widget .scfw-shape-item:hover {
             transform: scale(1.05);
-            box-shadow: 0 8px 20px var(--shadow-color);
+            background: rgba(255, 255, 255, 0.8);
         }
         
         #stamp-custom-font-widget .scfw-shape-item.selected {
@@ -456,14 +418,13 @@
         }
         
         #stamp-custom-font-widget .scfw-shape-preview {
-            width: 60px;
-            height: 60px;
-            border: 3px solid var(--accent-color);
-            position: relative;
+            width: 40px;
+            height: 40px;
+            border: 2px solid var(--accent-color);
         }
         
         #stamp-custom-font-widget .scfw-shape-label {
-            font-size: 12px;
+            font-size: 10px;
             font-weight: 500;
             color: var(--text-secondary);
         }
@@ -472,23 +433,24 @@
         #stamp-custom-font-widget .scfw-border-styles {
             display: flex;
             gap: 8px;
-            margin-top: 16px;
             padding: 8px;
             background: rgba(255, 255, 255, 0.3);
-            border-radius: 12px;
+            border-radius: 8px;
+            overflow-x: auto;
         }
         
         #stamp-custom-font-widget .scfw-border-style {
-            width: 48px;
-            height: 48px;
+            width: 40px;
+            height: 40px;
             background: rgba(255, 255, 255, 0.6);
             border: 2px solid transparent;
-            border-radius: 8px;
+            border-radius: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             transition: all 0.3s;
+            flex-shrink: 0;
         }
         
         #stamp-custom-font-widget .scfw-border-style:hover {
@@ -502,62 +464,43 @@
         }
         
         #stamp-custom-font-widget .scfw-border-style svg {
-            width: 32px;
-            height: 32px;
+            width: 28px;
+            height: 28px;
         }
         
         /* 顏色選擇 */
         #stamp-custom-font-widget .scfw-colors-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
+            gap: 12px;
         }
         
         #stamp-custom-font-widget .scfw-color-group {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
         
         #stamp-custom-font-widget .scfw-color-main {
-            width: 56px;
-            height: 56px;
-            border-radius: 16px;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
             cursor: pointer;
             transition: all 0.3s;
             position: relative;
-            overflow: hidden;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-        
-        #stamp-custom-font-widget .scfw-color-main::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 0;
-            height: 0;
-            background: rgba(255, 255, 255, 0.4);
-            border-radius: 50%;
-            transition: all 0.6s;
-        }
-        
-        #stamp-custom-font-widget .scfw-color-main:hover::before {
-            width: 100%;
-            height: 100%;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
         
         #stamp-custom-font-widget .scfw-color-main:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
         
         #stamp-custom-font-widget .scfw-color-main.selected {
             transform: scale(1.1);
             box-shadow: 
-                0 8px 24px rgba(0, 0, 0, 0.2),
+                0 6px 16px rgba(0, 0, 0, 0.2),
                 inset 0 0 0 3px rgba(255, 255, 255, 0.5);
         }
         
@@ -568,55 +511,50 @@
             left: 50%;
             transform: translate(-50%, -50%);
             color: white;
-            font-size: 20px;
+            font-size: 18px;
             font-weight: bold;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
         }
         
         #stamp-custom-font-widget .scfw-color-shades {
             display: flex;
-            gap: 4px;
+            gap: 3px;
         }
         
         #stamp-custom-font-widget .scfw-color-shade {
-            width: 16px;
-            height: 16px;
-            border-radius: 4px;
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
             cursor: pointer;
             transition: all 0.3s;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
         
         #stamp-custom-font-widget .scfw-color-shade:hover {
             transform: scale(1.3);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
         
         /* 圖案選擇 */
         #stamp-custom-font-widget .scfw-patterns-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
+            gap: 8px;
         }
         
         #stamp-custom-font-widget .scfw-pattern-item {
             aspect-ratio: 1;
             background: rgba(255, 255, 255, 0.5);
             border: 2px solid transparent;
-            border-radius: 12px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
         }
         
         #stamp-custom-font-widget .scfw-pattern-item:hover {
             transform: scale(1.05);
             background: rgba(255, 255, 255, 0.7);
-            box-shadow: 0 6px 16px var(--shadow-color);
         }
         
         #stamp-custom-font-widget .scfw-pattern-item.selected {
@@ -625,19 +563,14 @@
         }
         
         #stamp-custom-font-widget .scfw-pattern-svg {
-            width: 32px;
-            height: 32px;
+            width: 28px;
+            height: 28px;
             opacity: 0.7;
-            transition: all 0.3s;
-        }
-        
-        #stamp-custom-font-widget .scfw-pattern-item:hover .scfw-pattern-svg {
-            opacity: 1;
-            transform: scale(1.1);
+            color: var(--text-primary);
         }
         
         #stamp-custom-font-widget .scfw-pattern-none {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 600;
             color: var(--text-secondary);
         }
@@ -648,32 +581,27 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 60px;
-            gap: 16px;
+            padding: 40px;
+            gap: 12px;
         }
         
         #stamp-custom-font-widget .scfw-loading-spinner {
-            width: 48px;
-            height: 48px;
+            width: 36px;
+            height: 36px;
             border: 3px solid var(--glass-border);
             border-top-color: var(--accent-color);
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
         
-        #stamp-custom-font-widget .scfw-loading-text {
-            color: var(--text-secondary);
-            font-size: 14px;
-        }
-        
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
         
-        /* 自訂滾動條 */
+        /* 滾動條美化 */
         #stamp-custom-font-widget ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
+            width: 6px;
+            height: 6px;
         }
         
         #stamp-custom-font-widget ::-webkit-scrollbar-track {
@@ -684,41 +612,79 @@
         #stamp-custom-font-widget ::-webkit-scrollbar-thumb {
             background: var(--glass-border);
             border-radius: 10px;
-            border: 2px solid transparent;
-            background-clip: padding-box;
         }
         
         #stamp-custom-font-widget ::-webkit-scrollbar-thumb:hover {
             background: var(--accent-color);
-            background-clip: padding-box;
         }
         
-        /* 響應式設計 */
-        @media (max-width: 1024px) {
-            #stamp-custom-font-widget .scfw-content {
-                grid-template-columns: 1fr;
-            }
-            
-            #stamp-custom-font-widget .scfw-options-panel {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-        
+        /* 手機版優化 */
         @media (max-width: 640px) {
             #stamp-custom-font-widget {
-                padding: 20px;
+                padding: 12px;
+                border-radius: 12px;
             }
             
+            #stamp-custom-font-widget .scfw-preview-container {
+                padding: 16px;
+            }
+            
+            #stamp-custom-font-widget .scfw-stamp-display > div {
+                transform: scale(0.8);
+            }
+            
+            #stamp-custom-font-widget .scfw-fonts-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+                max-height: 300px;
+            }
+            
+            #stamp-custom-font-widget .scfw-font-item {
+                padding: 12px;
+            }
+            
+            #stamp-custom-font-widget .scfw-font-preview {
+                font-size: 20px;
+                height: 32px;
+            }
+            
+            #stamp-custom-font-widget .scfw-shapes-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            #stamp-custom-font-widget .scfw-colors-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 10px;
+            }
+            
+            #stamp-custom-font-widget .scfw-patterns-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            
+            #stamp-custom-font-widget .scfw-tab-btn {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+            
+            #stamp-custom-font-widget .scfw-tab-btn .material-icons {
+                font-size: 16px;
+            }
+        }
+        
+        /* 極小螢幕優化 */
+        @media (max-width: 375px) {
             #stamp-custom-font-widget .scfw-fonts-grid {
                 grid-template-columns: 1fr;
             }
             
-            #stamp-custom-font-widget .scfw-options-panel {
-                grid-template-columns: 1fr;
+            #stamp-custom-font-widget .scfw-stamp-display > div {
+                transform: scale(0.7);
             }
             
-            #stamp-custom-font-widget .scfw-preview-container {
-                padding: 32px 20px;
+            #stamp-custom-font-widget .scfw-shapes-grid,
+            #stamp-custom-font-widget .scfw-colors-grid,
+            #stamp-custom-font-widget .scfw-patterns-grid {
+                grid-template-columns: repeat(2, 1fr);
             }
         }
     `;
@@ -761,18 +727,10 @@
                     </div>
                     
                     <div class="scfw-categories">
-                        <button class="scfw-category active" data-category="all">
-                            <span>全部</span>
-                        </button>
-                        <button class="scfw-category" data-category="traditional">
-                            <span>傳統</span>
-                        </button>
-                        <button class="scfw-category" data-category="handwrite">
-                            <span>手寫</span>
-                        </button>
-                        <button class="scfw-category" data-category="modern">
-                            <span>現代</span>
-                        </button>
+                        <button class="scfw-category active" data-category="all">全部</button>
+                        <button class="scfw-category" data-category="traditional">傳統</button>
+                        <button class="scfw-category" data-category="handwrite">手寫</button>
+                        <button class="scfw-category" data-category="modern">現代</button>
                     </div>
                     
                     <div class="scfw-fonts-grid" id="scfw-fonts-grid">
@@ -783,55 +741,61 @@
                     </div>
                 </div>
                 
-                <!-- 選項面板 -->
-                <div class="scfw-options-panel">
-                    <!-- 文字輸入 -->
-                    <div class="scfw-option-card glass-effect">
-                        <div class="scfw-option-header">
+                <!-- 選項標籤頁 -->
+                <div class="scfw-options-tabs glass-effect">
+                    <div class="scfw-tabs-header">
+                        <button class="scfw-tab-btn active" data-tab="text">
                             <span class="material-icons">edit</span>
-                            印章文字
-                        </div>
-                        <input type="text" 
-                               class="scfw-text-input" 
-                               id="scfw-text"
-                               placeholder="輸入印章文字"
-                               maxlength="6"
-                               value="印章範例">
-                    </div>
-                    
-                    <!-- 形狀選擇 -->
-                    <div class="scfw-option-card glass-effect">
-                        <div class="scfw-option-header">
+                            <span>文字</span>
+                        </button>
+                        <button class="scfw-tab-btn" data-tab="shape">
                             <span class="material-icons">category</span>
-                            印章形狀
-                        </div>
-                        <div class="scfw-shapes-grid" id="scfw-shapes-grid">
-                            <!-- 動態生成 -->
-                        </div>
-                        <div class="scfw-border-styles" id="scfw-border-styles">
-                            <!-- 動態生成 -->
-                        </div>
-                    </div>
-                    
-                    <!-- 顏色選擇 -->
-                    <div class="scfw-option-card glass-effect">
-                        <div class="scfw-option-header">
+                            <span>形狀</span>
+                        </button>
+                        <button class="scfw-tab-btn" data-tab="color">
                             <span class="material-icons">palette</span>
-                            印章顏色
-                        </div>
-                        <div class="scfw-colors-grid" id="scfw-colors-grid">
-                            <!-- 動態生成 -->
-                        </div>
+                            <span>顏色</span>
+                        </button>
+                        <button class="scfw-tab-btn" data-tab="pattern">
+                            <span class="material-icons">stars</span>
+                            <span>圖案</span>
+                        </button>
                     </div>
                     
-                    <!-- 圖案選擇 -->
-                    <div class="scfw-option-card glass-effect">
-                        <div class="scfw-option-header">
-                            <span class="material-icons">stars</span>
-                            裝飾圖案
+                    <div class="scfw-tabs-content">
+                        <!-- 文字標籤頁 -->
+                        <div class="scfw-tab-content active" data-tab="text">
+                            <input type="text" 
+                                   class="scfw-text-input" 
+                                   id="scfw-text"
+                                   placeholder="輸入印章文字（最多6字）"
+                                   maxlength="6"
+                                   value="印章範例">
                         </div>
-                        <div class="scfw-patterns-grid" id="scfw-patterns-grid">
-                            <!-- 動態生成 -->
+                        
+                        <!-- 形狀標籤頁 -->
+                        <div class="scfw-tab-content" data-tab="shape">
+                            <div class="scfw-shapes-grid" id="scfw-shapes-grid">
+                                <!-- 動態生成 -->
+                            </div>
+                            <div style="margin-top: 12px; font-size: 12px; color: var(--text-secondary); font-weight: 500;">邊框樣式</div>
+                            <div class="scfw-border-styles" id="scfw-border-styles">
+                                <!-- 動態生成 -->
+                            </div>
+                        </div>
+                        
+                        <!-- 顏色標籤頁 -->
+                        <div class="scfw-tab-content" data-tab="color">
+                            <div class="scfw-colors-grid" id="scfw-colors-grid">
+                                <!-- 動態生成 -->
+                            </div>
+                        </div>
+                        
+                        <!-- 圖案標籤頁 -->
+                        <div class="scfw-tab-content" data-tab="pattern">
+                            <div class="scfw-patterns-grid" id="scfw-patterns-grid">
+                                <!-- 動態生成 -->
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -843,26 +807,26 @@
     const patternSVGs = {
         none: '',
         flower: `<svg viewBox="0 0 32 32" fill="currentColor">
-            <path d="M16 8c0-4.4-3.6-8-8-8s-8 3.6-8 8c0 4.4 3.6 8 8 8 1.4 0 2.7-.4 3.8-1 .7 2.3 2.9 4 5.5 4 3.1 0 5.7-2.5 5.7-5.7 0-2.6-1.7-4.8-4-5.5.6-1.1 1-2.4 1-3.8 0-4.4-3.6-8-8-8s-8 3.6-8 8c0 1.4.4 2.7 1 3.8-2.3.7-4 2.9-4 5.5 0 3.1 2.5 5.7 5.7 5.7 2.6 0 4.8-1.7 5.5-4 1.1.6 2.4 1 3.8 1 4.4 0 8-3.6 8-8z"/>
+            <path d="M16 2C16 2 12 6 12 10C12 12 13 13 14 13C13 14 12 15 10 15C6 15 2 11 2 11C2 11 6 15 10 15C12 15 13 14 13 13C14 14 15 15 17 15C21 15 25 11 25 11C25 11 21 15 17 15C15 15 14 14 14 13C15 13 16 12 16 10C16 6 20 2 20 2C20 2 16 6 16 10C16 14 20 18 20 18C20 18 16 14 16 10C16 6 12 2 12 2C12 2 16 6 16 10C16 14 12 18 12 18C12 18 16 14 16 10C16 6 20 2 20 2L16 2Z"/>
         </svg>`,
         heart: `<svg viewBox="0 0 32 32" fill="currentColor">
-            <path d="M16 28.7l-2.2-2C5.5 19.2 0 14.3 0 8.3 0 3.7 3.9 0 8.6 0c2.6 0 5.2 1.2 6.9 3.1C17.2 1.2 19.7 0 22.4 0 27.1 0 31 3.7 31 8.3c0 6-5.5 10.9-13.8 18.4l-2.2 2z"/>
+            <path d="M16 28C16 28 3 20 3 11C3 7 6 4 9 4C12 4 14 6 16 8C18 6 20 4 23 4C26 4 29 7 29 11C29 20 16 28 16 28Z"/>
         </svg>`,
         star: `<svg viewBox="0 0 32 32" fill="currentColor">
-            <path d="M16 0l4.9 10.5L32 12.2l-8 8.2 1.9 11.6L16 26.5 6.1 32l1.9-11.6-8-8.2 11.1-1.7z"/>
+            <path d="M16 2L20 12L30 12L22 18L26 28L16 22L6 28L10 18L2 12L12 12Z"/>
         </svg>`,
         leaf: `<svg viewBox="0 0 32 32" fill="currentColor">
-            <path d="M28 4c0 10.5-7.2 19-16 19-2.8 0-5.4-.9-7.7-2.4L2 23l2.4-2.3C2.9 18.4 2 15.8 2 13 2 5.8 8.3 0 16 0h12v4z"/>
+            <path d="M16 2C16 2 8 4 8 12C8 18 12 22 16 22C20 22 24 18 24 12C24 4 16 2 16 2ZM16 22L16 30"/>
         </svg>`,
         butterfly: `<svg viewBox="0 0 32 32" fill="currentColor">
-            <path d="M16 14c-2.2 0-4-1.8-4-4V4c0-2.2 1.8-4 4-4s4 1.8 4 4v6c0 2.2-1.8 4-4 4zm-8 2c-4.4 0-8 3.6-8 8s3.6 8 8 8c2.1 0 4.1-.8 5.5-2.3l2.5-2.5 2.5 2.5c1.5 1.5 3.4 2.3 5.5 2.3 4.4 0 8-3.6 8-8s-3.6-8-8-8c-2.1 0-4.1.8-5.5 2.3L16 21l-2.5-2.5C12 17 10.1 16 8 16z"/>
+            <path d="M16 16C16 16 12 12 8 12C4 12 2 16 2 20C2 24 4 26 8 26C12 26 16 22 16 16ZM16 16C16 16 20 12 24 12C28 12 30 16 30 20C30 24 28 26 24 26C20 26 16 22 16 16ZM16 16L16 8"/>
         </svg>`,
         moon: `<svg viewBox="0 0 32 32" fill="currentColor">
-            <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c2.4 0 4.6-.8 6.3-2.2-.8.1-1.5.2-2.3.2-6.6 0-12-5.4-12-12 0-2.8 1-5.4 2.6-7.4C4.4 3.8 2 7.6 2 12c0 7.7 6.3 14 14 14s14-6.3 14-14S23.7 2 16 2c-1.5 0-2.9.2-4.3.7.7-.5 1.5-.7 2.3-.7z"/>
+            <path d="M20 4C12 4 6 10 6 18C6 26 12 32 20 32C24 32 28 30 30 26C28 28 26 28 24 28C16 28 10 22 10 14C10 10 12 6 16 4C18 4 20 4 20 4Z"/>
         </svg>`,
         sun: `<svg viewBox="0 0 32 32" fill="currentColor">
-            <circle cx="16" cy="16" r="8"/>
-            <path d="M16 0v6M16 26v6M32 16h-6M6 16H0M27.3 4.7l-4.2 4.2M8.9 23.1l-4.2 4.2M27.3 27.3l-4.2-4.2M8.9 8.9L4.7 4.7"/>
+            <circle cx="16" cy="16" r="6"/>
+            <path d="M16 0L16 6M16 26L16 32M32 16L26 16M6 16L0 16M26 6L22 10M10 22L6 26M26 26L22 22M10 10L6 6"/>
         </svg>`
     };
 
@@ -1010,10 +974,10 @@
                         break;
                     case 'ellipse':
                         shapeStyle = 'border-radius: 50%;';
-                        dimensions = 'width: 70px; height: 50px;';
+                        dimensions = 'width: 50px; height: 35px;';
                         break;
                     case 'rectangle':
-                        dimensions = 'width: 70px; height: 50px;';
+                        dimensions = 'width: 50px; height: 35px;';
                         break;
                 }
                 
@@ -1044,12 +1008,12 @@
                 if (index === 0) item.classList.add('selected');
                 item.dataset.style = style.id;
                 
-                const strokeDasharray = style.id === 'dashed' ? '8,4' : 
-                                       style.id === 'dotted' ? '2,3' : '0';
+                const strokeDasharray = style.id === 'dashed' ? '6,3' : 
+                                       style.id === 'dotted' ? '2,2' : '0';
                 
                 item.innerHTML = `
                     <svg viewBox="0 0 32 32">
-                        <circle cx="16" cy="16" r="14" fill="none" 
+                        <circle cx="16" cy="16" r="13" fill="none" 
                                 stroke="${this.currentSelection.color}" 
                                 stroke-width="2" 
                                 stroke-dasharray="${strokeDasharray}"/>
@@ -1160,7 +1124,7 @@
             const pattern = this.patterns.find(p => p.id === this.currentSelection.pattern);
             
             let shapeStyle = '';
-            let dimensions = 'width: 180px; height: 180px;';
+            let dimensions = 'width: 150px; height: 150px;';
             
             switch(this.currentSelection.shape) {
                 case 'circle':
@@ -1168,10 +1132,10 @@
                     break;
                 case 'ellipse':
                     shapeStyle = 'border-radius: 50%;';
-                    dimensions = 'width: 220px; height: 160px;';
+                    dimensions = 'width: 180px; height: 130px;';
                     break;
                 case 'rectangle':
-                    dimensions = 'width: 220px; height: 150px;';
+                    dimensions = 'width: 180px; height: 120px;';
                     break;
             }
             
@@ -1180,7 +1144,7 @@
             preview.innerHTML = `
                 <div style="
                     ${dimensions}
-                    border: 5px ${this.currentSelection.borderStyle} ${this.currentSelection.color};
+                    border: 4px ${this.currentSelection.borderStyle} ${this.currentSelection.color};
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -1190,18 +1154,19 @@
                 ">
                     <span style="
                         font-family: ${fontFamily};
-                        font-size: 48px;
+                        font-size: 36px;
                         color: ${this.currentSelection.color};
                         font-weight: bold;
                         text-align: center;
+                        padding: 0 10px;
                     ">${this.currentSelection.text}</span>
                     ${pattern && pattern.id !== 'none' ? `
                         <div style="
                             position: absolute;
-                            bottom: 12px;
-                            right: 12px;
-                            width: 32px;
-                            height: 32px;
+                            bottom: 10px;
+                            right: 10px;
+                            width: 24px;
+                            height: 24px;
                             opacity: 0.3;
                             color: ${this.currentSelection.color};
                         ">${patternSVGs[pattern.id]}</div>
@@ -1566,6 +1531,29 @@
                     btn.classList.add('active');
                     this.currentSelection.category = btn.dataset.category;
                     this.filterFonts(btn.dataset.category);
+                });
+            });
+            
+            // 標籤頁切換
+            const tabBtns = document.querySelectorAll('.scfw-tab-btn');
+            const tabContents = document.querySelectorAll('.scfw-tab-content');
+            
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetTab = btn.dataset.tab;
+                    
+                    // 切換按鈕狀態
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    
+                    // 切換內容顯示
+                    tabContents.forEach(content => {
+                        if (content.dataset.tab === targetTab) {
+                            content.classList.add('active');
+                        } else {
+                            content.classList.remove('active');
+                        }
+                    });
                 });
             });
         },
