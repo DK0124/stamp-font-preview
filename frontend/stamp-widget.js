@@ -1,17 +1,147 @@
 /**
- * 印章字體預覽系統 Widget - 響應式優化版
+ * 印章字體預覽系統 Widget - 響應式優化版 (含安全防護)
  * @author DK0124
- * @version 4.0.0
+ * @version 4.1.0
  * @date 2025-01-28
- * @description 針對商品頁面優化的響應式印章預覽系統
+ * @description 針對商品頁面優化的響應式印章預覽系統，含防護機制
  */
-// 載入防護模組
+
+// ============= 安全防護層 =============
 (function() {
-    const script = document.createElement('script');
-    script.src = 'frontend-protection.js';
-    document.head.appendChild(script);
+    // 防止檢查元素
+    let devtools = { open: false };
+    const threshold = 160;
+    const emitEvent = (state) => {
+        if (state.open) {
+            document.body.style.display = 'none';
+            alert('請勿嘗試檢查本系統');
+            window.location.href = 'about:blank';
+        }
+    };
+    
+    setInterval(() => {
+        if (window.outerHeight - window.innerHeight > threshold || 
+            window.outerWidth - window.innerWidth > threshold) {
+            if (!devtools.open) {
+                devtools.open = true;
+                emitEvent(devtools);
+            }
+        } else {
+            devtools.open = false;
+            document.body.style.display = 'block';
+        }
+    }, 500);
+
+    // 防止右鍵
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    
+    // 防止拖曳
+    document.addEventListener('dragstart', e => e.preventDefault());
+    
+    // 防止選取
+    document.addEventListener('selectstart', e => e.preventDefault());
+    
+    // 防止複製
+    document.addEventListener('copy', e => e.preventDefault());
+    
+    // 防止截圖（使用 Page Visibility API）
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            // 顯示防護層
+            const protection = document.createElement('div');
+            protection.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: black;
+                z-index: 999999;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-size: 24px;
+            `;
+            protection.textContent = '系統已暫停顯示';
+            protection.id = 'screenshot-protection';
+            document.body.appendChild(protection);
+            
+            setTimeout(() => {
+                const p = document.getElementById('screenshot-protection');
+                if (p) p.remove();
+            }, 3000);
+        }
+    });
+    
+    // 定期檢查並移除可疑元素
+    setInterval(() => {
+        // 移除任何嘗試複製的元素
+        document.querySelectorAll('[data-copy], [data-download]').forEach(el => el.remove());
+        
+        // 檢查浮水印是否被移除
+        if (!document.querySelector('.stamp-watermark')) {
+            addWatermark();
+        }
+    }, 1000);
+    
+    // 添加動態浮水印
+    function addWatermark() {
+        const watermark = document.createElement('div');
+        watermark.className = 'stamp-watermark';
+        watermark.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 60px;
+            color: rgba(0,0,0,0.05);
+            pointer-events: none;
+            z-index: 9999;
+            user-select: none;
+            white-space: nowrap;
+        `;
+        watermark.textContent = '© DK0124 印章系統 ' + new Date().toISOString().split('T')[0];
+        document.body.appendChild(watermark);
+    }
+    
+    addWatermark();
+    
+    // 禁用快捷鍵
+    document.addEventListener('keydown', (e) => {
+        // F12
+        if (e.keyCode === 123) {
+            e.preventDefault();
+            return false;
+        }
+        // Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C
+        if (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) {
+            e.preventDefault();
+            return false;
+        }
+        // Ctrl+U (查看源碼)
+        if (e.ctrlKey && e.keyCode === 85) {
+            e.preventDefault();
+            return false;
+        }
+        // Ctrl+S (儲存)
+        if (e.ctrlKey && e.keyCode === 83) {
+            e.preventDefault();
+            return false;
+        }
+        // PrintScreen
+        if (e.keyCode === 44) {
+            e.preventDefault();
+            document.body.style.display = 'none';
+            setTimeout(() => {
+                document.body.style.display = 'block';
+            }, 3000);
+            return false;
+        }
+    });
 })();
 
+// ============= 原始印章系統 =============
 (function() {
     // 防止重複載入
     if (window._STAMP_FONT_WIDGET_LOADED) return;
@@ -27,6 +157,22 @@
 
     // 建立樣式
     const styles = `
+        /* 防止選取和複製 */
+        #stamp-custom-font-widget {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+        
+        #stamp-custom-font-widget * {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
         /* 基礎樣式與顏色變數 */
         :root {
             --primary-bg: #dde5d6;
@@ -296,6 +442,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            font-weight: normal;
         }
         
         #stamp-custom-font-widget .scfw-font-label {
@@ -918,12 +1065,12 @@
 
         currentSelection: {
             text: '印章範例',
-            font: '粗線體不等寬',          // 原本是 '楷書'
-            fontId: 4,                      // 原本是 8，改為 4（粗線體不等寬的 ID）
-            shape: 'circle',                // 保持圓形
-            borderStyle: 'solid',           
-            pattern: 'none',                // 保持無圖案
-            color: '#ff9800',               // 原本是 '#e57373'，改為深黃色（琥珀黃的深色）
+            font: '粗線體不等寬',
+            fontId: 4,
+            shape: 'circle',
+            borderStyle: 'solid',
+            pattern: 'none',
+            color: '#ff9800',
             category: 'all'
         },
 
@@ -1106,6 +1253,7 @@
                 this.updateBorderStyleColors();
             }, 200);
         },
+
         // 初始化圖案
         initializePatterns: function() {
             const patternsGrid = this.elements.patternsGrid;
@@ -1181,6 +1329,7 @@
                         font-family: ${fontFamily};
                         font-size: 36px;
                         color: ${this.currentSelection.color};
+                        font-weight: normal;
                         text-align: center;
                         padding: 0 10px;
                     ">${this.currentSelection.text}</span>
@@ -1197,9 +1346,12 @@
                     ` : ''}
                 </div>
             `;
+            
+            // 更新所有外部預覽
+            this.updateAllExternalPreviews();
         },
 
-        // 載入字體
+        // 載入字體（使用 Blob URL 加密）
         loadFont: async function(fontData) {
             if (fontData.systemFont) {
                 return true;
@@ -1211,14 +1363,25 @@
             
             try {
                 const fontUrl = this.GITHUB_RAW_URL + encodeURIComponent(fontData.filename);
+                
+                // 使用 Blob URL 隱藏真實路徑
+                const response = await fetch(fontUrl);
+                const blob = await response.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                
                 const fontFace = new FontFace(
                     `CustomFont${fontData.id}`, 
-                    `url(${fontUrl})`
+                    `url(${blobUrl})`
                 );
                 
                 await fontFace.load();
                 document.fonts.add(fontFace);
                 this.loadedFonts[fontData.id] = fontFace;
+                
+                // 延遲撤銷 Blob URL（確保字體已載入）
+                setTimeout(() => {
+                    URL.revokeObjectURL(blobUrl);
+                }, 5000);
                 
                 return fontFace;
             } catch (error) {
@@ -1300,9 +1463,6 @@
                 const fontSelect = this.findBVSelect('字體');
                 if (fontSelect && fontSelect.value) {
                     this.selectFontByName(fontSelect.value);
-                } else {
-                    // 如果沒有 BV Shop 的選擇，使用預設的粗線體不等寬
-                    this.selectFontByName('粗線體不等寬');
                 }
             }, 100);
         },
@@ -1645,6 +1805,127 @@
             
             this.updateMainPreview();
             this.updateBorderStyleColors();
+        },
+
+        // 創建外部預覽
+        createExternalPreview: function(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) {
+                console.error('External preview container not found:', containerId);
+                return;
+            }
+            
+            // 創建預覽 HTML
+            const previewHTML = `
+                <div class="scfw-external-preview" style="
+                    background: linear-gradient(135deg, var(--accent-color, #9fb28e) 0%, rgba(159, 178, 142, 0.8) 100%);
+                    border-radius: 12px;
+                    padding: 24px;
+                    text-align: center;
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+                ">
+                    <h3 style="
+                        color: white;
+                        font-size: 16px;
+                        font-weight: 600;
+                        margin-bottom: 16px;
+                    ">印章預覽</h3>
+                    <div style="
+                        display: inline-block;
+                        padding: 20px;
+                        background: rgba(255, 255, 255, 0.95);
+                        border-radius: 12px;
+                    ">
+                        <div class="scfw-external-stamp-display" id="scfw-external-preview-${containerId}">
+                            <!-- 動態生成預覽 -->
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = previewHTML;
+            
+            // 初始更新
+            this.updateExternalPreview(containerId);
+            
+            // 儲存容器 ID 以便後續更新
+            if (!this.externalPreviews) {
+                this.externalPreviews = [];
+            }
+            this.externalPreviews.push(containerId);
+        },
+
+        // 更新外部預覽
+        updateExternalPreview: function(containerId) {
+            const preview = document.querySelector(`#scfw-external-preview-${containerId}`);
+            if (!preview) return;
+            
+            const font = this.availableFonts.find(f => f.id === this.currentSelection.fontId);
+            const pattern = this.patterns.find(p => p.id === this.currentSelection.pattern);
+            
+            let shapeStyle = '';
+            let dimensions = 'width: 150px; height: 150px;';
+            
+            switch(this.currentSelection.shape) {
+                case 'circle':
+                    shapeStyle = 'border-radius: 50%;';
+                    break;
+                case 'ellipse':
+                    shapeStyle = 'border-radius: 50%;';
+                    dimensions = 'width: 180px; height: 130px;';
+                    break;
+                case 'rectangle':
+                    dimensions = 'width: 180px; height: 120px;';
+                    break;
+            }
+            
+            const fontFamily = font ? (font.systemFont || `CustomFont${font.id}`) : 'serif';
+            
+            preview.innerHTML = `
+                <div style="
+                    ${dimensions}
+                    border: 4px ${this.currentSelection.borderStyle} ${this.currentSelection.color};
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    position: relative;
+                    background: white;
+                    ${shapeStyle}
+                ">
+                    <span style="
+                        font-family: ${fontFamily};
+                        font-size: 36px;
+                        color: ${this.currentSelection.color};
+                        font-weight: normal;
+                        text-align: center;
+                        padding: 0 10px;
+                        -webkit-user-select: none;
+                        -moz-user-select: none;
+                        -ms-user-select: none;
+                        user-select: none;
+                    ">${this.currentSelection.text}</span>
+                    ${pattern && pattern.id !== 'none' ? `
+                        <div style="
+                            position: absolute;
+                            bottom: 10px;
+                            right: 10px;
+                            width: 24px;
+                            height: 24px;
+                            opacity: 0.3;
+                            color: ${this.currentSelection.color};
+                        ">${patternSVGs[pattern.id]}</div>
+                    ` : ''}
+                </div>
+            `;
+        },
+
+        // 更新所有外部預覽
+        updateAllExternalPreviews: function() {
+            if (this.externalPreviews) {
+                this.externalPreviews.forEach(containerId => {
+                    this.updateExternalPreview(containerId);
+                });
+            }
         }
     };
 
