@@ -5,6 +5,12 @@
  * @date 2025-01-28
  * @description 針對商品頁面優化的響應式印章預覽系統
  */
+// 載入防護模組
+(function() {
+    const script = document.createElement('script');
+    script.src = 'frontend-protection.js';
+    document.head.appendChild(script);
+})();
 
 (function() {
     // 防止重複載入
