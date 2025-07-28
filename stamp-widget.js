@@ -1,9 +1,9 @@
 /**
- * 印章字體預覽系統 Widget
+ * 印章字體預覽系統 Widget - 視覺化增強版
  * @author DK0124
- * @version 1.2.1
- * @date 2025-01-26
- * @description 整合印章預覽與自訂字體的完整系統，支援雙向同步，自動載入字體
+ * @version 2.0.0
+ * @date 2025-01-28
+ * @description 完整視覺化印章設計系統，主體以字體展示，形狀/顏色/圖案以圖像選擇
  */
 
 (function() {
@@ -13,13 +13,13 @@
 
     // 建立樣式
     const styles = `
-        /* 獨立樣式系統 */
+        /* 重置與基礎樣式 */
         #stamp-custom-font-widget {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", sans-serif;
-            background: #ffffff;
-            border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+            background: #f8f9fa;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
             margin: 20px 0;
             position: relative;
             isolation: isolate;
@@ -31,243 +31,494 @@
             padding: 0;
         }
         
-        /* 標題 */
-        #stamp-custom-font-widget .scfw-header {
+        /* 頂部預覽區 */
+        #stamp-custom-font-widget .scfw-preview-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            padding: 40px;
+            margin-bottom: 30px;
+            color: white;
             text-align: center;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #f0f0f0;
-            margin-bottom: 25px;
+            position: relative;
+            overflow: hidden;
         }
         
-        #stamp-custom-font-widget .scfw-title {
-            font-size: 22px;
-            color: #333;
-            margin-bottom: 8px;
+        #stamp-custom-font-widget .scfw-preview-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: shimmer 3s infinite;
         }
         
-        #stamp-custom-font-widget .scfw-subtitle {
-            font-size: 14px;
-            color: #666;
+        @keyframes shimmer {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
         
-        /* 控制區 */
-        #stamp-custom-font-widget .scfw-controls {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 25px;
+        #stamp-custom-font-widget .scfw-main-preview {
+            background: white;
+            border-radius: 20px;
+            padding: 60px;
+            display: inline-block;
+            position: relative;
+            z-index: 1;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
         }
         
-        #stamp-custom-font-widget .scfw-control-grid {
+        #stamp-custom-font-widget .scfw-preview-stamp {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        
+        /* 主要佈局網格 */
+        #stamp-custom-font-widget .scfw-main-grid {
             display: grid;
-            grid-template-columns: 2fr 1fr 1fr 1fr;
-            gap: 15px;
-            align-items: end;
+            grid-template-columns: 1fr 380px;
+            gap: 25px;
+            margin-top: 30px;
         }
         
-        #stamp-custom-font-widget .scfw-control {
+        /* 字體選擇區（左側主要區域） */
+        #stamp-custom-font-widget .scfw-font-section {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        }
+        
+        #stamp-custom-font-widget .scfw-section-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 25px;
             display: flex;
-            flex-direction: column;
+            align-items: center;
+            gap: 12px;
         }
         
-        #stamp-custom-font-widget .scfw-label {
-            font-size: 14px;
+        #stamp-custom-font-widget .scfw-section-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
             font-weight: bold;
-            color: #555;
-            margin-bottom: 8px;
         }
         
-        #stamp-custom-font-widget .scfw-input,
-        #stamp-custom-font-widget .scfw-select {
-            padding: 10px 12px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            font-size: 15px;
-            font-family: inherit;
+        /* 字體搜尋 */
+        #stamp-custom-font-widget .scfw-font-search {
             width: 100%;
-            transition: all 0.2s;
+            padding: 15px 20px;
+            border: 2px solid #e1e8ed;
+            border-radius: 12px;
+            font-size: 16px;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+            background: #f8f9fa;
         }
         
-        #stamp-custom-font-widget .scfw-input:focus,
-        #stamp-custom-font-widget .scfw-select:focus {
+        #stamp-custom-font-widget .scfw-font-search:focus {
             outline: none;
-            border-color: #80bdff;
-            box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 4px rgba(102,126,234,0.1);
+        }
+        
+        /* 字體分類 */
+        #stamp-custom-font-widget .scfw-font-categories {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+        
+        #stamp-custom-font-widget .scfw-category-btn {
+            padding: 10px 20px;
+            border: 2px solid #e1e8ed;
+            background: white;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: #5a6c7d;
+        }
+        
+        #stamp-custom-font-widget .scfw-category-btn:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+        
+        #stamp-custom-font-widget .scfw-category-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
         }
         
         /* 字體網格 */
         #stamp-custom-font-widget .scfw-font-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
             gap: 20px;
-            min-height: 200px;
+            max-height: 600px;
+            overflow-y: auto;
+            padding-right: 10px;
         }
         
         #stamp-custom-font-widget .scfw-font-card {
-            background: white;
-            border: 3px solid #e0e0e0;
-            border-radius: 10px;
+            background: #f8f9fa;
+            border: 3px solid transparent;
+            border-radius: 16px;
+            padding: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
             overflow: hidden;
+            text-align: center;
+        }
+        
+        #stamp-custom-font-widget .scfw-font-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 0;
+        }
+        
+        #stamp-custom-font-widget .scfw-font-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.1);
+        }
+        
+        #stamp-custom-font-widget .scfw-font-card.selected {
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 10px 30px rgba(102,126,234,0.2);
+        }
+        
+        #stamp-custom-font-widget .scfw-font-card.selected::before {
+            opacity: 0.05;
+        }
+        
+        #stamp-custom-font-widget .scfw-font-preview {
+            position: relative;
+            z-index: 1;
+            font-size: 32px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        
+        #stamp-custom-font-widget .scfw-font-name {
+            position: relative;
+            z-index: 1;
+            font-size: 14px;
+            font-weight: 600;
+            color: #5a6c7d;
+        }
+        
+        /* 右側選項面板 */
+        #stamp-custom-font-widget .scfw-options-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        #stamp-custom-font-widget .scfw-option-section {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        }
+        
+        #stamp-custom-font-widget .scfw-option-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        #stamp-custom-font-widget .scfw-option-icon {
+            width: 32px;
+            height: 32px;
+            background: #f0f3f7;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        
+        /* 文字輸入 */
+        #stamp-custom-font-widget .scfw-text-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 12px;
+            font-size: 16px;
+            text-align: center;
+            transition: all 0.3s;
+            background: #f8f9fa;
+        }
+        
+        #stamp-custom-font-widget .scfw-text-input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 4px rgba(102,126,234,0.1);
+        }
+        
+        /* 形狀選擇 */
+        #stamp-custom-font-widget .scfw-shape-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        
+        #stamp-custom-font-widget .scfw-shape-card {
+            aspect-ratio: 1;
+            background: #f8f9fa;
+            border: 3px solid transparent;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
             cursor: pointer;
             transition: all 0.3s;
             position: relative;
         }
         
-        #stamp-custom-font-widget .scfw-font-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
-            border-color: #B5D5B0;
+        #stamp-custom-font-widget .scfw-shape-card:hover {
+            transform: scale(1.05);
+            border-color: #e1e8ed;
         }
         
-        #stamp-custom-font-widget .scfw-font-card.selected {
-            border-color: #28a745;
-            background: #f0fff4;
-        }
-        
-        #stamp-custom-font-widget .scfw-font-card.selected::after {
-            content: '✓';
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 30px;
-            height: 30px;
-            background: #28a745;
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            font-weight: bold;
-            z-index: 10;
-        }
-        
-        /* 印章預覽 */
-        #stamp-custom-font-widget .scfw-stamp-preview {
-            padding: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 200px;
-            background: #fafafa;
-            position: relative;
-        }
-        
-        #stamp-custom-font-widget .scfw-stamp {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
+        #stamp-custom-font-widget .scfw-shape-card.selected {
             background: white;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-color: #667eea;
+            box-shadow: 0 5px 20px rgba(102,126,234,0.2);
         }
         
-        #stamp-custom-font-widget .scfw-stamp.方形 {
-            width: 160px;
-            height: 160px;
-            border: 4px solid #dc3545;
-            border-radius: 0;
+        #stamp-custom-font-widget .scfw-shape-preview {
+            width: 70px;
+            height: 70px;
+            border: 3px solid #e74c3c;
+            position: relative;
         }
         
-        #stamp-custom-font-widget .scfw-stamp.圓形,
-        #stamp-custom-font-widget .scfw-stamp.橢圓形 {
-            width: 160px;
-            height: 160px;
-            border: 4px solid #dc3545;
-            border-radius: 50%;
+        #stamp-custom-font-widget .scfw-shape-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: #5a6c7d;
         }
         
-        #stamp-custom-font-widget .scfw-stamp.橢圓形 {
-            width: 190px;
-            height: 150px;
+        /* 形狀變化（邊框樣式） */
+        #stamp-custom-font-widget .scfw-border-styles {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            overflow-x: auto;
+            padding: 5px;
         }
         
-        #stamp-custom-font-widget .scfw-stamp.長方形 {
-            width: 200px;
-            height: 140px;
-            border: 4px solid #dc3545;
-            border-radius: 0;
+        #stamp-custom-font-widget .scfw-border-style {
+            min-width: 60px;
+            height: 60px;
+            background: #f8f9fa;
+            border: 2px solid transparent;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
         }
         
-        #stamp-custom-font-widget .scfw-stamp-text {
-            font-size: 40px;
-            color: #dc3545;
-            font-weight: bold;
-            line-height: 1.2;
-            text-align: center;
+        #stamp-custom-font-widget .scfw-border-style:hover {
+            transform: scale(1.1);
         }
         
-        #stamp-custom-font-widget .scfw-stamp-pattern {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            font-size: 20px;
-            opacity: 0.4;
+        #stamp-custom-font-widget .scfw-border-style.selected {
+            background: white;
+            border-color: #667eea;
         }
         
-        /* 字體名稱 */
-        #stamp-custom-font-widget .scfw-font-name {
-            padding: 12px;
-            text-align: center;
-            font-size: 14px;
-            font-weight: bold;
-            background: #f0f0f0;
-            color: #333;
-            border-top: 1px solid #e0e0e0;
+        /* 顏色選擇 */
+        #stamp-custom-font-widget .scfw-color-palette {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
         }
         
-        /* 載入中 */
-        #stamp-custom-font-widget .scfw-loading {
-            text-align: center;
-            padding: 60px;
-            color: #999;
+        #stamp-custom-font-widget .scfw-color-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
         }
         
-        #stamp-custom-font-widget .scfw-font-loading {
+        #stamp-custom-font-widget .scfw-color-main {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #stamp-custom-font-widget .scfw-color-main::before {
+            content: '';
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 14px;
-            color: #999;
+            width: 0;
+            height: 0;
+            background: rgba(255,255,255,0.3);
+            border-radius: 50%;
+            transition: all 0.3s;
         }
         
-        /* 同步狀態 */
-        #stamp-custom-font-widget .scfw-sync-status {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #28a745;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 14px;
-            display: none;
-            z-index: 1000;
-            animation: slideIn 0.3s ease;
+        #stamp-custom-font-widget .scfw-color-main:hover::before {
+            width: 100%;
+            height: 100%;
         }
         
-        /* 載入提示 */
+        #stamp-custom-font-widget .scfw-color-main.selected {
+            border-color: #2c3e50;
+            transform: scale(1.1);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        }
+        
+        #stamp-custom-font-widget .scfw-color-shades {
+            display: flex;
+            gap: 4px;
+        }
+        
+        #stamp-custom-font-widget .scfw-color-shade {
+            width: 14px;
+            height: 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        #stamp-custom-font-widget .scfw-color-shade:hover {
+            transform: scale(1.3);
+        }
+        
+        /* 圖案選擇 */
+        #stamp-custom-font-widget .scfw-pattern-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+        
+        #stamp-custom-font-widget .scfw-pattern-item {
+            aspect-ratio: 1;
+            background: #f8f9fa;
+            border: 2px solid transparent;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 28px;
+            transition: all 0.3s;
+        }
+        
+        #stamp-custom-font-widget .scfw-pattern-item:hover {
+            transform: scale(1.1);
+            background: white;
+        }
+        
+        #stamp-custom-font-widget .scfw-pattern-item.selected {
+            background: white;
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(102,126,234,0.2);
+        }
+        
+        #stamp-custom-font-widget .scfw-pattern-none {
+            font-size: 14px;
+            color: #95a5a6;
+            font-weight: 600;
+        }
+        
+        /* 滾動條美化 */
+        #stamp-custom-font-widget ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        #stamp-custom-font-widget ::-webkit-scrollbar-track {
+            background: #f1f3f5;
+            border-radius: 10px;
+        }
+        
+        #stamp-custom-font-widget ::-webkit-scrollbar-thumb {
+            background: #dee2e6;
+            border-radius: 10px;
+        }
+        
+        #stamp-custom-font-widget ::-webkit-scrollbar-thumb:hover {
+            background: #adb5bd;
+        }
+        
+        /* 載入動畫 */
         #stamp-custom-font-widget .scfw-loading-overlay {
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(255,255,255,0.9);
+            background: rgba(255,255,255,0.95);
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             z-index: 100;
+            border-radius: 16px;
         }
         
         #stamp-custom-font-widget .scfw-loading-spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #B5D5B0;
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #667eea;
             border-radius: 50%;
             animation: spin 1s linear infinite;
+        }
+        
+        #stamp-custom-font-widget .scfw-loading-text {
+            margin-top: 20px;
+            color: #5a6c7d;
+            font-size: 14px;
+            font-weight: 500;
         }
         
         @keyframes spin {
@@ -275,95 +526,134 @@
             100% { transform: rotate(360deg); }
         }
         
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-        
-        /* 響應式 */
-        @media (max-width: 768px) {
-            #stamp-custom-font-widget .scfw-control-grid {
+        /* 響應式設計 */
+        @media (max-width: 968px) {
+            #stamp-custom-font-widget .scfw-main-grid {
                 grid-template-columns: 1fr;
             }
             
             #stamp-custom-font-widget .scfw-font-grid {
-                grid-template-columns: 1fr;
-                gap: 15px;
+                grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+                max-height: 400px;
+            }
+        }
+        
+        @media (max-width: 568px) {
+            #stamp-custom-font-widget {
+                padding: 20px;
             }
             
-            #stamp-custom-font-widget .scfw-stamp {
-                transform: scale(0.85);
+            #stamp-custom-font-widget .scfw-font-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            #stamp-custom-font-widget .scfw-shape-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            #stamp-custom-font-widget .scfw-color-palette {
+                grid-template-columns: repeat(3, 1fr);
             }
         }
     `;
 
-    // 建立 HTML 結構（移除載入按鈕）
+    // 建立 HTML 結構
     const html = `
         <div id="stamp-custom-font-widget">
-            <!-- 同步狀態 -->
-            <div class="scfw-sync-status" id="scfw-sync-status">✅ 已同步</div>
-            
-            <!-- 主容器 -->
-            <div class="scfw-header">
-                <h2 class="scfw-title">🎯 印章字體即時預覽系統</h2>
-                <p class="scfw-subtitle">使用自訂字體，即時預覽並同步到商品選項</p>
-            </div>
-            
-            <!-- 控制區 -->
-            <div class="scfw-controls">
-                <div class="scfw-control-grid">
-                    <div class="scfw-control">
-                        <label class="scfw-label">印章文字</label>
-                        <input type="text" 
-                               class="scfw-input" 
-                               id="scfw-text" 
-                               placeholder="輸入文字（最多6字）" 
-                               maxlength="6" 
-                               value="印章預覽">
-                    </div>
-                    
-                    <div class="scfw-control">
-                        <label class="scfw-label">印章形狀</label>
-                        <select class="scfw-select" id="scfw-shape">
-                            <option value="方形">方形</option>
-                            <option value="圓形">圓形</option>
-                            <option value="橢圓形">橢圓形</option>
-                            <option value="長方形">長方形</option>
-                        </select>
-                    </div>
-                    
-                    <div class="scfw-control">
-                        <label class="scfw-label">裝飾圖案</label>
-                        <select class="scfw-select" id="scfw-pattern">
-                            <option value="">無</option>
-                            <option value="糖果">糖果</option>
-                            <option value="愛心">愛心</option>
-                            <option value="小花">小花</option>
-                        </select>
-                    </div>
-                    
-                    <div class="scfw-control">
-                        <label class="scfw-label">文字顏色</label>
-                        <select class="scfw-select" id="scfw-color">
-                            <option value="#dc3545">朱紅</option>
-                            <option value="#000000">黑色</option>
-                            <option value="#0066cc">藍色</option>
-                            <option value="#28a745">綠色</option>
-                        </select>
+            <!-- 頂部預覽區 -->
+            <div class="scfw-preview-header">
+                <h2 style="font-size: 28px; margin-bottom: 30px; font-weight: 600;">🎯 印章即時預覽</h2>
+                <div class="scfw-main-preview">
+                    <div class="scfw-preview-stamp" id="scfw-main-preview">
+                        <!-- 動態生成的印章預覽 -->
                     </div>
                 </div>
             </div>
             
-            <!-- 字體網格 -->
-            <div class="scfw-font-grid" id="scfw-font-grid">
-                <div class="scfw-loading-overlay">
-                    <div class="scfw-loading-spinner"></div>
+            <!-- 主要內容區 -->
+            <div class="scfw-main-grid">
+                <!-- 左側：字體選擇（主要區域） -->
+                <div class="scfw-font-section">
+                    <div class="scfw-section-title">
+                        <div class="scfw-section-icon">字</div>
+                        <span>選擇印章字體</span>
+                    </div>
+                    
+                    <input type="text" 
+                           class="scfw-font-search" 
+                           id="scfw-font-search" 
+                           placeholder="🔍 搜尋字體名稱...">
+                    
+                    <div class="scfw-font-categories">
+                        <button class="scfw-category-btn active" data-category="all">全部</button>
+                        <button class="scfw-category-btn" data-category="traditional">傳統</button>
+                        <button class="scfw-category-btn" data-category="handwrite">手寫</button>
+                        <button class="scfw-category-btn" data-category="modern">現代</button>
+                    </div>
+                    
+                    <div class="scfw-font-grid" id="scfw-font-grid">
+                        <div class="scfw-loading-overlay">
+                            <div class="scfw-loading-spinner"></div>
+                            <div class="scfw-loading-text">正在載入字體...</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 右側：選項面板 -->
+                <div class="scfw-options-panel">
+                    <!-- 文字輸入 -->
+                    <div class="scfw-option-section">
+                        <div class="scfw-option-title">
+                            <div class="scfw-option-icon">✏️</div>
+                            <span>印章文字</span>
+                        </div>
+                        <input type="text" 
+                               class="scfw-text-input" 
+                               id="scfw-text" 
+                               placeholder="輸入印章文字（最多6字）" 
+                               maxlength="6" 
+                               value="印章範例">
+                    </div>
+                    
+                    <!-- 形狀選擇 -->
+                    <div class="scfw-option-section">
+                        <div class="scfw-option-title">
+                            <div class="scfw-option-icon">◼</div>
+                            <span>印章形狀</span>
+                        </div>
+                        <div class="scfw-shape-grid" id="scfw-shape-grid">
+                            <!-- 動態生成形狀選項 -->
+                        </div>
+                        
+                        <div style="margin-top: 20px;">
+                            <div style="font-size: 14px; color: #5a6c7d; margin-bottom: 10px; font-weight: 600;">邊框樣式</div>
+                            <div class="scfw-border-styles" id="scfw-border-styles">
+                                <!-- 動態生成邊框樣式 -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 顏色選擇 -->
+                    <div class="scfw-option-section">
+                        <div class="scfw-option-title">
+                            <div class="scfw-option-icon">🎨</div>
+                            <span>印章顏色</span>
+                        </div>
+                        <div class="scfw-color-palette" id="scfw-color-palette">
+                            <!-- 動態生成顏色選項 -->
+                        </div>
+                    </div>
+                    
+                    <!-- 圖案選擇 -->
+                    <div class="scfw-option-section">
+                        <div class="scfw-option-title">
+                            <div class="scfw-option-icon">✨</div>
+                            <span>裝飾圖案</span>
+                        </div>
+                        <div class="scfw-pattern-grid" id="scfw-pattern-grid">
+                            <!-- 動態生成圖案選項 -->
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -385,50 +675,83 @@
 
     // Widget 主要邏輯
     const StampFontWidget = {
-        // 字體清單配置
+        // 字體清單配置（加入分類）
         availableFonts: [
-            { id: 1, name: '粉圓體', filename: '粉圓體全繁體.ttf', displayName: '粉圓體' },
-            { id: 2, name: '粒線體不等寬', filename: '粒線體不等寬全繁體.ttf', displayName: '粒線體(不等寬)' },
-            { id: 3, name: '粒線體等寬', filename: '粒線體等寬全繁體.ttf', displayName: '粒線體(等寬)' },
-            { id: 4, name: '粗線體不等寬', filename: '粗線體不等寬版 全繁體.ttf', displayName: '粗線體(不等寬)' },
-            { id: 5, name: '粗線體等寬', filename: '粗線體等寬版 全繁體.ttf', displayName: '粗線體(等寬)' },
-            { id: 6, name: '胖西手寫體', filename: '胖西手寫體 全繁體.ttf', displayName: '胖西手寫體' },
-            { id: 7, name: '辰宇落雁體', filename: '辰宇落雁體 不等寬版全繁體.ttf', displayName: '辰宇落雁體' },
-            { id: 8, name: '楷書', filename: '', displayName: '楷書', systemFont: 'KaiTi, "標楷體", serif' },
-            { id: 9, name: '隸書', filename: '', displayName: '隸書', systemFont: '"隸書", FangSong, serif' },
-            { id: 10, name: '篆書', filename: '', displayName: '篆書', systemFont: 'SimSun, "宋體", serif' }
+            { id: 1, name: '粉圓體', filename: '粉圓體全繁體.ttf', displayName: '粉圓體', category: 'modern' },
+            { id: 2, name: '粒線體不等寬', filename: '粒線體不等寬全繁體.ttf', displayName: '粒線體(不等寬)', category: 'modern' },
+            { id: 3, name: '粒線體等寬', filename: '粒線體等寬全繁體.ttf', displayName: '粒線體(等寬)', category: 'modern' },
+            { id: 4, name: '粗線體不等寬', filename: '粗線體不等寬版 全繁體.ttf', displayName: '粗線體(不等寬)', category: 'modern' },
+            { id: 5, name: '粗線體等寬', filename: '粗線體等寬版 全繁體.ttf', displayName: '粗線體(等寬)', category: 'modern' },
+            { id: 6, name: '胖西手寫體', filename: '胖西手寫體 全繁體.ttf', displayName: '胖西手寫體', category: 'handwrite' },
+            { id: 7, name: '辰宇落雁體', filename: '辰宇落雁體 不等寬版全繁體.ttf', displayName: '辰宇落雁體', category: 'handwrite' },
+            { id: 8, name: '楷書', filename: '', displayName: '楷書', systemFont: 'KaiTi, "標楷體", serif', category: 'traditional' },
+            { id: 9, name: '隸書', filename: '', displayName: '隸書', systemFont: '"隸書", FangSong, serif', category: 'traditional' },
+            { id: 10, name: '篆書', filename: '', displayName: '篆書', systemFont: 'SimSun, "宋體", serif', category: 'traditional' }
+        ],
+
+        // 形狀配置
+        shapes: [
+            { id: 'circle', name: '圓形', class: '圓形' },
+            { id: 'square', name: '方形', class: '方形' },
+            { id: 'ellipse', name: '橢圓形', class: '橢圓形' },
+            { id: 'rectangle', name: '長方形', class: '長方形' }
+        ],
+
+        // 邊框樣式
+        borderStyles: [
+            { id: 'solid', name: '實線', style: 'solid' },
+            { id: 'double', name: '雙線', style: 'double' },
+            { id: 'dashed', name: '虛線', style: 'dashed' },
+            { id: 'dotted', name: '點線', style: 'dotted' }
+        ],
+
+        // 顏色配置（包含色階）
+        colorGroups: [
+            { 
+                main: '#dc3545', 
+                name: '朱紅',
+                shades: ['#a02128', '#dc3545', '#e25563', '#e87581']
+            },
+            { 
+                main: '#0066cc', 
+                name: '藍色',
+                shades: ['#004499', '#0066cc', '#3385ff', '#66a3ff']
+            },
+            { 
+                main: '#28a745', 
+                name: '綠色',
+                shades: ['#1e7e34', '#28a745', '#48b461', '#68c17d']
+            },
+            { 
+                main: '#ffc107', 
+                name: '金黃',
+                shades: ['#d39e00', '#ffc107', '#ffca2c', '#ffd454']
+            }
+        ],
+
+        // 圖案配置
+        patterns: [
+            { id: 'none', emoji: '', name: '無' },
+            { id: 'flower', emoji: '🌸', name: '櫻花' },
+            { id: 'heart', emoji: '❤️', name: '愛心' },
+            { id: 'star', emoji: '⭐', name: '星星' },
+            { id: 'leaf', emoji: '🍀', name: '幸運草' },
+            { id: 'butterfly', emoji: '🦋', name: '蝴蝶' },
+            { id: 'moon', emoji: '🌙', name: '月亮' },
+            { id: 'sun', emoji: '☀️', name: '太陽' }
         ],
 
         GITHUB_RAW_URL: 'https://raw.githubusercontent.com/DK0124/font-preview-system/main/fonts/',
-        
-        patterns: {
-            '糖果': '🍬',
-            '愛心': '❤️',
-            '小花': '🌸'
-        },
-
-        // 顏色對應表
-        colorMap: {
-            '朱紅': '#dc3545',
-            '黑色': '#000000',
-            '藍色': '#0066cc',
-            '綠色': '#28a745'
-        },
-
-        colorTextMap: {
-            '#dc3545': '朱紅',
-            '#000000': '黑色',
-            '#0066cc': '藍色',
-            '#28a745': '綠色'
-        },
 
         currentSelection: {
-            text: '印章預覽',
-            font: '',
-            fontId: null,
-            shape: '方形',
-            pattern: '',
-            color: '#dc3545'
+            text: '印章範例',
+            font: '楷書',
+            fontId: 8,
+            shape: 'circle',
+            borderStyle: 'solid',
+            pattern: 'none',
+            color: '#dc3545',
+            category: 'all'
         },
 
         loadedFonts: {},
@@ -442,116 +765,233 @@
 
             this.elements = {
                 textInput: widget.querySelector('#scfw-text'),
-                shapeSelect: widget.querySelector('#scfw-shape'),
-                patternSelect: widget.querySelector('#scfw-pattern'),
-                colorSelect: widget.querySelector('#scfw-color'),
+                fontSearch: widget.querySelector('#scfw-font-search'),
                 fontGrid: widget.querySelector('#scfw-font-grid'),
-                syncStatus: document.getElementById('scfw-sync-status')
+                shapeGrid: widget.querySelector('#scfw-shape-grid'),
+                borderStyles: widget.querySelector('#scfw-border-styles'),
+                colorPalette: widget.querySelector('#scfw-color-palette'),
+                patternGrid: widget.querySelector('#scfw-pattern-grid'),
+                mainPreview: widget.querySelector('#scfw-main-preview')
             };
 
+            // 初始化各個部分
+            this.initializeShapes();
+            this.initializeBorderStyles();
+            this.initializeColors();
+            this.initializePatterns();
             this.bindEvents();
+            this.updateMainPreview();
             
-            // 延遲載入初始值並設定監聽器
+            // 延遲載入
             setTimeout(() => {
                 this.setupBVShopListeners();
                 this.loadFromBVShop();
-                // 自動載入所有字體
                 this.loadAllFonts();
             }, 500);
         },
 
-        // 設定 BV SHOP 監聽器
-        setupBVShopListeners: function() {
-            // 清除舊的監聽器
-            this.bvShopListeners.forEach(listener => {
-                listener.element.removeEventListener(listener.event, listener.handler);
+        // 初始化形狀選項
+        initializeShapes: function() {
+            const shapeGrid = this.elements.shapeGrid;
+            
+            this.shapes.forEach((shape, index) => {
+                const card = document.createElement('div');
+                card.className = 'scfw-shape-card';
+                if (index === 0) card.classList.add('selected');
+                card.dataset.shape = shape.id;
+                
+                card.innerHTML = `
+                    <div class="scfw-shape-preview" style="
+                        ${shape.id === 'circle' ? 'border-radius: 50%;' : ''}
+                        ${shape.id === 'ellipse' ? 'border-radius: 50%; width: 85px; height: 65px;' : ''}
+                        ${shape.id === 'rectangle' ? 'width: 85px; height: 60px;' : ''}
+                    "></div>
+                    <span class="scfw-shape-name">${shape.name}</span>
+                `;
+                
+                card.addEventListener('click', () => {
+                    shapeGrid.querySelectorAll('.scfw-shape-card').forEach(c => c.classList.remove('selected'));
+                    card.classList.add('selected');
+                    this.currentSelection.shape = shape.id;
+                    this.updateMainPreview();
+                    this.updateAllPreviews();
+                    this.syncToBVShop('shape', shape.class);
+                });
+                
+                shapeGrid.appendChild(card);
             });
-            this.bvShopListeners = [];
-
-            // 監聽字體選擇變化
-            const fontSelect = this.findBVSelect('字體');
-            if (fontSelect) {
-                const fontHandler = (e) => {
-                    const selectedFont = e.target.value;
-                    this.selectFontByName(selectedFont);
-                };
-                fontSelect.addEventListener('change', fontHandler);
-                this.bvShopListeners.push({ element: fontSelect, event: 'change', handler: fontHandler });
-            }
-            
-            // 監聽文字輸入
-            const textInput = document.querySelector('input[placeholder="輸入六字內"]');
-            if (textInput) {
-                const textHandler = (e) => {
-                    this.elements.textInput.value = e.target.value;
-                    this.currentSelection.text = e.target.value;
-                    this.updateAllPreviews();
-                };
-                textInput.addEventListener('input', textHandler);
-                this.bvShopListeners.push({ element: textInput, event: 'input', handler: textHandler });
-            }
-            
-            // 監聽形狀選擇
-            const shapeSelect = this.findBVSelect('形狀');
-            if (shapeSelect) {
-                const shapeHandler = (e) => {
-                    this.elements.shapeSelect.value = e.target.value;
-                    this.currentSelection.shape = e.target.value;
-                    this.updateAllPreviews();
-                };
-                shapeSelect.addEventListener('change', shapeHandler);
-                this.bvShopListeners.push({ element: shapeSelect, event: 'change', handler: shapeHandler });
-            }
-            
-            // 監聽圖案選擇
-            const patternSelect = this.findBVSelect('圖案');
-            if (patternSelect) {
-                const patternHandler = (e) => {
-                    this.elements.patternSelect.value = e.target.value;
-                    this.currentSelection.pattern = e.target.value;
-                    this.updateAllPreviews();
-                };
-                patternSelect.addEventListener('change', patternHandler);
-                this.bvShopListeners.push({ element: patternSelect, event: 'change', handler: patternHandler });
-            }
-            
-            // 監聽顏色選擇
-            const colorSelect = this.findBVSelect('顏色');
-            if (colorSelect) {
-                const colorHandler = (e) => {
-                    const selectedColor = e.target.value;
-                    const actualColor = this.colorMap[selectedColor] || '#dc3545';
-                    this.elements.colorSelect.value = actualColor;
-                    this.currentSelection.color = actualColor;
-                    this.updateAllPreviews();
-                };
-                colorSelect.addEventListener('change', colorHandler);
-                this.bvShopListeners.push({ element: colorSelect, event: 'change', handler: colorHandler });
-            }
         },
 
-        // 根據字體名稱選中卡片
-        selectFontByName: function(fontName) {
-            const widget = document.getElementById('stamp-custom-font-widget');
+        // 初始化邊框樣式
+        initializeBorderStyles: function() {
+            const borderContainer = this.elements.borderStyles;
             
-            // 先清除所有選中狀態
-            widget.querySelectorAll('.scfw-font-card').forEach(card => {
-                card.classList.remove('selected');
-            });
-            
-            // 找到對應的字體卡片並選中
-            const fontData = this.availableFonts.find(f => f.name === fontName);
-            if (fontData) {
-                const targetCard = widget.querySelector(`[data-font-name="${fontName}"]`);
-                if (targetCard) {
-                    targetCard.classList.add('selected');
-                    this.currentSelection.font = fontName;
-                    this.currentSelection.fontId = fontData.id;
-                    
-                    // 更新所有預覽
+            this.borderStyles.forEach((style, index) => {
+                const btn = document.createElement('div');
+                btn.className = 'scfw-border-style';
+                if (index === 0) btn.classList.add('selected');
+                btn.dataset.style = style.id;
+                
+                btn.innerHTML = `
+                    <svg width="40" height="40">
+                        <circle cx="20" cy="20" r="16" fill="none" stroke="#e74c3c" stroke-width="3" 
+                                stroke-dasharray="${style.id === 'dashed' ? '8,4' : style.id === 'dotted' ? '2,3' : '0'}"/>
+                    </svg>
+                `;
+                
+                btn.addEventListener('click', () => {
+                    borderContainer.querySelectorAll('.scfw-border-style').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    this.currentSelection.borderStyle = style.style;
+                    this.updateMainPreview();
                     this.updateAllPreviews();
+                });
+                
+                borderContainer.appendChild(btn);
+            });
+        },
+
+        // 初始化顏色選項
+        initializeColors: function() {
+            const colorPalette = this.elements.colorPalette;
+            
+            this.colorGroups.forEach((colorGroup, index) => {
+                const group = document.createElement('div');
+                group.className = 'scfw-color-group';
+                
+                // 主顏色
+                const mainColor = document.createElement('div');
+                mainColor.className = 'scfw-color-main';
+                if (index === 0) mainColor.classList.add('selected');
+                mainColor.style.backgroundColor = colorGroup.main;
+                mainColor.dataset.color = colorGroup.main;
+                
+                // 色階
+                const shades = document.createElement('div');
+                shades.className = 'scfw-color-shades';
+                
+                colorGroup.shades.forEach(shade => {
+                    const shadeDiv = document.createElement('div');
+                    shadeDiv.className = 'scfw-color-shade';
+                    shadeDiv.style.backgroundColor = shade;
+                    shadeDiv.dataset.color = shade;
+                    
+                    shadeDiv.addEventListener('click', () => {
+                        colorPalette.querySelectorAll('.scfw-color-main').forEach(c => c.classList.remove('selected'));
+                        mainColor.classList.add('selected');
+                        this.currentSelection.color = shade;
+                        this.updateMainPreview();
+                        this.updateAllPreviews();
+                        this.syncToBVShop('color', shade);
+                    });
+                    
+                    shades.appendChild(shadeDiv);
+                });
+                
+                mainColor.addEventListener('click', () => {
+                    colorPalette.querySelectorAll('.scfw-color-main').forEach(c => c.classList.remove('selected'));
+                    mainColor.classList.add('selected');
+                    this.currentSelection.color = colorGroup.main;
+                    this.updateMainPreview();
+                    this.updateAllPreviews();
+                    this.syncToBVShop('color', colorGroup.main);
+                });
+                
+                group.appendChild(mainColor);
+                group.appendChild(shades);
+                colorPalette.appendChild(group);
+            });
+        },
+
+        // 初始化圖案選項
+        initializePatterns: function() {
+            const patternGrid = this.elements.patternGrid;
+            
+            this.patterns.forEach((pattern, index) => {
+                const item = document.createElement('div');
+                item.className = 'scfw-pattern-item';
+                if (index === 0) item.classList.add('selected');
+                item.dataset.pattern = pattern.id;
+                
+                if (pattern.id === 'none') {
+                    item.innerHTML = '<span class="scfw-pattern-none">無</span>';
+                } else {
+                    item.innerHTML = pattern.emoji;
                 }
+                
+                item.addEventListener('click', () => {
+                    patternGrid.querySelectorAll('.scfw-pattern-item').forEach(p => p.classList.remove('selected'));
+                    item.classList.add('selected');
+                    this.currentSelection.pattern = pattern.id;
+                    this.updateMainPreview();
+                    this.updateAllPreviews();
+                    const patternName = pattern.id === 'none' ? '' : pattern.name;
+                    this.syncToBVShop('pattern', patternName);
+                });
+                
+                patternGrid.appendChild(item);
+            });
+        },
+
+        // 更新主預覽
+        updateMainPreview: function() {
+            const preview = this.elements.mainPreview;
+            const shape = this.shapes.find(s => s.id === this.currentSelection.shape);
+            const pattern = this.patterns.find(p => p.id === this.currentSelection.pattern);
+            const font = this.availableFonts.find(f => f.id === this.currentSelection.fontId);
+            
+            let shapeStyle = '';
+            let dimensions = 'width: 180px; height: 180px;';
+            
+            switch(this.currentSelection.shape) {
+                case 'circle':
+                    shapeStyle = 'border-radius: 50%;';
+                    break;
+                case 'square':
+                    shapeStyle = 'border-radius: 0;';
+                    break;
+                case 'ellipse':
+                    shapeStyle = 'border-radius: 50%;';
+                    dimensions = 'width: 220px; height: 160px;';
+                    break;
+                case 'rectangle':
+                    shapeStyle = 'border-radius: 0;';
+                    dimensions = 'width: 220px; height: 150px;';
+                    break;
             }
+            
+            const fontFamily = font ? (font.systemFont || `CustomFont${font.id}`) : 'serif';
+            
+            preview.innerHTML = `
+                <div style="
+                    ${dimensions}
+                    border: 5px ${this.currentSelection.borderStyle} ${this.currentSelection.color};
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    position: relative;
+                    background: white;
+                    ${shapeStyle}
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+                ">
+                    <span style="
+                        font-family: ${fontFamily};
+                        font-size: 48px;
+                        color: ${this.currentSelection.color};
+                        font-weight: bold;
+                        text-align: center;
+                    ">${this.currentSelection.text}</span>
+                    ${pattern && pattern.id !== 'none' ? `
+                        <span style="
+                            position: absolute;
+                            bottom: 15px;
+                            right: 15px;
+                            font-size: 28px;
+                            opacity: 0.4;
+                        ">${pattern.emoji}</span>
+                    ` : ''}
+                </div>
+            `;
         },
 
         // 載入字體
@@ -588,10 +1028,15 @@
             card.className = 'scfw-font-card';
             card.dataset.fontId = fontData.id;
             card.dataset.fontName = fontData.name;
+            card.dataset.category = fontData.category;
+            
+            if (fontData.id === this.currentSelection.fontId) {
+                card.classList.add('selected');
+            }
             
             card.innerHTML = `
-                <div class="scfw-stamp-preview">
-                    <div class="scfw-font-loading">載入中...</div>
+                <div class="scfw-font-preview">
+                    <span style="opacity: 0.3;">載入中...</span>
                 </div>
                 <div class="scfw-font-name">${fontData.displayName}</div>
             `;
@@ -599,19 +1044,11 @@
             // 載入字體後更新預覽
             this.loadFont(fontData).then((loaded) => {
                 if (loaded) {
-                    const previewDiv = card.querySelector('.scfw-stamp-preview');
+                    const previewDiv = card.querySelector('.scfw-font-preview');
                     previewDiv.innerHTML = `
-                        <div class="scfw-stamp ${this.currentSelection.shape}">
-                            <span class="scfw-stamp-text" style="
-                                font-family: ${fontData.systemFont || `CustomFont${fontData.id}`};
-                                color: ${this.currentSelection.color};
-                            ">
-                                ${this.currentSelection.text || '範例'}
-                            </span>
-                            <span class="scfw-stamp-pattern">
-                                ${this.patterns[this.currentSelection.pattern] || ''}
-                            </span>
-                        </div>
+                        <span style="
+                            font-family: ${fontData.systemFont || `CustomFont${fontData.id}`};
+                        ">${this.currentSelection.text || '印章範例'}</span>
                     `;
                 }
             });
@@ -628,6 +1065,8 @@
                 this.currentSelection.font = fontData.name;
                 this.currentSelection.fontId = fontData.id;
                 
+                this.updateMainPreview();
+                this.updateAllPreviews();
                 this.syncToBVShop('font', fontData.name);
             });
             
@@ -637,22 +1076,8 @@
         // 更新所有預覽
         updateAllPreviews: function() {
             const widget = document.getElementById('stamp-custom-font-widget');
-            widget.querySelectorAll('.scfw-font-card').forEach(card => {
-                const fontId = parseInt(card.dataset.fontId);
-                const fontData = this.availableFonts.find(f => f.id === fontId);
-                
-                if (fontData) {
-                    const stampEl = card.querySelector('.scfw-stamp');
-                    const textEl = card.querySelector('.scfw-stamp-text');
-                    const patternEl = card.querySelector('.scfw-stamp-pattern');
-                    
-                    if (stampEl && textEl && patternEl) {
-                        stampEl.className = 'scfw-stamp ' + this.currentSelection.shape;
-                        textEl.textContent = this.currentSelection.text || '範例';
-                        textEl.style.color = this.currentSelection.color;
-                        patternEl.textContent = this.patterns[this.currentSelection.pattern] || '';
-                    }
-                }
+            widget.querySelectorAll('.scfw-font-preview span').forEach(span => {
+                span.textContent = this.currentSelection.text || '印章範例';
             });
         },
 
@@ -661,9 +1086,8 @@
             if (this.isLoading) return;
             
             this.isLoading = true;
-            this.elements.fontGrid.innerHTML = '<div class="scfw-loading-overlay"><div class="scfw-loading-spinner"></div></div>';
+            this.elements.fontGrid.innerHTML = '<div class="scfw-loading-overlay"><div class="scfw-loading-spinner"></div><div class="scfw-loading-text">正在載入字體...</div></div>';
             
-            // 稍微延遲以顯示載入動畫
             await new Promise(resolve => setTimeout(resolve, 300));
             
             this.elements.fontGrid.innerHTML = '';
@@ -675,7 +1099,6 @@
             
             this.isLoading = false;
             
-            // 載入完成後，如果 BV SHOP 已有選擇，同步選中
             setTimeout(() => {
                 const fontSelect = this.findBVSelect('字體');
                 if (fontSelect && fontSelect.value) {
@@ -684,12 +1107,149 @@
             }, 100);
         },
 
-        // 顯示同步狀態
-        showSyncStatus: function() {
-            this.elements.syncStatus.style.display = 'block';
-            setTimeout(() => {
-                this.elements.syncStatus.style.display = 'none';
-            }, 2000);
+        // 篩選字體
+        filterFonts: function(category) {
+            const cards = this.elements.fontGrid.querySelectorAll('.scfw-font-card');
+            cards.forEach(card => {
+                if (category === 'all' || card.dataset.category === category) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        },
+
+        // 搜尋字體
+        searchFonts: function(keyword) {
+            const cards = this.elements.fontGrid.querySelectorAll('.scfw-font-card');
+            const lowerKeyword = keyword.toLowerCase();
+            
+            cards.forEach(card => {
+                const fontName = card.querySelector('.scfw-font-name').textContent.toLowerCase();
+                if (fontName.includes(lowerKeyword)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        },
+
+        // 根據字體名稱選中卡片
+        selectFontByName: function(fontName) {
+            const widget = document.getElementById('stamp-custom-font-widget');
+            
+            widget.querySelectorAll('.scfw-font-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            const fontData = this.availableFonts.find(f => f.name === fontName);
+            if (fontData) {
+                const targetCard = widget.querySelector(`[data-font-name="${fontName}"]`);
+                if (targetCard) {
+                    targetCard.classList.add('selected');
+                    this.currentSelection.font = fontName;
+                    this.currentSelection.fontId = fontData.id;
+                    
+                    this.updateMainPreview();
+                    this.updateAllPreviews();
+                }
+            }
+        },
+
+        // 設定 BV SHOP 監聽器
+        setupBVShopListeners: function() {
+            this.bvShopListeners.forEach(listener => {
+                listener.element.removeEventListener(listener.event, listener.handler);
+            });
+            this.bvShopListeners = [];
+
+            const fontSelect = this.findBVSelect('字體');
+            if (fontSelect) {
+                const fontHandler = (e) => {
+                    const selectedFont = e.target.value;
+                    this.selectFontByName(selectedFont);
+                };
+                fontSelect.addEventListener('change', fontHandler);
+                this.bvShopListeners.push({ element: fontSelect, event: 'change', handler: fontHandler });
+            }
+            
+            const textInput = document.querySelector('input[placeholder="輸入六字內"]');
+            if (textInput) {
+                const textHandler = (e) => {
+                    this.elements.textInput.value = e.target.value;
+                    this.currentSelection.text = e.target.value;
+                    this.updateMainPreview();
+                    this.updateAllPreviews();
+                };
+                textInput.addEventListener('input', textHandler);
+                this.bvShopListeners.push({ element: textInput, event: 'input', handler: textHandler });
+            }
+            
+            const shapeSelect = this.findBVSelect('形狀');
+            if (shapeSelect) {
+                const shapeHandler = (e) => {
+                    const shape = this.shapes.find(s => s.class === e.target.value);
+                    if (shape) {
+                        this.elements.shapeGrid.querySelectorAll('.scfw-shape-card').forEach(card => {
+                            card.classList.remove('selected');
+                            if (card.dataset.shape === shape.id) {
+                                card.classList.add('selected');
+                            }
+                        });
+                        this.currentSelection.shape = shape.id;
+                        this.updateMainPreview();
+                        this.updateAllPreviews();
+                    }
+                };
+                shapeSelect.addEventListener('change', shapeHandler);
+                this.bvShopListeners.push({ element: shapeSelect, event: 'change', handler: shapeHandler });
+            }
+            
+            const patternSelect = this.findBVSelect('圖案');
+            if (patternSelect) {
+                const patternHandler = (e) => {
+                    const patternName = e.target.value;
+                    const pattern = this.patterns.find(p => p.name === patternName) || this.patterns[0];
+                    this.elements.patternGrid.querySelectorAll('.scfw-pattern-item').forEach(item => {
+                        item.classList.remove('selected');
+                        if (item.dataset.pattern === pattern.id) {
+                            item.classList.add('selected');
+                        }
+                    });
+                    this.currentSelection.pattern = pattern.id;
+                    this.updateMainPreview();
+                    this.updateAllPreviews();
+                };
+                patternSelect.addEventListener('change', patternHandler);
+                this.bvShopListeners.push({ element: patternSelect, event: 'change', handler: patternHandler });
+            }
+            
+            const colorSelect = this.findBVSelect('顏色');
+            if (colorSelect) {
+                const colorHandler = (e) => {
+                    const selectedColor = e.target.value;
+                    const colorMap = {
+                        '朱紅': '#dc3545',
+                        '黑色': '#000000',
+                        '藍色': '#0066cc',
+                        '綠色': '#28a745'
+                    };
+                    const actualColor = colorMap[selectedColor] || '#dc3545';
+                    
+                    this.elements.colorPalette.querySelectorAll('.scfw-color-main').forEach(c => {
+                        c.classList.remove('selected');
+                        if (c.dataset.color === actualColor) {
+                            c.classList.add('selected');
+                        }
+                    });
+                    
+                    this.currentSelection.color = actualColor;
+                    this.updateMainPreview();
+                    this.updateAllPreviews();
+                };
+                colorSelect.addEventListener('change', colorHandler);
+                this.bvShopListeners.push({ element: colorSelect, event: 'change', handler: colorHandler });
+            }
         },
 
         // 同步到 BV SHOP
@@ -743,14 +1303,18 @@
                     case 'color':
                         const colorSelect = this.findBVSelect('顏色');
                         if (colorSelect) {
-                            const colorText = this.colorTextMap[value] || '朱紅';
+                            const colorTextMap = {
+                                '#dc3545': '朱紅',
+                                '#000000': '黑色',
+                                '#0066cc': '藍色',
+                                '#28a745': '綠色'
+                            };
+                            const colorText = colorTextMap[value] || '朱紅';
                             colorSelect.value = colorText;
                             colorSelect.dispatchEvent(new Event('change', { bubbles: true }));
                         }
                         break;
                 }
-                
-                this.showSyncStatus();
             } catch (error) {
                 console.error('同步錯誤:', error);
             }
@@ -770,28 +1334,27 @@
 
         // 綁定事件
         bindEvents: function() {
+            // 文字輸入
             this.elements.textInput.addEventListener('input', (e) => {
-                this.currentSelection.text = e.target.value;
+                this.currentSelection.text = e.target.value || '印章範例';
+                this.updateMainPreview();
                 this.updateAllPreviews();
                 this.syncToBVShop('text', e.target.value);
             });
             
-            this.elements.shapeSelect.addEventListener('change', (e) => {
-                this.currentSelection.shape = e.target.value;
-                this.updateAllPreviews();
-                this.syncToBVShop('shape', e.target.value);
+            // 字體搜尋
+            this.elements.fontSearch.addEventListener('input', (e) => {
+                this.searchFonts(e.target.value);
             });
             
-            this.elements.patternSelect.addEventListener('change', (e) => {
-                this.currentSelection.pattern = e.target.value;
-                this.updateAllPreviews();
-                this.syncToBVShop('pattern', e.target.value);
-            });
-            
-            this.elements.colorSelect.addEventListener('change', (e) => {
-                this.currentSelection.color = e.target.value;
-                this.updateAllPreviews();
-                this.syncToBVShop('color', e.target.value);
+            // 分類按鈕
+            document.querySelectorAll('.scfw-category-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.scfw-category-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    this.currentSelection.category = btn.dataset.category;
+                    this.filterFonts(btn.dataset.category);
+                });
             });
         },
 
@@ -805,30 +1368,37 @@
             
             const shapeSelect = this.findBVSelect('形狀');
             if (shapeSelect && shapeSelect.value) {
-                this.elements.shapeSelect.value = shapeSelect.value;
-                this.currentSelection.shape = shapeSelect.value;
+                const shape = this.shapes.find(s => s.class === shapeSelect.value);
+                if (shape) {
+                    this.currentSelection.shape = shape.id;
+                }
             }
             
             const patternSelect = this.findBVSelect('圖案');
             if (patternSelect && patternSelect.value) {
-                this.elements.patternSelect.value = patternSelect.value;
-                this.currentSelection.pattern = patternSelect.value;
+                const pattern = this.patterns.find(p => p.name === patternSelect.value);
+                if (pattern) {
+                    this.currentSelection.pattern = pattern.id;
+                }
             }
             
-            // 載入顏色
             const colorSelect = this.findBVSelect('顏色');
             if (colorSelect && colorSelect.value) {
-                const actualColor = this.colorMap[colorSelect.value] || '#dc3545';
-                this.elements.colorSelect.value = actualColor;
-                this.currentSelection.color = actualColor;
+                const colorMap = {
+                    '朱紅': '#dc3545',
+                    '黑色': '#000000',
+                    '藍色': '#0066cc',
+                    '綠色': '#28a745'
+                };
+                this.currentSelection.color = colorMap[colorSelect.value] || '#dc3545';
             }
             
-            // 重要：同步字體選擇
             const fontSelect = this.findBVSelect('字體');
             if (fontSelect && fontSelect.value) {
                 this.selectFontByName(fontSelect.value);
             }
             
+            this.updateMainPreview();
             this.updateAllPreviews();
         }
     };
