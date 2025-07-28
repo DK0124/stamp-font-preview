@@ -1041,7 +1041,14 @@
                 
                 const mainColor = document.createElement('div');
                 mainColor.className = 'scfw-color-main';
-                if (index === 0) mainColor.classList.add('selected');
+                
+                // 判斷是否為琥珀黃色系，如果是則預設選中
+                if (group.main === '#ffb74d') {
+                    mainColor.classList.add('selected');
+                    // 同時設定當前選擇為深黃色（琥珀黃的最深色）
+                    this.currentSelection.color = '#ff9800';
+                }
+                
                 mainColor.style.backgroundColor = group.main;
                 mainColor.dataset.color = group.main;
                 
@@ -1057,11 +1064,19 @@
                 const shades = document.createElement('div');
                 shades.className = 'scfw-color-shades';
                 
-                group.shades.forEach(shade => {
+                group.shades.forEach((shade, shadeIndex) => {
                     const shadeDiv = document.createElement('div');
                     shadeDiv.className = 'scfw-color-shade';
                     shadeDiv.style.backgroundColor = shade;
                     shadeDiv.dataset.color = shade;
+                    
+                    // 如果是琥珀黃色系的最深色，觸發點擊以設定為預設
+                    if (group.main === '#ffb74d' && shade === '#ff9800' && !this._colorInitialized) {
+                        setTimeout(() => {
+                            shadeDiv.click();
+                            this._colorInitialized = true;
+                        }, 100);
+                    }
                     
                     shadeDiv.addEventListener('click', () => {
                         colorsGrid.querySelectorAll('.scfw-color-main').forEach(el => el.classList.remove('selected'));
@@ -1079,8 +1094,12 @@
                 colorGroup.appendChild(shades);
                 colorsGrid.appendChild(colorGroup);
             });
+            
+            // 初始化時更新邊框顏色為深黃色
+            setTimeout(() => {
+                this.updateBorderStyleColors();
+            }, 200);
         },
-
         // 初始化圖案
         initializePatterns: function() {
             const patternsGrid = this.elements.patternsGrid;
@@ -1275,6 +1294,9 @@
                 const fontSelect = this.findBVSelect('字體');
                 if (fontSelect && fontSelect.value) {
                     this.selectFontByName(fontSelect.value);
+                } else {
+                    // 如果沒有 BV Shop 的選擇，使用預設的粗線體不等寬
+                    this.selectFontByName('粗線體不等寬');
                 }
             }, 100);
         },
