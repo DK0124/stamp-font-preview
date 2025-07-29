@@ -7,6 +7,7 @@
       "displayName": "文鼎粗鋼筆行楷",
       "category": "custom",
       "weight": "normal",
+      "systemFont": null,
       "githubPath": "assets/fonts/文鼎粗鋼筆行楷.TTF"
     }
   ],
@@ -71,6 +72,6 @@
       ]
     }
   ],
-  "lastUpdate": "2025-07-29T03:40:28.266Z",
-  "version": "2.0.3"
+  "lastUpdate": "2025-07-29T04:01:06.096Z",
+  "version": "2.1.0"
 }
