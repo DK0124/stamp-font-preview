@@ -7,7 +7,7 @@
       "displayName": "儷中黑外字集",
       "category": "custom",
       "weight": "normal",
-      "systemFont": null
+      "githubPath": null
     },
     {
       "id": 1753754300616.1396,
@@ -16,7 +16,7 @@
       "displayName": "儷粗黑外字集",
       "category": "custom",
       "weight": "normal",
-      "systemFont": null
+      "githubPath": null
     },
     {
       "id": 1753754300617.5762,
@@ -25,7 +25,7 @@
       "displayName": "儷金黑外字集",
       "category": "custom",
       "weight": "normal",
-      "systemFont": null
+      "githubPath": null
     },
     {
       "id": 1753754300620.953,
@@ -34,7 +34,7 @@
       "displayName": "儷中宋外字集",
       "category": "custom",
       "weight": "normal",
-      "systemFont": null
+      "githubPath": null
     },
     {
       "id": 1753754300621.5244,
@@ -43,7 +43,7 @@
       "displayName": "儷特圓外字集",
       "category": "custom",
       "weight": "normal",
-      "systemFont": null
+      "githubPath": null
     },
     {
       "id": 1753754300623.9866,
@@ -52,7 +52,7 @@
       "displayName": "儷宋外字集",
       "category": "custom",
       "weight": "normal",
-      "systemFont": null
+      "githubPath": null
     },
     {
       "id": 1753754300625.1067,
@@ -61,12 +61,12 @@
       "displayName": "儷粗宋外字集",
       "category": "custom",
       "weight": "normal",
-      "systemFont": null
+      "githubPath": null
     }
   ],
   "shapes": [],
   "patterns": [],
   "colors": [],
-  "lastUpdate": "2025-07-29T01:58:30.558Z",
-  "version": "1.0.0"
+  "lastUpdate": "2025-07-29T02:17:36.364Z",
+  "version": "2.0.0"
 }
