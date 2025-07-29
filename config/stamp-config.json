@@ -1,16 +1,5 @@
 {
-  "fonts": [
-    {
-      "id": 1753758961019.926,
-      "name": "文鼎粗鋼筆行楷",
-      "filename": "文鼎粗鋼筆行楷.ttf",
-      "displayName": "文鼎粗鋼筆行楷",
-      "category": "custom",
-      "weight": "normal",
-      "systemFont": null,
-      "githubPath": "assets/fonts/文鼎粗鋼筆行楷.TTF"
-    }
-  ],
+  "fonts": [],
   "shapes": [
     {
       "id": 1753760045437.0618,
@@ -72,6 +61,6 @@
       ]
     }
   ],
-  "lastUpdate": "2025-07-29T05:20:27.141Z",
+  "lastUpdate": "2025-07-29T05:24:25.696Z",
   "version": "2.1.0"
 }
