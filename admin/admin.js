@@ -1,9 +1,45 @@
 /**
  * 印章系統後台管理
  * @author DK0124
- * @version 2.0.0
+ * @version 2.0.2
  * @date 2025-01-29
  */
+
+// 設定管理器
+const SettingsManager = {
+    saveSettings: function(key, data) {
+        try {
+            localStorage.setItem(`stamp_admin_${key}`, JSON.stringify(data));
+            return true;
+        } catch (error) {
+            console.error('儲存設定失敗:', error);
+            return false;
+        }
+    },
+    
+    loadSettings: function(key, defaultValue = null) {
+        try {
+            const data = localStorage.getItem(`stamp_admin_${key}`);
+            return data ? JSON.parse(data) : defaultValue;
+        } catch (error) {
+            console.error('載入設定失敗:', error);
+            return defaultValue;
+        }
+    },
+    
+    clearSettings: function(key) {
+        localStorage.removeItem(`stamp_admin_${key}`);
+    },
+    
+    clearAllSettings: function() {
+        const keys = Object.keys(localStorage);
+        keys.forEach(key => {
+            if (key.startsWith('stamp_admin_')) {
+                localStorage.removeItem(key);
+            }
+        });
+    }
+};
 
 // 全域變數
 let currentPage = 'dashboard';
@@ -21,7 +57,6 @@ const GitHubConfig = {
     branch: 'main',
     configPath: 'config/stamp-config.json',
     
-    // Token 管理
     getToken: function() {
         return localStorage.getItem('github_token') || '';
     },
@@ -42,19 +77,47 @@ const GitHubConfig = {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', function() {
+    loadSavedData();
     initializeAdmin();
     setupSecurityFeatures();
     generateWatermark();
     
-    // 載入 GitHub 設定
     setTimeout(() => {
         loadFromGitHub();
     }, 1000);
 });
 
+// 載入所有儲存的資料
+function loadSavedData() {
+    const savedUploadData = SettingsManager.loadSettings('uploadData', {
+        fonts: [],
+        shapes: [],
+        patterns: [],
+        colors: []
+    });
+    uploadedData = savedUploadData;
+    
+    const savedSecuritySettings = SettingsManager.loadSettings('security', {
+        preventScreenshot: true,
+        enableWatermark: true,
+        disableRightClick: true,
+        disableTextSelect: true,
+        disableDevTools: true,
+        encryptFonts: true,
+        watermarkText: '© 2025 印章系統 - DK0124',
+        watermarkInterval: 60
+    });
+    
+    if (savedSecuritySettings.enableWatermark) {
+        initializeWatermarkSettings();
+    }
+}
+
 // 初始化管理系統
 function initializeAdmin() {
-    // 側邊欄導航
+    const lastPage = SettingsManager.loadSettings('currentPage', 'dashboard');
+    currentPage = lastPage;
+    
     document.querySelectorAll('.admin-nav-item').forEach(item => {
         item.addEventListener('click', function() {
             document.querySelectorAll('.admin-nav-item').forEach(i => i.classList.remove('active'));
@@ -63,14 +126,19 @@ function initializeAdmin() {
             currentPage = this.dataset.page;
             loadPage(currentPage);
         });
+        
+        if (item.dataset.page === currentPage) {
+            item.classList.add('active');
+        }
     });
 
-    // 載入初始頁面
-    loadPage('dashboard');
+    loadPage(currentPage);
 }
 
 // 載入頁面內容
 function loadPage(page) {
+    SettingsManager.saveSettings('currentPage', page);
+    
     const content = document.getElementById('adminContent');
     const title = document.getElementById('pageTitle');
     
@@ -78,6 +146,7 @@ function loadPage(page) {
         case 'dashboard':
             title.textContent = '總覽';
             content.innerHTML = getDashboardContent();
+            updateGitHubStatus(true);
             break;
         case 'fonts':
             title.textContent = '字體管理';
@@ -164,7 +233,7 @@ function getDashboardContent() {
                 </div>
                 <div>
                     <p>最後更新：${new Date().toLocaleString('zh-TW')}</p>
-                    <p>系統版本：2.0.0</p>
+                    <p>系統版本：2.0.2</p>
                     <p>授權狀態：<span style="color: var(--admin-success);">有效</span></p>
                 </div>
             </div>
@@ -447,10 +516,8 @@ function initializeFontsPage() {
     
     if (!uploadArea || !fileInput) return;
     
-    // 點擊上傳
     uploadArea.addEventListener('click', () => fileInput.click());
     
-    // 拖放上傳
     uploadArea.addEventListener('dragover', (e) => {
         e.preventDefault();
         uploadArea.classList.add('dragging');
@@ -470,10 +537,8 @@ function initializeFontsPage() {
         handleFontFiles(e.target.files);
     });
     
-    // 更新字體表格
     updateFontsTable();
     
-    // 初始化排序
     const fontsTableBody = document.getElementById('fontsTableBody');
     if (fontsTableBody && typeof Sortable !== 'undefined') {
         new Sortable(fontsTableBody, {
@@ -553,36 +618,26 @@ function initializeColorsPage() {
 
 // 初始化安全設定頁面
 function initializeSecurityPage() {
-    // 載入已儲存的設定
-    const savedSettings = localStorage.getItem('securitySettings');
-    if (savedSettings) {
-        const settings = JSON.parse(savedSettings);
-        
-        // 設定各個 checkbox 的值
-        if (document.getElementById('preventScreenshot')) {
-            document.getElementById('preventScreenshot').checked = settings.preventScreenshot !== false;
-        }
-        if (document.getElementById('enableWatermark')) {
-            document.getElementById('enableWatermark').checked = settings.enableWatermark !== false;
-        }
-        if (document.getElementById('disableRightClick')) {
-            document.getElementById('disableRightClick').checked = settings.disableRightClick !== false;
-        }
-        if (document.getElementById('disableTextSelect')) {
-            document.getElementById('disableTextSelect').checked = settings.disableTextSelect !== false;
-        }
-        if (document.getElementById('disableDevTools')) {
-            document.getElementById('disableDevTools').checked = settings.disableDevTools !== false;
-        }
-        if (document.getElementById('encryptFonts')) {
-            document.getElementById('encryptFonts').checked = settings.encryptFonts !== false;
-        }
-        if (document.getElementById('watermarkText')) {
-            document.getElementById('watermarkText').value = settings.watermarkText || '© 2025 印章系統 - DK0124';
-        }
-        if (document.getElementById('watermarkInterval')) {
-            document.getElementById('watermarkInterval').value = settings.watermarkInterval || 60;
-        }
+    const settings = SettingsManager.loadSettings('security', {
+        preventScreenshot: true,
+        enableWatermark: true,
+        disableRightClick: true,
+        disableTextSelect: true,
+        disableDevTools: true,
+        encryptFonts: true,
+        watermarkText: '© 2025 印章系統 - DK0124',
+        watermarkInterval: 60
+    });
+    
+    if (document.getElementById('preventScreenshot')) {
+        document.getElementById('preventScreenshot').checked = settings.preventScreenshot;
+        document.getElementById('enableWatermark').checked = settings.enableWatermark;
+        document.getElementById('disableRightClick').checked = settings.disableRightClick;
+        document.getElementById('disableTextSelect').checked = settings.disableTextSelect;
+        document.getElementById('disableDevTools').checked = settings.disableDevTools;
+        document.getElementById('encryptFonts').checked = settings.encryptFonts;
+        document.getElementById('watermarkText').value = settings.watermarkText;
+        document.getElementById('watermarkInterval').value = settings.watermarkInterval;
     }
 }
 
@@ -606,6 +661,7 @@ function handleFontFiles(files) {
                 
                 uploadedData.fonts.push(fontData);
                 updateFontsTable();
+                SettingsManager.saveSettings('uploadData', uploadedData);
                 showNotification('字體上傳成功', 'success');
             };
             reader.readAsDataURL(file);
@@ -629,6 +685,7 @@ function handleShapeFiles(files) {
                 
                 uploadedData.shapes.push(shapeData);
                 updateShapesPreview();
+                SettingsManager.saveSettings('uploadData', uploadedData);
                 showNotification('形狀上傳成功', 'success');
             };
             reader.readAsDataURL(file);
@@ -652,6 +709,7 @@ function handlePatternFiles(files) {
                 
                 uploadedData.patterns.push(patternData);
                 updatePatternsPreview();
+                SettingsManager.saveSettings('uploadData', uploadedData);
                 showNotification('圖案上傳成功', 'success');
             };
             reader.readAsDataURL(file);
@@ -748,8 +806,8 @@ function addColorGroup() {
     
     uploadedData.colors.push(colorGroup);
     displayColorGroups();
+    SettingsManager.saveSettings('uploadData', uploadedData);
     
-    // 清空輸入
     document.getElementById('colorName').value = '';
     document.getElementById('colorMain').value = '#dc3545';
     
@@ -761,7 +819,6 @@ function generateColorShades(baseColor) {
     const shades = [];
     const color = hexToRgb(baseColor);
     
-    // 生成4個漸層色
     for (let i = 0; i < 4; i++) {
         const factor = 1 - (i * 0.2);
         const shade = {
@@ -813,6 +870,7 @@ function deleteFont(id) {
     if (confirm('確定要刪除這個字體嗎？')) {
         uploadedData.fonts = uploadedData.fonts.filter(f => f.id != id);
         updateFontsTable();
+        SettingsManager.saveSettings('uploadData', uploadedData);
         showNotification('字體已刪除', 'info');
     }
 }
@@ -821,6 +879,7 @@ function deleteShape(id) {
     if (confirm('確定要刪除這個形狀嗎？')) {
         uploadedData.shapes = uploadedData.shapes.filter(s => s.id != id);
         updateShapesPreview();
+        SettingsManager.saveSettings('uploadData', uploadedData);
         showNotification('形狀已刪除', 'info');
     }
 }
@@ -829,6 +888,7 @@ function deletePattern(id) {
     if (confirm('確定要刪除這個圖案嗎？')) {
         uploadedData.patterns = uploadedData.patterns.filter(p => p.id != id);
         updatePatternsPreview();
+        SettingsManager.saveSettings('uploadData', uploadedData);
         showNotification('圖案已刪除', 'info');
     }
 }
@@ -837,6 +897,7 @@ function deleteColor(id) {
     if (confirm('確定要刪除這個顏色組嗎？')) {
         uploadedData.colors = uploadedData.colors.filter(c => c.id != id);
         displayColorGroups();
+        SettingsManager.saveSettings('uploadData', uploadedData);
         showNotification('顏色組已刪除', 'info');
     }
 }
@@ -880,6 +941,7 @@ function saveEditFont(id) {
     font.weight = document.getElementById('editFontWeight').value;
     
     updateFontsTable();
+    SettingsManager.saveSettings('uploadData', uploadedData);
     closeModal();
     showNotification('字體已更新', 'success');
 }
@@ -900,6 +962,7 @@ async function uploadSingleFont(fontId) {
     if (success) {
         font.uploaded = true;
         updateFontsTable();
+        SettingsManager.saveSettings('uploadData', uploadedData);
     }
 }
 
@@ -915,19 +978,14 @@ async function uploadFontFile(fontData) {
         console.log('開始上傳字體檔案:', fontData.name);
         showNotification(`正在上傳字體: ${fontData.name}...`, 'info');
         
-        // 從 data URL 提取 base64 內容
         const base64Content = fontData.url.split(',')[1];
-        
-        // 取得檔案副檔名
         const extension = fontData.file ? 
             fontData.file.name.split('.').pop() : 
             'ttf';
         
-        // 檔案路徑
         const filePath = `assets/fonts/${fontData.name}.${extension}`;
         const apiUrl = `https://api.github.com/repos/${GitHubConfig.owner}/${GitHubConfig.repo}/contents/${filePath}`;
         
-        // 檢查檔案是否已存在
         let sha = null;
         const checkResponse = await fetch(apiUrl, {
             headers: {
@@ -942,7 +1000,6 @@ async function uploadFontFile(fontData) {
             console.log('檔案已存在，將更新');
         }
         
-        // 上傳或更新檔案
         const requestBody = {
             message: `Upload font: ${fontData.name}`,
             content: base64Content,
@@ -1013,12 +1070,12 @@ async function uploadAllFonts() {
                 failCount++;
             }
             
-            // 避免 API 限制，每個請求之間等待一下
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
     }
     
     updateFontsTable();
+    SettingsManager.saveSettings('uploadData', uploadedData);
     
     if (successCount > 0) {
         showNotification(`成功上傳 ${successCount} 個字體檔案`, 'success');
@@ -1157,32 +1214,29 @@ async function saveToGitHub() {
         if (!newToken) return;
     }
     
-    // 詢問是否要上傳檔案
     const uploadFiles = confirm('是否要同時上傳所有檔案？（字體、形狀、圖案）\n這可能需要較長時間。');
     
     if (uploadFiles) {
-        // 上傳字體
         await uploadAllFonts();
         
-        // 上傳形狀
         for (const shape of uploadedData.shapes.filter(s => !s.uploaded)) {
             await uploadShapeFile(shape);
             await new Promise(resolve => setTimeout(resolve, 500));
         }
         updateShapesPreview();
         
-        // 上傳圖案
         for (const pattern of uploadedData.patterns.filter(p => !p.uploaded)) {
             await uploadPatternFile(pattern);
             await new Promise(resolve => setTimeout(resolve, 500));
         }
         updatePatternsPreview();
+        
+        SettingsManager.saveSettings('uploadData', uploadedData);
     }
     
     console.log('開始儲存設定到 GitHub...');
     
     try {
-        // 準備設定資料
         const config = {
             fonts: uploadedData.fonts.map(f => ({
                 id: f.id,
@@ -1206,14 +1260,13 @@ async function saveToGitHub() {
             })),
             colors: uploadedData.colors,
             lastUpdate: new Date().toISOString(),
-            version: '2.0.0'
+            version: '2.0.2'
         };
         
         console.log('準備儲存的資料:', config);
         
         const apiUrl = `https://api.github.com/repos/${GitHubConfig.owner}/${GitHubConfig.repo}/contents/${GitHubConfig.configPath}`;
         
-        // 取得現有檔案的 SHA
         let sha = null;
         console.log('正在取得檔案 SHA...');
         
@@ -1233,24 +1286,20 @@ async function saveToGitHub() {
             console.log('檔案不存在，將建立新檔案');
         }
         
-        // 將資料轉換為 base64
         const content = btoa(unescape(encodeURIComponent(JSON.stringify(config, null, 2))));
         
-        // 建立請求 body
         const requestBody = {
             message: `Update stamp config - ${new Date().toLocaleString('zh-TW')}`,
             content: content,
             branch: GitHubConfig.branch
         };
         
-        // 如果有 SHA，加入到請求中
         if (sha) {
             requestBody.sha = sha;
         }
         
         console.log('發送更新請求...');
         
-        // 更新檔案
         const updateResponse = await fetch(apiUrl, {
             method: 'PUT',
             headers: {
@@ -1268,7 +1317,6 @@ async function saveToGitHub() {
             showNotification('設定已成功儲存到 GitHub', 'success');
             console.log('儲存成功！');
             
-            // 顯示 commit 資訊
             if (responseData.commit) {
                 console.log('Commit SHA:', responseData.commit.sha);
                 console.log('Commit URL:', responseData.commit.html_url);
@@ -1294,13 +1342,11 @@ async function loadFromGitHub() {
         if (response.ok) {
             const config = await response.json();
             
-            // 更新本地資料
             uploadedData.fonts = config.fonts || [];
             uploadedData.shapes = config.shapes || [];
             uploadedData.patterns = config.patterns || [];
             uploadedData.colors = config.colors || [];
             
-            // 標記已上傳的項目
             uploadedData.fonts.forEach(f => {
                 if (f.githubPath) f.uploaded = true;
             });
@@ -1311,7 +1357,8 @@ async function loadFromGitHub() {
                 if (p.githubPath) p.uploaded = true;
             });
             
-            // 更新顯示
+            SettingsManager.saveSettings('uploadData', uploadedData);
+            
             if (currentPage === 'fonts') updateFontsTable();
             if (currentPage === 'shapes') updateShapesPreview();
             if (currentPage === 'patterns') updatePatternsPreview();
@@ -1319,8 +1366,6 @@ async function loadFromGitHub() {
             if (currentPage === 'dashboard') loadPage('dashboard');
             
             showNotification('設定載入成功', 'success');
-            
-            // 更新 GitHub 狀態
             updateGitHubStatus(true);
         } else {
             updateGitHubStatus(false);
@@ -1365,7 +1410,6 @@ async function testGitHubConnection() {
     }
     
     try {
-        // 測試 Token
         console.log('測試 Token...');
         const userResponse = await fetch('https://api.github.com/user', {
             headers: {
@@ -1383,7 +1427,6 @@ async function testGitHubConnection() {
             return;
         }
         
-        // 測試 Repository 存取
         console.log('測試 Repository 存取...');
         const repoResponse = await fetch(`https://api.github.com/repos/${GitHubConfig.owner}/${GitHubConfig.repo}`, {
             headers: {
@@ -1401,7 +1444,6 @@ async function testGitHubConnection() {
             showNotification('無法存取 Repository', 'danger');
         }
         
-        // 測試檔案存取
         console.log('測試檔案存取...');
         const fileResponse = await fetch(`https://api.github.com/repos/${GitHubConfig.owner}/${GitHubConfig.repo}/contents/${GitHubConfig.configPath}`, {
             headers: {
@@ -1458,39 +1500,16 @@ function addGitHubButtons() {
 
 // 安全防護功能
 function setupSecurityFeatures() {
-    // 讀取安全設定
-    const savedSettings = localStorage.getItem('securitySettings');
-    let settings = {
-        preventScreenshot: true,
-        enableWatermark: true,
-        disableRightClick: true,
-        disableTextSelect: true,
-        disableDevTools: true,
-        encryptFonts: true
-    };
+    document.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        return false;
+    });
     
-    if (savedSettings) {
-        settings = JSON.parse(savedSettings);
-    }
+    document.addEventListener('selectstart', (e) => {
+        e.preventDefault();
+        return false;
+    });
     
-    // 根據設定啟用功能
-    if (settings.disableRightClick) {
-        // 禁用右鍵
-        document.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            return false;
-        });
-    }
-    
-    if (settings.disableTextSelect) {
-        // 禁用文字選擇
-        document.addEventListener('selectstart', (e) => {
-            e.preventDefault();
-            return false;
-        });
-    }
-    
-    // 禁用拖放（保護圖片）
     document.addEventListener('dragstart', (e) => {
         if (e.target.tagName === 'IMG') {
             e.preventDefault();
@@ -1498,50 +1517,39 @@ function setupSecurityFeatures() {
         }
     });
     
-    if (settings.preventScreenshot) {
-        // 偵測截圖（基於 visibility change）
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                // 可能正在截圖
-                document.getElementById('screenshotProtection').style.display = 'flex';
-                setTimeout(() => {
-                    document.getElementById('screenshotProtection').style.display = 'none';
-                }, 2000);
-            }
-        });
-    }
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            document.getElementById('screenshotProtection').style.display = 'flex';
+            setTimeout(() => {
+                document.getElementById('screenshotProtection').style.display = 'none';
+            }, 2000);
+        }
+    });
     
-    if (settings.disableDevTools) {
-        // 偵測開發者工具
-        let devtools = { open: false, orientation: null };
-        const threshold = 160;
-        
-        setInterval(() => {
-            if (window.outerHeight - window.innerHeight > threshold || 
-                window.outerWidth - window.innerWidth > threshold) {
-                if (!devtools.open) {
-                    devtools.open = true;
-                    handleDevToolsOpen();
-                }
-            } else {
-                devtools.open = false;
-            }
-        }, 500);
-    }
+    let devtools = { open: false, orientation: null };
+    const threshold = 160;
     
-    // 禁用 F12 和其他快捷鍵
+    setInterval(() => {
+        if (window.outerHeight - window.innerHeight > threshold || 
+            window.outerWidth - window.innerWidth > threshold) {
+            if (!devtools.open) {
+                devtools.open = true;
+                handleDevToolsOpen();
+            }
+        } else {
+            devtools.open = false;
+        }
+    }, 500);
+    
     document.addEventListener('keydown', (e) => {
-        // F12
         if (e.keyCode === 123) {
             e.preventDefault();
             return false;
         }
-        // Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C
         if (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) {
             e.preventDefault();
             return false;
         }
-        // Ctrl+U (查看源碼)
         if (e.ctrlKey && e.keyCode === 85) {
             e.preventDefault();
             return false;
@@ -1558,40 +1566,242 @@ function handleDevToolsOpen() {
     }
 }
 
-// 生成浮水印
-function generateWatermark() {
-    const watermarkLayer = document.getElementById('watermarkLayer');
-    const textElement = document.getElementById('watermarkText');
-    const text = textElement ? textElement.value : '© 2025 印章系統 - DK0124';
-    const savedSettings = localStorage.getItem('securitySettings');
-    let settings = {
-        enable
-
-    watermarkLayer.innerHTML = '';
-    for (let i = 0; i < 50; i++) {
-        const span = document.createElement('span');
-        span.className = 'watermark-text';
-        span.textContent = text;
-        watermarkLayer.appendChild(span);
+// 生成浮水印 (續)
+    const watermarkText = watermarkTextInput ? watermarkTextInput.value : `© 2025 印章系統 - DK0124`;
+    
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+    const watermarkWidth = 300;
+    const watermarkHeight = 150;
+    const cols = Math.ceil(screenWidth / watermarkWidth) + 1;
+    const rows = Math.ceil(screenHeight / watermarkHeight) + 1;
+    
+    for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+            const watermarkItem = document.createElement('div');
+            watermarkItem.className = 'watermark-text';
+            watermarkItem.style.cssText = `
+                position: absolute;
+                left: ${col * watermarkWidth}px;
+                top: ${row * watermarkHeight}px;
+                width: ${watermarkWidth}px;
+                height: ${watermarkHeight}px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transform: rotate(-45deg);
+                font-family: 'Arial', sans-serif;
+                font-size: 14px;
+                font-weight: 600;
+                color: rgba(0, 0, 0, 0.5);
+                text-align: center;
+                white-space: nowrap;
+                letter-spacing: 2px;
+                text-shadow: 1px 1px 1px rgba(255, 255, 255, 0.5);
+            `;
+            
+            const timestamp = new Date().toLocaleString('zh-TW', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            
+            watermarkItem.innerHTML = `
+                <div>
+                    <div>${watermarkText}</div>
+                    <div style="font-size: 10px; margin-top: 5px; opacity: 0.7;">${timestamp}</div>
+                </div>
+            `;
+            
+            watermarkLayer.appendChild(watermarkItem);
+        }
     }
     
-    // 定期更新浮水印（防止被移除）
+    document.body.appendChild(watermarkLayer);
+    setupWatermarkProtection();
+    
+    const updateInterval = getWatermarkInterval();
+    if (window.watermarkUpdateTimer) {
+        clearInterval(window.watermarkUpdateTimer);
+    }
+    
+    window.watermarkUpdateTimer = setInterval(() => {
+        updateWatermarkContent();
+    }, updateInterval);
+    
+    console.log('浮水印已生成');
+}
+
+function getCurrentUser() {
+    const githubUser = localStorage.getItem('github_user');
+    if (githubUser) return githubUser;
+    return 'DK0124';
+}
+
+function getWatermarkInterval() {
+    const intervalInput = document.getElementById('watermarkInterval');
+    const interval = intervalInput ? parseInt(intervalInput.value) : 60;
+    return interval * 1000;
+}
+
+function setupWatermarkProtection() {
+    const observer = new MutationObserver((mutations) => {
+        const watermarkExists = document.getElementById('watermarkLayer');
+        if (!watermarkExists) {
+            console.warn('偵測到浮水印被移除，正在重新生成...');
+            generateWatermark();
+        }
+    });
+    
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+    
+    Object.defineProperty(window, 'watermarkLayer', {
+        get: function() {
+            console.warn('禁止存取浮水印層');
+            return null;
+        },
+        set: function() {
+            console.warn('禁止修改浮水印層');
+            return false;
+        },
+        configurable: false
+    });
+    
     setInterval(() => {
-        if (!document.getElementById('watermarkLayer')) {
-            const newWatermark = document.createElement('div');
-            newWatermark.className = 'watermark-layer';
-            newWatermark.id = 'watermarkLayer';
-            document.body.appendChild(newWatermark);
+        const watermark = document.getElementById('watermarkLayer');
+        if (watermark) {
+            if (watermark.style.display === 'none' || 
+                watermark.style.visibility === 'hidden' ||
+                parseFloat(watermark.style.opacity) === 0) {
+                watermark.style.display = 'block';
+                watermark.style.visibility = 'visible';
+                watermark.style.opacity = '0.08';
+                console.warn('偵測到浮水印被隱藏，已恢復顯示');
+            }
+        } else {
             generateWatermark();
         }
     }, 1000);
+}
+
+function updateWatermarkContent() {
+    const watermarkLayer = document.getElementById('watermarkLayer');
+    if (!watermarkLayer) {
+        generateWatermark();
+        return;
+    }
+    
+    const watermarkItems = watermarkLayer.querySelectorAll('.watermark-text');
+    const timestamp = new Date().toLocaleString('zh-TW', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    
+    watermarkItems.forEach(item => {
+        const timeDiv = item.querySelector('div > div:last-child');
+        if (timeDiv) {
+            timeDiv.textContent = timestamp;
+        }
+    });
+}
+
+window.addEventListener('resize', debounce(() => {
+    generateWatermark();
+}, 300));
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+if (!document.getElementById('watermarkStyles')) {
+    const watermarkStyles = document.createElement('style');
+    watermarkStyles.id = 'watermarkStyles';
+    watermarkStyles.textContent = `
+        .watermark-layer {
+            animation: watermarkFloat 30s linear infinite;
+        }
+        
+        @keyframes watermarkFloat {
+            0% { transform: translate(0, 0); }
+            25% { transform: translate(-10px, -10px); }
+            50% { transform: translate(0, -20px); }
+            75% { transform: translate(10px, -10px); }
+            100% { transform: translate(0, 0); }
+        }
+        
+        .watermark-text {
+            transition: opacity 0.3s ease;
+        }
+        
+        .watermark-text:hover {
+            opacity: 0.2 !important;
+        }
+        
+        @media print {
+            .watermark-layer {
+                opacity: 0.2 !important;
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+            }
+        }
+    `;
+    document.head.appendChild(watermarkStyles);
+}
+
+function initializeWatermarkSettings() {
+    const savedSettings = localStorage.getItem('watermarkSettings');
+    if (savedSettings) {
+        try {
+            const settings = JSON.parse(savedSettings);
+            const watermarkTextInput = document.getElementById('watermarkText');
+            const watermarkIntervalInput = document.getElementById('watermarkInterval');
+            
+            if (watermarkTextInput && settings.text) {
+                watermarkTextInput.value = settings.text;
+            }
+            if (watermarkIntervalInput && settings.interval) {
+                watermarkIntervalInput.value = settings.interval;
+            }
+        } catch (error) {
+            console.error('載入浮水印設定失敗:', error);
+        }
+    }
+}
+
+function saveWatermarkSettings() {
+    const watermarkTextInput = document.getElementById('watermarkText');
+    const watermarkIntervalInput = document.getElementById('watermarkInterval');
+    
+    const settings = {
+        text: watermarkTextInput ? watermarkTextInput.value : `© 2025 印章系統 - ${getCurrentUser()}`,
+        interval: watermarkIntervalInput ? watermarkIntervalInput.value : 60
+    };
+    
+    localStorage.setItem('watermarkSettings', JSON.stringify(settings));
+    generateWatermark();
+    console.log('浮水印設定已儲存');
 }
 
 // 顯示提示
 function showNotification(message, type = 'info') {
     console.log(`[${type.toUpperCase()}] ${message}`);
     
-    // 建立提示元素
     const notification = document.createElement('div');
     notification.style.cssText = `
         position: fixed;
@@ -1638,9 +1848,6 @@ function showFontSettings() {
             </div>
             <div class="form-group">
                 <label class="form-label">預設行高</label>
-                <input type="number" class="form-control" id="defaultLineHeight" value="1.5" min="1
-            <div class="form-group">
-                <label class="form-label">預設行高</label>
                 <input type="number" class="form-control" id="defaultLineHeight" value="1.5" min="1" max="3" step="0.1">
             </div>
             <div class="form-group">
@@ -1673,9 +1880,7 @@ function showFontSettings() {
     showModal('字體全域設定', content);
 }
 
-// 儲存字體設定
 function saveFontSettings() {
-    // 實作儲存邏輯
     const settings = {
         defaultFontSize: document.getElementById('defaultFontSize').value,
         defaultLineHeight: document.getElementById('defaultLineHeight').value,
@@ -1683,7 +1888,7 @@ function saveFontSettings() {
         fontRendering: document.getElementById('fontRendering').value
     };
     
-    localStorage.setItem('fontSettings', JSON.stringify(settings));
+    SettingsManager.saveSettings('fontSettings', settings);
     closeModal();
     showNotification('字體設定已儲存', 'success');
 }
@@ -1701,23 +1906,35 @@ function updateSecuritySettings() {
         watermarkInterval: document.getElementById('watermarkInterval').value
     };
     
-    localStorage.setItem('securitySettings', JSON.stringify(settings));
+    SettingsManager.saveSettings('security', settings);
     showNotification('安全設定已更新', 'success');
-    generateWatermark();
+    applySecuritySettings(settings);
 }
 
-// 加密字體（簡單混淆）
-function encryptFont(fontData) {
-    // 這裡實作簡單的字體加密
-    // 實際應用中應使用更強的加密方法
-    const encrypted = btoa(fontData);
-    return encrypted;
+function applySecuritySettings(settings) {
+    if (settings.enableWatermark) {
+        generateWatermark();
+    } else {
+        const watermark = document.getElementById('watermarkLayer');
+        if (watermark) watermark.remove();
+    }
+    
+    if (settings.disableRightClick) {
+        document.addEventListener('contextmenu', preventRightClick);
+    } else {
+        document.removeEventListener('contextmenu', preventRightClick);
+    }
+    
+    if (settings.disableTextSelect) {
+        document.body.style.userSelect = 'none';
+    } else {
+        document.body.style.userSelect = 'auto';
+    }
 }
 
-// 解密字體
-function decryptFont(encryptedData) {
-    const decrypted = atob(encryptedData);
-    return decrypted;
+function preventRightClick(e) {
+    e.preventDefault();
+    return false;
 }
 
 // 清除 Token
@@ -1737,7 +1954,7 @@ function exportSettings() {
         patterns: uploadedData.patterns,
         colors: uploadedData.colors,
         exportDate: new Date().toISOString(),
-        version: '2.0.0'
+        version: '2.0.2'
     };
     
     const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
@@ -1772,7 +1989,7 @@ function importSettings() {
                     uploadedData.patterns = settings.patterns || [];
                     uploadedData.colors = settings.colors || [];
                     
-                    // 更新顯示
+                    SettingsManager.saveSettings('uploadData', uploadedData);
                     loadPage(currentPage);
                     showNotification('設定已匯入', 'success');
                 }
@@ -1786,11 +2003,27 @@ function importSettings() {
     input.click();
 }
 
+// 清除所有本地資料
+function clearAllLocalData() {
+    if (confirm('確定要清除所有本地儲存的資料嗎？這個操作無法復原。')) {
+        SettingsManager.clearAllSettings();
+        localStorage.removeItem('github_token');
+        
+        uploadedData = {
+            fonts: [],
+            shapes: [],
+            patterns: [],
+            colors: []
+        };
+        
+        location.reload();
+    }
+}
+
 // 初始化時加入按鈕和載入設定
 setTimeout(() => {
     addGitHubButtons();
     
-    // 加入匯出/匯入按鈕
     const header = document.querySelector('.admin-user');
     if (header) {
         const exportImportGroup = document.createElement('div');
@@ -1808,6 +2041,10 @@ setTimeout(() => {
             <button class="btn btn-secondary" onclick="clearGitHubToken()">
                 <span class="material-icons">key_off</span>
                 清除 Token
+            </button>
+            <button class="btn btn-danger" onclick="clearAllLocalData()">
+                <span class="material-icons">delete_forever</span>
+                清除所有資料
             </button>
         `;
         
@@ -1850,7 +2087,6 @@ style.textContent = `
         background: rgba(106, 27, 154, 0.1) !important;
     }
     
-    /* 上傳進度條 */
     .upload-progress {
         position: fixed;
         top: 0;
@@ -1864,7 +2100,6 @@ style.textContent = `
         z-index: 4000;
     }
     
-    /* 提示訊息動畫 */
     .notification-enter {
         animation: slideIn 0.3s ease;
     }
@@ -1875,24 +2110,6 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-// 顯示上傳進度
-function showUploadProgress(progress) {
-    let progressBar = document.querySelector('.upload-progress');
-    if (!progressBar) {
-        progressBar = document.createElement('div');
-        progressBar.className = 'upload-progress';
-        document.body.appendChild(progressBar);
-    }
-    
-    progressBar.style.transform = `scaleX(${progress})`;
-    
-    if (progress >= 1) {
-        setTimeout(() => {
-            progressBar.remove();
-        }, 500);
-    }
-}
-
 // 版本檢查
 async function checkForUpdates() {
     try {
@@ -1902,7 +2119,7 @@ async function checkForUpdates() {
         
         if (response.ok) {
             const versionData = await response.json();
-            const currentVersion = '2.0.0';
+            const currentVersion = '2.0.2';
             
             if (versionData.version !== currentVersion) {
                 showNotification(`新版本可用: ${versionData.version}`, 'info');
@@ -1913,60 +2130,28 @@ async function checkForUpdates() {
     }
 }
 
-// 初始化完成後檢查更新
 setTimeout(checkForUpdates, 2000);
 
 // 監聽鍵盤快捷鍵
 document.addEventListener('keydown', (e) => {
-    // Ctrl+S 儲存
     if (e.ctrlKey && e.key === 's') {
         e.preventDefault();
         saveToGitHub();
     }
     
-    // Ctrl+O 載入
     if (e.ctrlKey && e.key === 'o') {
         e.preventDefault();
         loadFromGitHub();
     }
     
-    // Ctrl+E 匯出
     if (e.ctrlKey && e.key === 'e') {
         e.preventDefault();
         exportSettings();
     }
 });
 
-// 自動儲存功能
-let autoSaveInterval = null;
-
-function enableAutoSave(interval = 300000) { // 預設 5 分鐘
-    if (autoSaveInterval) clearInterval(autoSaveInterval);
-    
-    autoSaveInterval = setInterval(() => {
-        if (uploadedData.fonts.length > 0 || 
-            uploadedData.shapes.length > 0 || 
-            uploadedData.patterns.length > 0 || 
-            uploadedData.colors.length > 0) {
-            saveToGitHub();
-        }
-    }, interval);
-    
-    showNotification('自動儲存已啟用', 'info');
-}
-
-// 停用自動儲存
-function disableAutoSave() {
-    if (autoSaveInterval) {
-        clearInterval(autoSaveInterval);
-        autoSaveInterval = null;
-        showNotification('自動儲存已停用', 'info');
-    }
-}
-
 // 離開頁面前提醒
 window.addEventListener('beforeunload', (e) => {
-    // 檢查是否有未儲存的變更
     const hasUnsavedChanges = uploadedData.fonts.some(f => !f.uploaded) ||
                               uploadedData.shapes.some(s => !s.uploaded) ||
                               uploadedData.patterns.some(p => !p.uploaded);
@@ -1977,44 +2162,6 @@ window.addEventListener('beforeunload', (e) => {
     }
 });
 
-// 系統資訊
-function getSystemInfo() {
-    return {
-        browser: navigator.userAgent,
-        platform: navigator.platform,
-        language: navigator.language,
-        screenResolution: `${window.screen.width}x${window.screen.height}`,
-        windowSize: `${window.innerWidth}x${window.innerHeight}`,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        online: navigator.onLine
-    };
-}
-
-// 記錄操作日誌
-function logAction(action, details) {
-    const log = {
-        timestamp: new Date().toISOString(),
-        action: action,
-        details: details,
-        user: 'admin',
-        systemInfo: getSystemInfo()
-    };
-    
-    // 儲存到 localStorage（實際應用可能需要發送到伺服器）
-    const logs = JSON.parse(localStorage.getItem('actionLogs') || '[]');
-    logs.push(log);
-    
-    // 只保留最近 100 筆記錄
-    if (logs.length > 100) {
-        logs.splice(0, logs.length - 100);
-    }
-    
-    localStorage.setItem('actionLogs', JSON.stringify(logs));
-}
-
-// 使用範例：在重要操作時記錄
-// logAction('upload_font', { fontName: 'MyFont', size: '123KB' });
-
-console.log('印章系統後台管理 v2.0.0 已載入');
+console.log('印章系統後台管理 v2.0.2 已載入');
 console.log('作者: DK0124');
 console.log('最後更新: 2025-01-29');
