@@ -1,94 +1,94 @@
 {
   "fonts": [
     {
-      "id": 1753758195294.8762,
-      "name": "儷中黑外字集",
-      "filename": "儷中黑外字集.ttf",
-      "displayName": "儷中黑外字集",
+      "id": 1753758889259.111,
+      "name": "粉圓體全繁體",
+      "filename": "粉圓體全繁體.ttf",
+      "displayName": "粉圓體全繁體",
       "category": "custom",
       "weight": "normal",
-      "githubPath": "assets/fonts/儷中黑外字集.ttf"
+      "githubPath": null
     },
     {
-      "id": 1753758195302.2017,
-      "name": "儷金黑外字集",
-      "filename": "儷金黑外字集.ttf",
-      "displayName": "儷金黑外字集",
+      "id": 1753758889302.7524,
+      "name": "辰宇落雁體 等寬版全繁體",
+      "filename": "辰宇落雁體 等寬版全繁體.ttf",
+      "displayName": "辰宇落雁體 等寬版全繁體",
       "category": "custom",
       "weight": "normal",
-      "githubPath": "assets/fonts/儷金黑外字集.ttf"
+      "githubPath": null
     },
     {
-      "id": 1753758195315.9456,
-      "name": "儷粗黑外字集",
-      "filename": "儷粗黑外字集.ttf",
-      "displayName": "儷粗黑外字集",
+      "id": 1753758889391.5664,
+      "name": "金萱那堤全繁體",
+      "filename": "金萱那堤全繁體.ttf",
+      "displayName": "金萱那堤全繁體",
       "category": "custom",
       "weight": "normal",
-      "githubPath": "assets/fonts/儷粗黑外字集.ttf"
+      "githubPath": null
     },
     {
-      "id": 1753758195336.2063,
-      "name": "儷中宋外字集",
-      "filename": "儷中宋外字集.ttf",
-      "displayName": "儷中宋外字集",
+      "id": 1753758889509.5134,
+      "name": "辰宇落雁體 不等寬版全繁體",
+      "filename": "辰宇落雁體 不等寬版全繁體.ttf",
+      "displayName": "辰宇落雁體 不等寬版全繁體",
       "category": "custom",
       "weight": "normal",
-      "githubPath": "assets/fonts/儷中宋外字集.ttf"
+      "githubPath": null
     },
     {
-      "id": 1753758195369.4478,
-      "name": "儷細黑外字集",
-      "filename": "儷細黑外字集.ttf",
-      "displayName": "儷細黑外字集",
+      "id": 1753758889696.5405,
+      "name": "粒線體不等寬全繁體",
+      "filename": "粒線體不等寬全繁體.ttf",
+      "displayName": "粒線體不等寬全繁體",
       "category": "custom",
       "weight": "normal",
-      "githubPath": "assets/fonts/儷細黑外字集.ttf"
+      "githubPath": null
     },
     {
-      "id": 1753758195406.1719,
-      "name": "儷特圓外字集",
-      "filename": "儷特圓外字集.ttf",
-      "displayName": "儷特圓外字集",
+      "id": 1753758889952.9087,
+      "name": "粒線體等寬全繁體",
+      "filename": "粒線體等寬全繁體.ttf",
+      "displayName": "粒線體等寬全繁體",
       "category": "custom",
       "weight": "normal",
-      "githubPath": "assets/fonts/儷特圓外字集.ttf"
+      "githubPath": null
     },
     {
-      "id": 1753758195454.0637,
-      "name": "儷粗圓外字集",
-      "filename": "儷粗圓外字集.ttf",
-      "displayName": "儷粗圓外字集",
+      "id": 1753758890339.061,
+      "name": "粗線體不等寬版 全繁體",
+      "filename": "粗線體不等寬版 全繁體.ttf",
+      "displayName": "粗線體不等寬版 全繁體",
       "category": "custom",
       "weight": "normal",
-      "githubPath": "assets/fonts/儷粗圓外字集.ttf"
+      "githubPath": null
     },
     {
-      "id": 1753758195521.9106,
-      "name": "儷宋外字集",
-      "filename": "儷宋外字集.ttf",
-      "displayName": "儷宋外字集",
+      "id": 1753758890788.2437,
+      "name": "粗線體等寬版 全繁體",
+      "filename": "粗線體等寬版 全繁體.ttf",
+      "displayName": "粗線體等寬版 全繁體",
       "category": "custom",
       "weight": "normal",
-      "githubPath": "assets/fonts/儷宋外字集.ttf"
+      "githubPath": null
     },
     {
-      "id": 1753758195548.4954,
-      "name": "儷粗宋外字集",
-      "filename": "儷粗宋外字集.ttf",
-      "displayName": "儷粗宋外字集",
+      "id": 1753758891316.2947,
+      "name": "胖西手寫體 全繁體",
+      "filename": "胖西手寫體 全繁體.ttf",
+      "displayName": "胖西手寫體 全繁體",
       "category": "custom",
       "weight": "normal",
-      "githubPath": "assets/fonts/儷粗宋外字集.ttf"
+      "githubPath": null
     },
     {
-      "id": 1753758195577.9153,
-      "name": "儷楷書外字集",
-      "filename": "儷楷書外字集.ttf",
-      "displayName": "儷楷書外字集",
+      "id": 1753758961019.926,
+      "name": "文鼎粗鋼筆行楷",
+      "filename": "文鼎粗鋼筆行楷.TTF",
+      "displayName": "文鼎粗鋼筆行楷",
       "category": "custom",
       "weight": "normal",
-      "githubPath": "assets/fonts/儷楷書外字集.ttf"
+      "githubPath": null
     }
   ],
   "shapes": [],
@@ -145,6 +145,6 @@
       ]
     }
   ],
-  "lastUpdate": "2025-07-29T03:07:27.431Z",
+  "lastUpdate": "2025-07-29T03:16:06.191Z",
   "version": "2.0.3"
 }
