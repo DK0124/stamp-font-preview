@@ -92,13 +92,7 @@
     }
   ],
   "shapes": [],
-  "patterns": [
-    {
-      "id": 1753758427378.0596,
-      "name": "BIBO",
-      "githubPath": "assets/patterns/BIBO.png"
-    }
-  ],
+  "patterns": [],
   "colors": [
     {
       "id": 1753758334164,
@@ -145,7 +139,7 @@
       ]
     }
   ],
-  "lastUpdate": "2025-07-29T12:24:41.363Z",
+  "lastUpdate": "2025-07-29T12:24:45.613Z",
   "version": "3.0.0",
   "frontendSecurity": {
     "preventScreenshot": true,
