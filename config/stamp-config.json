@@ -137,9 +137,75 @@
         "#1d6626",
         "#144419"
       ]
+    },
+    {
+      "id": 1753791918663.2332,
+      "name": "經典紅",
+      "main": "#dc3545",
+      "shades": [
+        "#dc3545",
+        "#b02a37",
+        "#842029",
+        "#58151c"
+      ]
+    },
+    {
+      "id": 1753791918663.2249,
+      "name": "寶藍色",
+      "main": "#0066cc",
+      "shades": [
+        "#0066cc",
+        "#0052a3",
+        "#003d7a",
+        "#002952"
+      ]
+    },
+    {
+      "id": 1753791918663.69,
+      "name": "墨綠色",
+      "main": "#2d5a2d",
+      "shades": [
+        "#2d5a2d",
+        "#244824",
+        "#1b361b",
+        "#122412"
+      ]
+    },
+    {
+      "id": 1753791918663.071,
+      "name": "紫羅蘭",
+      "main": "#6f42c1",
+      "shades": [
+        "#6f42c1",
+        "#59359a",
+        "#432874",
+        "#2c1a4d"
+      ]
+    },
+    {
+      "id": 1753791918663.2036,
+      "name": "金黃色",
+      "main": "#ffc107",
+      "shades": [
+        "#ffc107",
+        "#cc9a06",
+        "#997404",
+        "#664d03"
+      ]
+    },
+    {
+      "id": 1753791918663.3462,
+      "name": "深灰色",
+      "main": "#495057",
+      "shades": [
+        "#495057",
+        "#3a4046",
+        "#2c3034",
+        "#1d2023"
+      ]
     }
   ],
-  "lastUpdate": "2025-07-29T12:24:45.613Z",
+  "lastUpdate": "2025-07-29T12:27:39.296Z",
   "version": "3.0.0",
   "frontendSecurity": {
     "preventScreenshot": true,
@@ -150,12 +216,12 @@
     "disablePrint": true,
     "disableDrag": true,
     "blurOnLoseFocus": true,
-    "watermarkText": "© 2025 印章系統 - 版權所有",
+    "watermarkText": "© 2025 ctmtw 版權所有",
     "watermarkInterval": "60",
     "watermarkOpacity": "0.03",
     "watermarkFontSize": "10",
     "screenshotWarning": "禁止截圖 - 版權所有",
     "devToolsWarning": "警告：偵測到開發者工具！\n本系統內容受版權保護，禁止任何形式的複製或下載。",
-    "lastUpdate": "2025-07-29T12:00:05.449Z"
+    "lastUpdate": "2025-07-29T12:25:32.988Z"
   }
 }
