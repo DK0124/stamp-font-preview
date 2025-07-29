@@ -1,5 +1,96 @@
 {
-  "fonts": [],
+  "fonts": [
+    {
+      "id": 1753766835784.8828,
+      "name": "粉圓體全繁體",
+      "filename": "粉圓體全繁體.ttf",
+      "displayName": "粉圓體全繁體",
+      "category": "custom",
+      "weight": "normal",
+      "systemFont": null,
+      "githubPath": "assets/fonts/粉圓體全繁體.ttf"
+    },
+    {
+      "id": 1753766835803.4414,
+      "name": "辰宇落雁體 等寬版全繁體",
+      "filename": "辰宇落雁體 等寬版全繁體.ttf",
+      "displayName": "辰宇落雁體 等寬版全繁體",
+      "category": "custom",
+      "weight": "normal",
+      "systemFont": null,
+      "githubPath": "assets/fonts/辰宇落雁體 等寬版全繁體.ttf"
+    },
+    {
+      "id": 1753766835824.974,
+      "name": "金萱那堤全繁體",
+      "filename": "金萱那堤全繁體.ttf",
+      "displayName": "金萱那堤全繁體",
+      "category": "custom",
+      "weight": "normal",
+      "systemFont": null,
+      "githubPath": "assets/fonts/金萱那堤全繁體.ttf"
+    },
+    {
+      "id": 1753766835850.9849,
+      "name": "辰宇落雁體 不等寬版全繁體",
+      "filename": "辰宇落雁體 不等寬版全繁體.ttf",
+      "displayName": "辰宇落雁體 不等寬版全繁體",
+      "category": "custom",
+      "weight": "normal",
+      "systemFont": null,
+      "githubPath": "assets/fonts/辰宇落雁體 不等寬版全繁體.ttf"
+    },
+    {
+      "id": 1753766835878.91,
+      "name": "粒線體等寬全繁體",
+      "filename": "粒線體等寬全繁體.ttf",
+      "displayName": "粒線體等寬全繁體",
+      "category": "custom",
+      "weight": "normal",
+      "systemFont": null,
+      "githubPath": "assets/fonts/粒線體等寬全繁體.ttf"
+    },
+    {
+      "id": 1753766835908.6636,
+      "name": "粒線體不等寬全繁體",
+      "filename": "粒線體不等寬全繁體.ttf",
+      "displayName": "粒線體不等寬全繁體",
+      "category": "custom",
+      "weight": "normal",
+      "systemFont": null,
+      "githubPath": "assets/fonts/粒線體不等寬全繁體.ttf"
+    },
+    {
+      "id": 1753766835962.5388,
+      "name": "粗線體等寬版 全繁體",
+      "filename": "粗線體等寬版 全繁體.ttf",
+      "displayName": "粗線體等寬版 全繁體",
+      "category": "custom",
+      "weight": "normal",
+      "systemFont": null,
+      "githubPath": "assets/fonts/粗線體等寬版 全繁體.ttf"
+    },
+    {
+      "id": 1753766836007.63,
+      "name": "粗線體不等寬版 全繁體",
+      "filename": "粗線體不等寬版 全繁體.ttf",
+      "displayName": "粗線體不等寬版 全繁體",
+      "category": "custom",
+      "weight": "normal",
+      "systemFont": null,
+      "githubPath": "assets/fonts/粗線體不等寬版 全繁體.ttf"
+    },
+    {
+      "id": 1753766836064.1448,
+      "name": "胖西手寫體 全繁體",
+      "filename": "胖西手寫體 全繁體.ttf",
+      "displayName": "胖西手寫體 全繁體",
+      "category": "custom",
+      "weight": "normal",
+      "systemFont": null,
+      "githubPath": "assets/fonts/胖西手寫體 全繁體.ttf"
+    }
+  ],
   "shapes": [
     {
       "id": 1753760045437.0618,
@@ -61,6 +152,6 @@
       ]
     }
   ],
-  "lastUpdate": "2025-07-29T05:24:38.401Z",
+  "lastUpdate": "2025-07-29T05:27:19.832Z",
   "version": "2.1.0"
 }
