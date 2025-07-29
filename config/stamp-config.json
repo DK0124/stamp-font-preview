@@ -104,6 +104,11 @@
       "id": 1753794610605.3848,
       "name": "黑貓",
       "githubPath": "assets/patterns/黑貓.png"
+    },
+    {
+      "id": 1753794639648.429,
+      "name": "伯爵",
+      "githubPath": "assets/patterns/伯爵.jpg"
     }
   ],
   "colors": [
@@ -218,7 +223,7 @@
       ]
     }
   ],
-  "lastUpdate": "2025-07-29T13:10:36.682Z",
+  "lastUpdate": "2025-07-29T13:10:50.106Z",
   "version": "3.0.0",
   "frontendSecurity": {
     "preventScreenshot": false,
