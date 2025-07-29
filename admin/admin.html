@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>印章系統後台管理</title>
+    <title>印章系統後台管理 | Stamp System Admin</title>
+    
+    <!-- Favicons -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%239fb28e' /%3E%3Ctext x='50' y='67' font-family='Arial' font-size='50' font-weight='bold' text-anchor='middle' fill='white'%3E印%3C/text%3E%3C/svg%3E">
     
     <!-- Material Icons -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
@@ -19,117 +22,101 @@
     </script>
     
     <style>
-        /* 初始載入樣式 */
-        body {
-            margin: 0;
-            padding: 0;
-            background: var(--admin-bg-primary, #0a0a0a);
-            color: var(--admin-text-primary, #ffffff);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            overflow: hidden;
-        }
-        
-        /* 載入畫面 */
-        .loading-screen {
+        /* 初始載入動畫 */
+        .initial-loader {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: var(--admin-bg-primary, #0a0a0a);
+            background: #dde5d6;
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 9999;
+            z-index: 10000;
+            transition: opacity 0.5s ease;
         }
         
-        .loading-content {
+        .loader-content {
             text-align: center;
         }
         
-        .loading-spinner {
-            width: 60px;
-            height: 60px;
-            border: 3px solid rgba(106, 27, 154, 0.2);
-            border-top-color: var(--admin-accent, #6a1b9a);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        .loading-text {
-            color: var(--admin-text-secondary, #b0b0b0);
-            font-size: 14px;
-        }
-        
-        /* 防截圖保護層 */
-        .screenshot-protection {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #000;
-            color: #fff;
-            display: none;
+        .loader-logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
+            background: #9fb28e;
+            border-radius: 20px;
+            display: flex;
             align-items: center;
             justify-content: center;
-            flex-direction: column;
-            z-index: 10000;
+            box-shadow: 0 8px 32px rgba(159, 178, 142, 0.3);
+            animation: pulse 2s ease-in-out infinite;
         }
         
-        .screenshot-protection .material-icons {
-            font-size: 72px;
-            margin-bottom: 20px;
-            color: #ff5252;
+        .loader-logo .material-icons {
+            font-size: 40px;
+            color: white;
         }
         
-        /* 浮水印層 */
-        .watermark-layer {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 1000;
-            opacity: 0.05;
-            display: none; /* 後台預設不顯示 */
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
         }
         
-        .watermark-text {
-            position: absolute;
-            color: var(--admin-accent, #6a1b9a);
-            font-size: 12px;
+        .loader-text {
+            color: #84736a;
+            font-size: 16px;
             font-weight: 500;
-            transform: rotate(-45deg);
-            user-select: none;
-            white-space: nowrap;
+            opacity: 0;
+            animation: fadeIn 0.5s ease 0.3s forwards;
         }
         
-        /* 禁用選取 */
-        .no-select {
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+        
+        .loader-progress {
+            width: 200px;
+            height: 4px;
+            background: rgba(132, 115, 106, 0.1);
+            border-radius: 2px;
+            margin: 16px auto 0;
+            overflow: hidden;
+        }
+        
+        .loader-progress-bar {
+            height: 100%;
+            background: #9fb28e;
+            border-radius: 2px;
+            animation: loading 2s ease-in-out infinite;
+        }
+        
+        @keyframes loading {
+            0% { width: 0; transform: translateX(0); }
+            50% { width: 100%; transform: translateX(0); }
+            100% { width: 100%; transform: translateX(100%); }
         }
     </style>
 </head>
-<body class="no-select">
-    <!-- 載入畫面 -->
-    <div class="loading-screen" id="loadingScreen">
-        <div class="loading-content">
-            <div class="loading-spinner"></div>
-            <div class="loading-text">系統載入中...</div>
+<body>
+    <!-- 初始載入畫面 -->
+    <div class="initial-loader" id="initialLoader">
+        <div class="loader-content">
+            <div class="loader-logo">
+                <span class="material-icons">admin_panel_settings</span>
+            </div>
+            <div class="loader-text">印章系統載入中...</div>
+            <div class="loader-progress">
+                <div class="loader-progress-bar"></div>
+            </div>
         </div>
     </div>
     
     <!-- 主要內容區域 (由 JavaScript 動態生成) -->
+    
+    <!-- 通知容器 -->
+    <div id="notificationContainer" class="notification-container"></div>
     
     <!-- 防截圖保護層 -->
     <div id="screenshotProtection" class="screenshot-protection">
@@ -151,162 +138,100 @@
         window.addEventListener('load', function() {
             // 移除載入畫面
             setTimeout(() => {
-                const loadingScreen = document.getElementById('loadingScreen');
-                if (loadingScreen) {
-                    loadingScreen.style.opacity = '0';
-                    setTimeout(() => loadingScreen.remove(), 300);
+                const loader = document.getElementById('initialLoader');
+                if (loader) {
+                    loader.style.opacity = '0';
+                    setTimeout(() => loader.remove(), 500);
                 }
-            }, 500);
+            }, 1000);
         });
         
-        // 防止開發者工具快捷鍵（基本防護）
-        document.addEventListener('keydown', function(e) {
-            // F12
-            if (e.keyCode === 123) {
-                e.preventDefault();
-                return false;
-            }
-            // Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C
-            if (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) {
-                e.preventDefault();
-                return false;
-            }
-            // Ctrl+U
-            if (e.ctrlKey && e.keyCode === 85) {
-                e.preventDefault();
-                return false;
-            }
-        });
-        
-        // 防止右鍵選單（基本防護）
-        document.addEventListener('contextmenu', function(e) {
-            if (!e.ctrlKey) { // 允許 Ctrl+右鍵用於開發
-                e.preventDefault();
-                return false;
-            }
-        });
-        
-        // 偵測頁面可見性變化（防截圖）
-        document.addEventListener('visibilitychange', function() {
-            // 這個功能將由 admin.js 根據設定控制
-        });
-        
-        // 防止拖曳
-        document.addEventListener('dragstart', function(e) {
-            if (e.target.tagName === 'IMG') {
-                e.preventDefault();
-                return false;
-            }
-        });
-        
-        // 防止列印
-        window.addEventListener('beforeprint', function(e) {
-            // 這個功能將由 admin.js 根據設定控制
-        });
-        
-        // 偵測視窗失焦
-        window.addEventListener('blur', function() {
-            // 這個功能將由 admin.js 根據設定控制
-        });
-        
-        // 系統訊息
-        console.log('%c⚠️ 警告！', 'color: red; font-size: 30px; font-weight: bold;');
-        console.log('%c此為印章系統後台管理介面，請勿進行任何未授權的操作。', 'color: red; font-size: 16px;');
-        console.log('%c所有操作都將被記錄。', 'color: orange; font-size: 14px;');
-    </script>
-    
-    <!-- 效能監控 -->
-    <script>
-        // 簡單的效能監控
-        window.addEventListener('load', function() {
-            if (window.performance) {
+        // 效能監控
+        if ('performance' in window) {
+            window.addEventListener('load', function() {
                 const perfData = window.performance.timing;
                 const pageLoadTime = perfData.loadEventEnd - perfData.navigationStart;
-                console.log('頁面載入時間:', pageLoadTime + 'ms');
-            }
-        });
+                console.log(`⚡ 頁面載入時間: ${pageLoadTime}ms`);
+            });
+        }
         
-        // 錯誤捕捉
-        window.addEventListener('error', function(e) {
-            console.error('系統錯誤:', e.error);
-            // 可以將錯誤發送到伺服器記錄
-        });
+        // 網路狀態監控
+        let isOnline = navigator.onLine;
         
-        // 未處理的 Promise 錯誤
-        window.addEventListener('unhandledrejection', function(e) {
-            console.error('未處理的 Promise 錯誤:', e.reason);
-            e.preventDefault();
-        });
-    </script>
-    
-    <!-- 瀏覽器相容性檢查 -->
-    <script>
-        // 檢查必要的 API 支援
-        (function() {
-            const requiredFeatures = [
-                'Promise',
-                'fetch',
-                'localStorage',
-                'sessionStorage',
-                'FileReader',
-                'Blob',
-                'URL'
-            ];
-            
-            const unsupported = requiredFeatures.filter(feature => !(feature in window));
-            
-            if (unsupported.length > 0) {
-                console.warn('瀏覽器不支援以下功能:', unsupported);
-                alert('您的瀏覽器版本過舊，請更新到最新版本以獲得最佳體驗。');
-            }
-        })();
-    </script>
-    
-    <!-- 自動儲存提示 -->
-    <script>
-        // 定期提醒儲存（如果有未儲存的變更）
-        let unsavedChanges = false;
-        
-        window.addEventListener('beforeunload', function(e) {
-            if (unsavedChanges) {
-                e.preventDefault();
-                e.returnValue = '您有未儲存的變更，確定要離開嗎？';
-            }
-        });
-        
-        // 標記未儲存的變更
-        window.markUnsavedChanges = function() {
-            unsavedChanges = true;
-        };
-        
-        // 清除未儲存標記
-        window.clearUnsavedChanges = function() {
-            unsavedChanges = false;
-        };
-    </script>
-    
-    <!-- 網路狀態監控 -->
-    <script>
-        // 監控網路連線狀態
         window.addEventListener('online', function() {
-            console.log('網路已連線');
-            if (window.showNotification) {
-                window.showNotification('網路已恢復連線', 'success');
+            if (!isOnline) {
+                isOnline = true;
+                console.log('🌐 網路已連線');
+                if (window.showNotification) {
+                    window.showNotification('網路已恢復連線', 'success');
+                }
             }
         });
         
         window.addEventListener('offline', function() {
-            console.log('網路已斷線');
+            isOnline = false;
+            console.log('📵 網路已斷線');
             if (window.showNotification) {
                 window.showNotification('網路連線中斷，部分功能可能無法使用', 'warning');
             }
+        });
+        
+        // 瀏覽器相容性檢查
+        (function checkCompatibility() {
+            const features = {
+                'CSS.supports': CSS && CSS.supports,
+                'backdrop-filter': CSS && CSS.supports && (CSS.supports('backdrop-filter', 'blur(10px)') || CSS.supports('-webkit-backdrop-filter', 'blur(10px)')),
+                'IntersectionObserver': 'IntersectionObserver' in window,
+                'ResizeObserver': 'ResizeObserver' in window
+            };
+            
+            const unsupported = Object.entries(features)
+                .filter(([name, supported]) => !supported)
+                .map(([name]) => name);
+            
+            if (unsupported.length > 0) {
+                console.warn('⚠️ 瀏覽器不完全支援以下功能:', unsupported);
+            }
+        })();
+        
+        // 自動儲存功能
+        let autoSaveTimer;
+        window.enableAutoSave = function(callback, interval = 30000) {
+            if (autoSaveTimer) clearInterval(autoSaveTimer);
+            autoSaveTimer = setInterval(callback, interval);
+        };
+        
+        window.disableAutoSave = function() {
+            if (autoSaveTimer) {
+                clearInterval(autoSaveTimer);
+                autoSaveTimer = null;
+            }
+        };
+        
+        // 鍵盤快捷鍵提示
+        console.log('%c⌨️ 快捷鍵:', 'font-size: 14px; font-weight: bold;');
+        console.log('Ctrl+S - 儲存設定');
+        console.log('Ctrl+O - 載入設定');
+        console.log('Ctrl+E - 匯出設定');
+        console.log('Ctrl+/ - 顯示快捷鍵');
+        
+        // 錯誤處理
+        window.addEventListener('error', function(e) {
+            console.error('❌ 系統錯誤:', e.error);
+        });
+        
+        window.addEventListener('unhandledrejection', function(e) {
+            console.error('❌ Promise 錯誤:', e.reason);
+            e.preventDefault();
         });
     </script>
     
     <!-- Meta 標籤 -->
     <meta name="robots" content="noindex, nofollow">
-    <meta name="theme-color" content="#6a1b9a">
+    <meta name="theme-color" content="#9fb28e">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
     <!-- 防止快取敏感資料 -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
