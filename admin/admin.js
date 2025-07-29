@@ -1,3 +1,10 @@
+/**
+ * 印章系統後台管理
+ * @author DK0124
+ * @version 2.0.0
+ * @date 2025-01-29
+ */
+
 // 全域變數
 let currentPage = 'dashboard';
 let uploadedData = {
@@ -7,11 +14,42 @@ let uploadedData = {
     colors: []
 };
 
+// GitHub 設定
+const GitHubConfig = {
+    owner: 'DK0124',
+    repo: 'stamp-font-preview',
+    branch: 'main',
+    configPath: 'config/stamp-config.json',
+    
+    // Token 管理
+    getToken: function() {
+        return localStorage.getItem('github_token') || '';
+    },
+    
+    setToken: function(token) {
+        localStorage.setItem('github_token', token);
+    },
+    
+    promptToken: function() {
+        const token = prompt('請輸入 GitHub Personal Access Token:');
+        if (token) {
+            this.setToken(token);
+            return token;
+        }
+        return null;
+    }
+};
+
 // 初始化
 document.addEventListener('DOMContentLoaded', function() {
     initializeAdmin();
     setupSecurityFeatures();
     generateWatermark();
+    
+    // 載入 GitHub 設定
+    setTimeout(() => {
+        loadFromGitHub();
+    }, 1000);
 });
 
 // 初始化管理系統
@@ -125,10 +163,22 @@ function getDashboardContent() {
                     <p>右鍵保護：<span style="color: var(--admin-success);">啟用</span></p>
                 </div>
                 <div>
-                    <p>最後更新：2025-01-28 17:05:42</p>
-                    <p>系統版本：1.0.0</p>
+                    <p>最後更新：${new Date().toLocaleString('zh-TW')}</p>
+                    <p>系統版本：2.0.0</p>
                     <p>授權狀態：<span style="color: var(--admin-success);">有效</span></p>
                 </div>
+            </div>
+        </div>
+        
+        <div class="admin-card">
+            <div class="admin-card-header">
+                <div class="admin-card-title">
+                    <span class="material-icons">info</span>
+                    GitHub 連線狀態
+                </div>
+            </div>
+            <div id="githubStatus">
+                <p>檢查中...</p>
             </div>
         </div>
     `;
@@ -173,6 +223,7 @@ function getFontsContent() {
                             <th>字體名稱</th>
                             <th>檔案大小</th>
                             <th>字重</th>
+                            <th>狀態</th>
                             <th>操作</th>
                         </tr>
                     </thead>
@@ -419,6 +470,9 @@ function initializeFontsPage() {
         handleFontFiles(e.target.files);
     });
     
+    // 更新字體表格
+    updateFontsTable();
+    
     // 初始化排序
     const fontsTableBody = document.getElementById('fontsTableBody');
     if (fontsTableBody && typeof Sortable !== 'undefined') {
@@ -457,6 +511,8 @@ function initializeShapesPage() {
     fileInput.addEventListener('change', (e) => {
         handleShapeFiles(e.target.files);
     });
+    
+    updateShapesPreview();
 }
 
 // 初始化圖案頁面
@@ -486,17 +542,18 @@ function initializePatternsPage() {
     fileInput.addEventListener('change', (e) => {
         handlePatternFiles(e.target.files);
     });
+    
+    updatePatternsPreview();
 }
 
 // 初始化顏色頁面
 function initializeColorsPage() {
-    // 載入現有顏色
     displayColorGroups();
 }
 
 // 初始化安全設定頁面
 function initializeSecurityPage() {
-    // 可以在這裡載入已儲存的設定
+    // 載入已儲存的設定
 }
 
 // 處理字體檔案
@@ -513,7 +570,8 @@ function handleFontFiles(files) {
                     weight: 'normal',
                     fontSize: '16px',
                     lineHeight: '1.5',
-                    url: e.target.result
+                    url: e.target.result,
+                    uploaded: false
                 };
                 
                 uploadedData.fonts.push(fontData);
@@ -535,7 +593,8 @@ function handleShapeFiles(files) {
                     id: Date.now() + Math.random(),
                     name: file.name.replace(/\.[^.]+$/, ''),
                     file: file,
-                    url: e.target.result
+                    url: e.target.result,
+                    uploaded: false
                 };
                 
                 uploadedData.shapes.push(shapeData);
@@ -557,7 +616,8 @@ function handlePatternFiles(files) {
                     id: Date.now() + Math.random(),
                     name: file.name.replace(/\.[^.]+$/, ''),
                     file: file,
-                    url: e.target.result
+                    url: e.target.result,
+                    uploaded: false
                 };
                 
                 uploadedData.patterns.push(patternData);
@@ -581,9 +641,18 @@ function updateFontsTable() {
             <td>${font.size}</td>
             <td>${font.weight}</td>
             <td>
+                ${font.uploaded ? 
+                    '<span style="color: var(--admin-success);">已上傳</span>' : 
+                    '<span style="color: var(--admin-warning);">待上傳</span>'}
+            </td>
+            <td>
                 <button class="btn btn-sm btn-primary" onclick="editFont('${font.id}')">
                     <span class="material-icons">edit</span>
                 </button>
+                ${!font.uploaded ? 
+                    `<button class="btn btn-sm btn-info" onclick="uploadSingleFont('${font.id}')">
+                        <span class="material-icons">upload</span>
+                    </button>` : ''}
                 <button class="btn btn-sm btn-danger" onclick="deleteFont('${font.id}')">
                     <span class="material-icons">delete</span>
                 </button>
@@ -601,6 +670,9 @@ function updateShapesPreview() {
         <div class="preview-item" data-id="${shape.id}">
             <img src="${shape.url}" alt="${shape.name}" style="width: 100%; height: 100px; object-fit: contain;">
             <p style="margin-top: 8px; font-size: 12px;">${shape.name}</p>
+            ${shape.uploaded ? 
+                '<span style="color: var(--admin-success); font-size: 10px;">已上傳</span>' : 
+                '<span style="color: var(--admin-warning); font-size: 10px;">待上傳</span>'}
             <button class="btn btn-sm btn-danger" onclick="deleteShape('${shape.id}')" style="margin-top: 5px;">
                 <span class="material-icons">delete</span>
             </button>
@@ -617,6 +689,9 @@ function updatePatternsPreview() {
         <div class="preview-item" data-id="${pattern.id}">
             <img src="${pattern.url}" alt="${pattern.name}" style="width: 64px; height: 64px; object-fit: contain;">
             <p style="margin-top: 8px; font-size: 12px;">${pattern.name}</p>
+            ${pattern.uploaded ? 
+                '<span style="color: var(--admin-success); font-size: 10px;">已上傳</span>' : 
+                '<span style="color: var(--admin-warning); font-size: 10px;">待上傳</span>'}
             <button class="btn btn-sm btn-danger" onclick="deletePattern('${pattern.id}')" style="margin-top: 5px;">
                 <span class="material-icons">delete</span>
             </button>
@@ -705,27 +780,35 @@ function displayColorGroups() {
 
 // 刪除函數
 function deleteFont(id) {
-    uploadedData.fonts = uploadedData.fonts.filter(f => f.id != id);
-    updateFontsTable();
-    showNotification('字體已刪除', 'info');
+    if (confirm('確定要刪除這個字體嗎？')) {
+        uploadedData.fonts = uploadedData.fonts.filter(f => f.id != id);
+        updateFontsTable();
+        showNotification('字體已刪除', 'info');
+    }
 }
 
 function deleteShape(id) {
-    uploadedData.shapes = uploadedData.shapes.filter(s => s.id != id);
-    updateShapesPreview();
-    showNotification('形狀已刪除', 'info');
+    if (confirm('確定要刪除這個形狀嗎？')) {
+        uploadedData.shapes = uploadedData.shapes.filter(s => s.id != id);
+        updateShapesPreview();
+        showNotification('形狀已刪除', 'info');
+    }
 }
 
 function deletePattern(id) {
-    uploadedData.patterns = uploadedData.patterns.filter(p => p.id != id);
-    updatePatternsPreview();
-    showNotification('圖案已刪除', 'info');
+    if (confirm('確定要刪除這個圖案嗎？')) {
+        uploadedData.patterns = uploadedData.patterns.filter(p => p.id != id);
+        updatePatternsPreview();
+        showNotification('圖案已刪除', 'info');
+    }
 }
 
 function deleteColor(id) {
-    uploadedData.colors = uploadedData.colors.filter(c => c.id != id);
-    displayColorGroups();
-    showNotification('顏色組已刪除', 'info');
+    if (confirm('確定要刪除這個顏色組嗎？')) {
+        uploadedData.colors = uploadedData.colors.filter(c => c.id != id);
+        displayColorGroups();
+        showNotification('顏色組已刪除', 'info');
+    }
 }
 
 // 編輯字體
@@ -773,8 +856,574 @@ function saveEditFont(id) {
 
 // 更新字體順序
 function updateFontOrder(evt) {
-    // 實作拖放排序邏輯
     console.log('Font order updated');
+}
+
+// ============= GitHub 整合功能 =============
+
+// 上傳單一字體檔案
+async function uploadSingleFont(fontId) {
+    const font = uploadedData.fonts.find(f => f.id == fontId);
+    if (!font) return;
+    
+    const success = await uploadFontFile(font);
+    if (success) {
+        font.uploaded = true;
+        updateFontsTable();
+    }
+}
+
+// 上傳字體檔案到 GitHub
+async function uploadFontFile(fontData) {
+    const token = GitHubConfig.getToken();
+    if (!token) {
+        const newToken = GitHubConfig.promptToken();
+        if (!newToken) return false;
+    }
+    
+    try {
+        console.log('開始上傳字體檔案:', fontData.name);
+        showNotification(`正在上傳字體: ${fontData.name}...`, 'info');
+        
+        // 從 data URL 提取 base64 內容
+        const base64Content = fontData.url.split(',')[1];
+        
+        // 取得檔案副檔名
+        const extension = fontData.file ? 
+            fontData.file.name.split('.').pop() : 
+            'ttf';
+        
+        // 檔案路徑
+        const filePath = `assets/fonts/${fontData.name}.${extension}`;
+        const apiUrl = `https://api.github.com/repos/${GitHubConfig.owner}/${GitHubConfig.repo}/contents/${filePath}`;
+        
+        // 檢查檔案是否已存在
+        let sha = null;
+        const checkResponse = await fetch(apiUrl, {
+            headers: {
+                'Authorization': `Bearer ${GitHubConfig.getToken()}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+        
+        if (checkResponse.ok) {
+            const existingFile = await checkResponse.json();
+            sha = existingFile.sha;
+            console.log('檔案已存在，將更新');
+        }
+        
+        // 上傳或更新檔案
+        const requestBody = {
+            message: `Upload font: ${fontData.name}`,
+            content: base64Content,
+            branch: GitHubConfig.branch
+        };
+        
+        if (sha) {
+            requestBody.sha = sha;
+        }
+        
+        const uploadResponse = await fetch(apiUrl, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${GitHubConfig.getToken()}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+        
+        if (uploadResponse.ok) {
+            const result = await uploadResponse.json();
+            console.log('字體檔案上傳成功:', result.content.path);
+            fontData.githubPath = filePath;
+            fontData.uploaded = true;
+            showNotification(`字體 ${fontData.name} 上傳成功`, 'success');
+            return true;
+        } else {
+            const error = await uploadResponse.json();
+            console.error('上傳失敗:', error);
+            showNotification(`字體上傳失敗: ${error.message}`, 'danger');
+            return false;
+        }
+        
+    } catch (error) {
+        console.error('上傳錯誤:', error);
+        showNotification('字體上傳失敗：' + error.message, 'danger');
+        return false;
+    }
+}
+
+// 批次上傳所有字體檔案
+async function uploadAllFonts() {
+    const token = GitHubConfig.getToken();
+    if (!token) {
+        const newToken = GitHubConfig.promptToken();
+        if (!newToken) return;
+    }
+    
+    const unuploadedFonts = uploadedData.fonts.filter(f => !f.uploaded);
+    
+    if (unuploadedFonts.length === 0) {
+        showNotification('沒有需要上傳的字體', 'info');
+        return;
+    }
+    
+    showNotification(`開始上傳 ${unuploadedFonts.length} 個字體檔案...`, 'info');
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const font of unuploadedFonts) {
+        if (font.url && font.url.startsWith('data:')) {
+            const success = await uploadFontFile(font);
+            if (success) {
+                successCount++;
+            } else {
+                failCount++;
+            }
+            
+            // 避免 API 限制，每個請求之間等待一下
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+    }
+    
+    updateFontsTable();
+    
+    if (successCount > 0) {
+        showNotification(`成功上傳 ${successCount} 個字體檔案`, 'success');
+    }
+    
+    if (failCount > 0) {
+        showNotification(`${failCount} 個字體上傳失敗`, 'warning');
+    }
+}
+
+// 上傳形狀檔案
+async function uploadShapeFile(shapeData) {
+    const token = GitHubConfig.getToken();
+    if (!token) return false;
+    
+    try {
+        const base64Content = shapeData.url.split(',')[1];
+        const extension = shapeData.file ? 
+            shapeData.file.name.split('.').pop() : 
+            'png';
+        
+        const filePath = `assets/shapes/${shapeData.name}.${extension}`;
+        const apiUrl = `https://api.github.com/repos/${GitHubConfig.owner}/${GitHubConfig.repo}/contents/${filePath}`;
+        
+        let sha = null;
+        const checkResponse = await fetch(apiUrl, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+        
+        if (checkResponse.ok) {
+            const existingFile = await checkResponse.json();
+            sha = existingFile.sha;
+        }
+        
+        const requestBody = {
+            message: `Upload shape: ${shapeData.name}`,
+            content: base64Content,
+            branch: GitHubConfig.branch
+        };
+        
+        if (sha) {
+            requestBody.sha = sha;
+        }
+        
+        const uploadResponse = await fetch(apiUrl, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+        
+        if (uploadResponse.ok) {
+            shapeData.githubPath = filePath;
+            shapeData.uploaded = true;
+            return true;
+        }
+        
+        return false;
+    } catch (error) {
+        console.error('上傳形狀錯誤:', error);
+        return false;
+    }
+}
+
+// 上傳圖案檔案
+async function uploadPatternFile(patternData) {
+    const token = GitHubConfig.getToken();
+    if (!token) return false;
+    
+    try {
+        const base64Content = patternData.url.split(',')[1];
+        const extension = patternData.file ? 
+            patternData.file.name.split('.').pop() : 
+            'png';
+        
+        const filePath = `assets/patterns/${patternData.name}.${extension}`;
+        const apiUrl = `https://api.github.com/repos/${GitHubConfig.owner}/${GitHubConfig.repo}/contents/${filePath}`;
+        
+        let sha = null;
+        const checkResponse = await fetch(apiUrl, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+        
+        if (checkResponse.ok) {
+            const existingFile = await checkResponse.json();
+            sha = existingFile.sha;
+        }
+        
+        const requestBody = {
+            message: `Upload pattern: ${patternData.name}`,
+            content: base64Content,
+            branch: GitHubConfig.branch
+        };
+        
+        if (sha) {
+            requestBody.sha = sha;
+        }
+        
+        const uploadResponse = await fetch(apiUrl, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+        
+        if (uploadResponse.ok) {
+            patternData.githubPath = filePath;
+            patternData.uploaded = true;
+            return true;
+        }
+        
+        return false;
+    } catch (error) {
+        console.error('上傳圖案錯誤:', error);
+        return false;
+    }
+}
+
+// 儲存到 GitHub
+async function saveToGitHub() {
+    const token = GitHubConfig.getToken();
+    if (!token) {
+        const newToken = GitHubConfig.promptToken();
+        if (!newToken) return;
+    }
+    
+    // 詢問是否要上傳檔案
+    const uploadFiles = confirm('是否要同時上傳所有檔案？（字體、形狀、圖案）\n這可能需要較長時間。');
+    
+    if (uploadFiles) {
+        // 上傳字體
+        await uploadAllFonts();
+        
+        // 上傳形狀
+        for (const shape of uploadedData.shapes.filter(s => !s.uploaded)) {
+            await uploadShapeFile(shape);
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        updateShapesPreview();
+        
+        // 上傳圖案
+        for (const pattern of uploadedData.patterns.filter(p => !p.uploaded)) {
+            await uploadPatternFile(pattern);
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        updatePatternsPreview();
+    }
+    
+    console.log('開始儲存設定到 GitHub...');
+    
+    try {
+        // 準備設定資料
+        const config = {
+            fonts: uploadedData.fonts.map(f => ({
+                id: f.id,
+                name: f.name,
+                filename: f.name + '.' + (f.file ? f.file.name.split('.').pop() : 'ttf'),
+                displayName: f.name,
+                category: 'custom',
+                weight: f.weight || 'normal',
+                githubPath: f.githubPath || null
+            })),
+            shapes: uploadedData.shapes.map(s => ({
+                id: s.id,
+                name: s.name,
+                class: s.name,
+                githubPath: s.githubPath || null
+            })),
+            patterns: uploadedData.patterns.map(p => ({
+                id: p.id,
+                name: p.name,
+                githubPath: p.githubPath || null
+            })),
+            colors: uploadedData.colors,
+            lastUpdate: new Date().toISOString(),
+            version: '2.0.0'
+        };
+        
+        console.log('準備儲存的資料:', config);
+        
+        const apiUrl = `https://api.github.com/repos/${GitHubConfig.owner}/${GitHubConfig.repo}/contents/${GitHubConfig.configPath}`;
+        
+        // 取得現有檔案的 SHA
+        let sha = null;
+        console.log('正在取得檔案 SHA...');
+        
+        const getResponse = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${GitHubConfig.getToken()}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+        
+        if (getResponse.ok) {
+            const fileData = await getResponse.json();
+            sha = fileData.sha;
+            console.log('取得 SHA:', sha);
+        } else {
+            console.log('檔案不存在，將建立新檔案');
+        }
+        
+        // 將資料轉換為 base64
+        const content = btoa(unescape(encodeURIComponent(JSON.stringify(config, null, 2))));
+        
+        // 建立請求 body
+        const requestBody = {
+            message: `Update stamp config - ${new Date().toLocaleString('zh-TW')}`,
+            content: content,
+            branch: GitHubConfig.branch
+        };
+        
+        // 如果有 SHA，加入到請求中
+        if (sha) {
+            requestBody.sha = sha;
+        }
+        
+        console.log('發送更新請求...');
+        
+        // 更新檔案
+        const updateResponse = await fetch(apiUrl, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${GitHubConfig.getToken()}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+        
+        const responseData = await updateResponse.json();
+        console.log('GitHub 回應:', responseData);
+        
+        if (updateResponse.ok) {
+            showNotification('設定已成功儲存到 GitHub', 'success');
+            console.log('儲存成功！');
+            
+            // 顯示 commit 資訊
+            if (responseData.commit) {
+                console.log('Commit SHA:', responseData.commit.sha);
+                console.log('Commit URL:', responseData.commit.html_url);
+            }
+        } else {
+            console.error('GitHub API 錯誤:', responseData);
+            showNotification(`儲存失敗: ${responseData.message || '未知錯誤'}`, 'danger');
+        }
+        
+    } catch (error) {
+        console.error('儲存過程發生錯誤:', error);
+        showNotification('儲存失敗：' + error.message, 'danger');
+    }
+}
+
+// 從 GitHub 載入設定
+async function loadFromGitHub() {
+    try {
+        const response = await fetch(
+            `https://raw.githubusercontent.com/${GitHubConfig.owner}/${GitHubConfig.repo}/${GitHubConfig.branch}/${GitHubConfig.configPath}`
+        );
+        
+        if (response.ok) {
+            const config = await response.json();
+            
+            // 更新本地資料
+            uploadedData.fonts = config.fonts || [];
+            uploadedData.shapes = config.shapes || [];
+            uploadedData.patterns = config.patterns || [];
+            uploadedData.colors = config.colors || [];
+            
+            // 標記已上傳的項目
+            uploadedData.fonts.forEach(f => {
+                if (f.githubPath) f.uploaded = true;
+            });
+            uploadedData.shapes.forEach(s => {
+                if (s.githubPath) s.uploaded = true;
+            });
+            uploadedData.patterns.forEach(p => {
+                if (p.githubPath) p.uploaded = true;
+            });
+            
+            // 更新顯示
+            if (currentPage === 'fonts') updateFontsTable();
+            if (currentPage === 'shapes') updateShapesPreview();
+            if (currentPage === 'patterns') updatePatternsPreview();
+            if (currentPage === 'colors') displayColorGroups();
+            if (currentPage === 'dashboard') loadPage('dashboard');
+            
+            showNotification('設定載入成功', 'success');
+            
+            // 更新 GitHub 狀態
+            updateGitHubStatus(true);
+        } else {
+            updateGitHubStatus(false);
+        }
+    } catch (error) {
+        console.error('載入錯誤:', error);
+        showNotification('載入失敗', 'warning');
+        updateGitHubStatus(false);
+    }
+}
+
+// 更新 GitHub 狀態顯示
+function updateGitHubStatus(connected) {
+    const statusElement = document.getElementById('githubStatus');
+    if (statusElement) {
+        if (connected) {
+            statusElement.innerHTML = `
+                <p style="color: var(--admin-success);">
+                    <span class="material-icons" style="vertical-align: middle;">check_circle</span>
+                    已連接到 GitHub
+                </p>
+                <p>Repository: ${GitHubConfig.owner}/${GitHubConfig.repo}</p>
+                <p>Branch: ${GitHubConfig.branch}</p>
+            `;
+        } else {
+            statusElement.innerHTML = `
+                <p style="color: var(--admin-warning);">
+                    <span class="material-icons" style="vertical-align: middle;">warning</span>
+                    未連接到 GitHub
+                </p>
+            `;
+        }
+    }
+}
+
+// 測試 GitHub 連線
+async function testGitHubConnection() {
+    const token = GitHubConfig.getToken();
+    if (!token) {
+        showNotification('請先設定 GitHub Token', 'warning');
+        return;
+    }
+    
+    try {
+        // 測試 Token
+        console.log('測試 Token...');
+        const userResponse = await fetch('https://api.github.com/user', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (userResponse.ok) {
+            const userData = await userResponse.json();
+            console.log('Token 有效，用戶:', userData.login);
+            showNotification(`Token 有效，用戶: ${userData.login}`, 'success');
+        } else {
+            console.error('Token 無效');
+            showNotification('Token 無效', 'danger');
+            return;
+        }
+        
+        // 測試 Repository 存取
+        console.log('測試 Repository 存取...');
+        const repoResponse = await fetch(`https://api.github.com/repos/${GitHubConfig.owner}/${GitHubConfig.repo}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (repoResponse.ok) {
+            const repoData = await repoResponse.json();
+            console.log('可以存取 Repository:', repoData.full_name);
+            console.log('Repository 權限:', repoData.permissions);
+            showNotification('可以存取 Repository', 'success');
+        } else {
+            console.error('無法存取 Repository');
+            showNotification('無法存取 Repository', 'danger');
+        }
+        
+        // 測試檔案存取
+        console.log('測試檔案存取...');
+        const fileResponse = await fetch(`https://api.github.com/repos/${GitHubConfig.owner}/${GitHubConfig.repo}/contents/${GitHubConfig.configPath}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (fileResponse.ok) {
+            console.log('可以存取設定檔案');
+            showNotification('所有測試通過！', 'success');
+        } else if (fileResponse.status === 404) {
+            console.log('設定檔案不存在（需要建立）');
+            showNotification('設定檔案不存在，請先儲存設定', 'info');
+        } else {
+            console.error('無法存取設定檔案');
+            showNotification('無法存取設定檔案', 'danger');
+        }
+        
+    } catch (error) {
+        console.error('測試失敗:', error);
+        showNotification('測試失敗: ' + error.message, 'danger');
+    }
+}
+
+// 加入 GitHub 控制按鈕
+function addGitHubButtons() {
+    const header = document.querySelector('.admin-user');
+    if (header) {
+        const buttonGroup = document.createElement('div');
+        buttonGroup.style.cssText = 'display: flex; gap: 10px; margin-left: 20px;';
+        
+        buttonGroup.innerHTML = `
+            <button class="btn btn-warning" onclick="testGitHubConnection()">
+                <span class="material-icons">bug_report</span>
+                測試連線
+            </button>
+            <button class="btn btn-info" onclick="uploadAllFonts()">
+                <span class="material-icons">upload_file</span>
+                上傳字體
+            </button>
+            <button class="btn btn-primary" onclick="loadFromGitHub()">
+                <span class="material-icons">cloud_download</span>
+                從 GitHub 載入
+            </button>
+            <button class="btn btn-success" onclick="saveToGitHub()">
+                <span class="material-icons">cloud_upload</span>
+                儲存到 GitHub
+            </button>
+        `;
+        
+        header.parentElement.insertBefore(buttonGroup, header);
+    }
 }
 
 // 安全防護功能
@@ -883,10 +1532,9 @@ function generateWatermark() {
 
 // 顯示提示
 function showNotification(message, type = 'info') {
-    // 實作提示功能
     console.log(`[${type.toUpperCase()}] ${message}`);
     
-    // 可以使用簡單的提示
+    // 建立提示元素
     const notification = document.createElement('div');
     notification.style.cssText = `
         position: fixed;
@@ -933,6 +1581,9 @@ function showFontSettings() {
             </div>
             <div class="form-group">
                 <label class="form-label">預設行高</label>
+                <input type="number" class="form-control" id="defaultLineHeight" value="1.5" min="1
+            <div class="form-group">
+                <label class="form-label">預設行高</label>
                 <input type="number" class="form-control" id="defaultLineHeight" value="1.5" min="1" max="3" step="0.1">
             </div>
             <div class="form-group">
@@ -968,13 +1619,32 @@ function showFontSettings() {
 // 儲存字體設定
 function saveFontSettings() {
     // 實作儲存邏輯
+    const settings = {
+        defaultFontSize: document.getElementById('defaultFontSize').value,
+        defaultLineHeight: document.getElementById('defaultLineHeight').value,
+        defaultFontWeight: document.getElementById('defaultFontWeight').value,
+        fontRendering: document.getElementById('fontRendering').value
+    };
+    
+    localStorage.setItem('fontSettings', JSON.stringify(settings));
     closeModal();
     showNotification('字體設定已儲存', 'success');
 }
 
 // 更新安全設定
 function updateSecuritySettings() {
-    // 實作安全設定更新
+    const settings = {
+        preventScreenshot: document.getElementById('preventScreenshot').checked,
+        enableWatermark: document.getElementById('enableWatermark').checked,
+        disableRightClick: document.getElementById('disableRightClick').checked,
+        disableTextSelect: document.getElementById('disableTextSelect').checked,
+        disableDevTools: document.getElementById('disableDevTools').checked,
+        encryptFonts: document.getElementById('encryptFonts').checked,
+        watermarkText: document.getElementById('watermarkText').value,
+        watermarkInterval: document.getElementById('watermarkInterval').value
+    };
+    
+    localStorage.setItem('securitySettings', JSON.stringify(settings));
     showNotification('安全設定已更新', 'success');
     generateWatermark();
 }
@@ -992,6 +1662,101 @@ function decryptFont(encryptedData) {
     const decrypted = atob(encryptedData);
     return decrypted;
 }
+
+// 清除 Token
+function clearGitHubToken() {
+    if (confirm('確定要清除儲存的 GitHub Token 嗎？')) {
+        localStorage.removeItem('github_token');
+        showNotification('GitHub Token 已清除', 'info');
+        updateGitHubStatus(false);
+    }
+}
+
+// 匯出設定
+function exportSettings() {
+    const settings = {
+        fonts: uploadedData.fonts,
+        shapes: uploadedData.shapes,
+        patterns: uploadedData.patterns,
+        colors: uploadedData.colors,
+        exportDate: new Date().toISOString(),
+        version: '2.0.0'
+    };
+    
+    const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `stamp-settings-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    showNotification('設定已匯出', 'success');
+}
+
+// 匯入設定
+function importSettings() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    
+    input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const settings = JSON.parse(event.target.result);
+                
+                if (confirm('確定要匯入這個設定檔嗎？這會覆蓋現有的設定。')) {
+                    uploadedData.fonts = settings.fonts || [];
+                    uploadedData.shapes = settings.shapes || [];
+                    uploadedData.patterns = settings.patterns || [];
+                    uploadedData.colors = settings.colors || [];
+                    
+                    // 更新顯示
+                    loadPage(currentPage);
+                    showNotification('設定已匯入', 'success');
+                }
+            } catch (error) {
+                showNotification('匯入失敗：檔案格式錯誤', 'danger');
+            }
+        };
+        reader.readAsText(file);
+    };
+    
+    input.click();
+}
+
+// 初始化時加入按鈕和載入設定
+setTimeout(() => {
+    addGitHubButtons();
+    
+    // 加入匯出/匯入按鈕
+    const header = document.querySelector('.admin-user');
+    if (header) {
+        const exportImportGroup = document.createElement('div');
+        exportImportGroup.style.cssText = 'display: flex; gap: 10px; margin-left: 10px;';
+        
+        exportImportGroup.innerHTML = `
+            <button class="btn btn-secondary" onclick="exportSettings()">
+                <span class="material-icons">download</span>
+                匯出設定
+            </button>
+            <button class="btn btn-secondary" onclick="importSettings()">
+                <span class="material-icons">upload</span>
+                匯入設定
+            </button>
+            <button class="btn btn-secondary" onclick="clearGitHubToken()">
+                <span class="material-icons">key_off</span>
+                清除 Token
+            </button>
+        `;
+        
+        header.parentElement.insertBefore(exportImportGroup, header);
+    }
+}, 500);
 
 // 加入動畫樣式
 const style = document.createElement('style');
@@ -1017,177 +1782,182 @@ style.textContent = `
             opacity: 0;
         }
     }
+    
+    .sortable-ghost {
+        opacity: 0.5;
+        background: var(--admin-bg-secondary);
+    }
+    
+    .dragging {
+        border-color: var(--admin-accent) !important;
+        background: rgba(106, 27, 154, 0.1) !important;
+    }
+    
+    /* 上傳進度條 */
+    .upload-progress {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--admin-accent);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.3s ease;
+        z-index: 4000;
+    }
+    
+    /* 提示訊息動畫 */
+    .notification-enter {
+        animation: slideIn 0.3s ease;
+    }
+    
+    .notification-exit {
+        animation: slideOut 0.3s ease;
+    }
 `;
 document.head.appendChild(style);
 
-// ============= GitHub 整合功能 =============
-const GitHubConfig = {
-    owner: 'DK0124',
-    repo: 'stamp-font-preview',
-    branch: 'main',
-    configPath: 'config/stamp-config.json',
-    
-    // 需要在 GitHub 生成 Personal Access Token
-    // 暫時使用 localStorage 儲存，實際應用請使用更安全的方式
-    getToken: function() {
-        return localStorage.getItem('github_token') || prompt('請輸入 GitHub Token:');
-    },
-    
-    setToken: function(token) {
-        localStorage.setItem('github_token', token);
-    }
-};
-
-// 儲存設定到 GitHub
-async function saveToGitHub() {
-    const token = GitHubConfig.getToken();
-    if (!token) {
-        showNotification('請先設定 GitHub Token', 'warning');
-        return;
+// 顯示上傳進度
+function showUploadProgress(progress) {
+    let progressBar = document.querySelector('.upload-progress');
+    if (!progressBar) {
+        progressBar = document.createElement('div');
+        progressBar.className = 'upload-progress';
+        document.body.appendChild(progressBar);
     }
     
-    GitHubConfig.setToken(token);
+    progressBar.style.transform = `scaleX(${progress})`;
     
-    try {
-        // 準備設定資料
-        const config = {
-            fonts: uploadedData.fonts.map(f => ({
-                id: f.id,
-                name: f.name,
-                filename: f.name + '.ttf',
-                displayName: f.name,
-                category: 'custom',
-                weight: f.weight,
-                systemFont: f.systemFont || null
-            })),
-            shapes: uploadedData.shapes.map(s => ({
-                id: s.id,
-                name: s.name,
-                class: s.name
-            })),
-            patterns: uploadedData.patterns.map(p => ({
-                id: p.id,
-                name: p.name
-            })),
-            colors: uploadedData.colors,
-            lastUpdate: new Date().toISOString(),
-            version: '1.0.0'
-        };
-        
-        // 取得現有檔案的 SHA
-        const currentFile = await fetch(
-            `https://api.github.com/repos/${GitHubConfig.owner}/${GitHubConfig.repo}/contents/${GitHubConfig.configPath}`,
-            {
-                headers: {
-                    'Authorization': `token ${token}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            }
-        );
-        
-        let sha = '';
-        if (currentFile.ok) {
-            const fileData = await currentFile.json();
-            sha = fileData.sha;
-        }
-        
-        // 更新檔案
-        const response = await fetch(
-            `https://api.github.com/repos/${GitHubConfig.owner}/${GitHubConfig.repo}/contents/${GitHubConfig.configPath}`,
-            {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `token ${token}`,
-                    'Accept': 'application/vnd.github.v3+json',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    message: `Update config - ${new Date().toLocaleString('zh-TW')}`,
-                    content: btoa(unescape(encodeURIComponent(JSON.stringify(config, null, 2)))),
-                    sha: sha,
-                    branch: GitHubConfig.branch
-                })
-            }
-        );
-        
-        if (response.ok) {
-            showNotification('設定已成功儲存到 GitHub', 'success');
-        } else {
-            const error = await response.json();
-            console.error('GitHub API Error:', error);
-            showNotification('儲存失敗：' + error.message, 'danger');
-        }
-        
-    } catch (error) {
-        console.error('儲存錯誤:', error);
-        showNotification('儲存失敗：' + error.message, 'danger');
+    if (progress >= 1) {
+        setTimeout(() => {
+            progressBar.remove();
+        }, 500);
     }
 }
 
-// 從 GitHub 載入設定
-async function loadFromGitHub() {
+// 版本檢查
+async function checkForUpdates() {
     try {
         const response = await fetch(
-            `https://raw.githubusercontent.com/${GitHubConfig.owner}/${GitHubConfig.repo}/${GitHubConfig.branch}/${GitHubConfig.configPath}`
+            `https://raw.githubusercontent.com/${GitHubConfig.owner}/${GitHubConfig.repo}/${GitHubConfig.branch}/version.json`
         );
         
         if (response.ok) {
-            const config = await response.json();
+            const versionData = await response.json();
+            const currentVersion = '2.0.0';
             
-            // 更新本地資料
-            uploadedData.fonts = config.fonts || [];
-            uploadedData.shapes = config.shapes || [];
-            uploadedData.patterns = config.patterns || [];
-            uploadedData.colors = config.colors || [];
-            
-            // 更新顯示
-            updateFontsTable();
-            updateShapesPreview();
-            updatePatternsPreview();
-            displayColorGroups();
-            
-            showNotification('設定載入成功', 'success');
+            if (versionData.version !== currentVersion) {
+                showNotification(`新版本可用: ${versionData.version}`, 'info');
+            }
         }
     } catch (error) {
-        console.error('載入錯誤:', error);
-        showNotification('載入失敗', 'warning');
+        console.error('版本檢查失敗:', error);
     }
 }
 
-// 在頁面載入時自動載入
-document.addEventListener('DOMContentLoaded', function() {
-    // 原有的初始化...
-    initializeAdmin();
-    setupSecurityFeatures();
-    generateWatermark();
+// 初始化完成後檢查更新
+setTimeout(checkForUpdates, 2000);
+
+// 監聽鍵盤快捷鍵
+document.addEventListener('keydown', (e) => {
+    // Ctrl+S 儲存
+    if (e.ctrlKey && e.key === 's') {
+        e.preventDefault();
+        saveToGitHub();
+    }
     
-    // 載入 GitHub 設定
-    setTimeout(() => {
+    // Ctrl+O 載入
+    if (e.ctrlKey && e.key === 'o') {
+        e.preventDefault();
         loadFromGitHub();
-    }, 1000);
+    }
+    
+    // Ctrl+E 匯出
+    if (e.ctrlKey && e.key === 'e') {
+        e.preventDefault();
+        exportSettings();
+    }
 });
 
-// 修改 admin-header 加入儲存按鈕
-function addGitHubButtons() {
-    const header = document.querySelector('.admin-user');
-    if (header) {
-        const buttonGroup = document.createElement('div');
-        buttonGroup.style.cssText = 'display: flex; gap: 10px; margin-left: 20px;';
-        
-        buttonGroup.innerHTML = `
-            <button class="btn btn-primary" onclick="loadFromGitHub()">
-                <span class="material-icons">cloud_download</span>
-                從 GitHub 載入
-            </button>
-            <button class="btn btn-success" onclick="saveToGitHub()">
-                <span class="material-icons">cloud_upload</span>
-                儲存到 GitHub
-            </button>
-        `;
-        
-        header.parentElement.insertBefore(buttonGroup, header);
+// 自動儲存功能
+let autoSaveInterval = null;
+
+function enableAutoSave(interval = 300000) { // 預設 5 分鐘
+    if (autoSaveInterval) clearInterval(autoSaveInterval);
+    
+    autoSaveInterval = setInterval(() => {
+        if (uploadedData.fonts.length > 0 || 
+            uploadedData.shapes.length > 0 || 
+            uploadedData.patterns.length > 0 || 
+            uploadedData.colors.length > 0) {
+            saveToGitHub();
+        }
+    }, interval);
+    
+    showNotification('自動儲存已啟用', 'info');
+}
+
+// 停用自動儲存
+function disableAutoSave() {
+    if (autoSaveInterval) {
+        clearInterval(autoSaveInterval);
+        autoSaveInterval = null;
+        showNotification('自動儲存已停用', 'info');
     }
 }
 
-// 初始化時加入按鈕
-setTimeout(addGitHubButtons, 500);
+// 離開頁面前提醒
+window.addEventListener('beforeunload', (e) => {
+    // 檢查是否有未儲存的變更
+    const hasUnsavedChanges = uploadedData.fonts.some(f => !f.uploaded) ||
+                              uploadedData.shapes.some(s => !s.uploaded) ||
+                              uploadedData.patterns.some(p => !p.uploaded);
+    
+    if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '您有未儲存的變更，確定要離開嗎？';
+    }
+});
+
+// 系統資訊
+function getSystemInfo() {
+    return {
+        browser: navigator.userAgent,
+        platform: navigator.platform,
+        language: navigator.language,
+        screenResolution: `${window.screen.width}x${window.screen.height}`,
+        windowSize: `${window.innerWidth}x${window.innerHeight}`,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        online: navigator.onLine
+    };
+}
+
+// 記錄操作日誌
+function logAction(action, details) {
+    const log = {
+        timestamp: new Date().toISOString(),
+        action: action,
+        details: details,
+        user: 'admin',
+        systemInfo: getSystemInfo()
+    };
+    
+    // 儲存到 localStorage（實際應用可能需要發送到伺服器）
+    const logs = JSON.parse(localStorage.getItem('actionLogs') || '[]');
+    logs.push(log);
+    
+    // 只保留最近 100 筆記錄
+    if (logs.length > 100) {
+        logs.splice(0, logs.length - 100);
+    }
+    
+    localStorage.setItem('actionLogs', JSON.stringify(logs));
+}
+
+// 使用範例：在重要操作時記錄
+// logAction('upload_font', { fontName: 'MyFont', size: '123KB' });
+
+console.log('印章系統後台管理 v2.0.0 已載入');
+console.log('作者: DK0124');
+console.log('最後更新: 2025-01-29');
