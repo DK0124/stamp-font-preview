@@ -589,7 +589,7 @@ function getFontsContent() {
     `;
 }
 
-// 形狀管理頁面
+// 形狀管理頁面 - 加入上傳按鈕
 function getShapesContent() {
     return `
         <div class="admin-card">
@@ -598,10 +598,16 @@ function getShapesContent() {
                     <span class="material-icons">upload_file</span>
                     上傳形狀
                 </div>
-                <button class="btn btn-info" onclick="showShapeGuide()">
-                    <span class="material-icons">help</span>
-                    製作指南
-                </button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" onclick="uploadAllShapes()">
+                        <span class="material-icons">upload</span>
+                        批次上傳到 GitHub
+                    </button>
+                    <button class="btn btn-info" onclick="showShapeGuide()">
+                        <span class="material-icons">help</span>
+                        製作指南
+                    </button>
+                </div>
             </div>
             <div class="upload-area" id="shapeUploadArea">
                 <div class="upload-icon material-icons">cloud_upload</div>
@@ -633,7 +639,7 @@ function getShapesContent() {
     `;
 }
 
-// 圖案管理頁面
+// 圖案管理頁面 - 加入上傳按鈕
 function getPatternsContent() {
     return `
         <div class="admin-card">
@@ -642,10 +648,16 @@ function getPatternsContent() {
                     <span class="material-icons">upload_file</span>
                     上傳圖案
                 </div>
-                <button class="btn btn-info" onclick="showPatternGuide()">
-                    <span class="material-icons">help</span>
-                    製作指南
-                </button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" onclick="uploadAllPatterns()">
+                        <span class="material-icons">upload</span>
+                        批次上傳到 GitHub
+                    </button>
+                    <button class="btn btn-info" onclick="showPatternGuide()">
+                        <span class="material-icons">help</span>
+                        製作指南
+                    </button>
+                </div>
             </div>
             <div class="upload-area" id="patternUploadArea">
                 <div class="upload-icon material-icons">cloud_upload</div>
@@ -675,6 +687,342 @@ function getPatternsContent() {
             </div>
         </div>
     `;
+}
+
+// 更新形狀預覽 - 加入上傳按鈕
+function updateShapesPreview() {
+    const preview = document.getElementById('shapesPreview');
+    if (!preview) return;
+    
+    if (uploadedData.shapes.length === 0) {
+        preview.innerHTML = '<p style="text-align: center; color: var(--admin-text-secondary); padding: 40px;">尚無形狀，請上傳形狀圖片</p>';
+        return;
+    }
+    
+    preview.innerHTML = uploadedData.shapes.map(shape => `
+        <div class="preview-item" data-id="${shape.id}">
+            ${shape.url ? `<img src="${shape.url}" alt="${shape.name}" onerror="this.style.display='none'; this.parentElement.innerHTML+='<div style=\\'text-align:center; padding:20px;\\'>載入失敗</div>'">` : 
+              shape.githubPath ? `<img src="https://raw.githubusercontent.com/${GitHubConfig.owner}/${GitHubConfig.repo}/${GitHubConfig.branch}/${shape.githubPath}" alt="${shape.name}">` :
+              '<div style="text-align:center; padding:20px;">無預覽</div>'}
+            <p>${shape.name}</p>
+            <span class="badge ${shape.uploaded ? 'badge-success' : 'badge-warning'}">
+                ${shape.uploaded ? '已上傳' : '待上傳'}
+            </span>
+            <div style="display: flex; gap: 4px; margin-top: 8px;">
+                ${!shape.uploaded ? 
+                    `<button class="btn btn-sm btn-info" onclick="uploadSingleShape('${shape.id}')" title="上傳">
+                        <span class="material-icons">upload</span>
+                    </button>` : ''}
+                <button class="btn btn-sm btn-danger" onclick="deleteShape('${shape.id}')" title="刪除">
+                    <span class="material-icons">delete</span>
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// 更新圖案預覽 - 加入上傳按鈕
+function updatePatternsPreview() {
+    const preview = document.getElementById('patternsPreview');
+    if (!preview) return;
+    
+    if (uploadedData.patterns.length === 0) {
+        preview.innerHTML = '<p style="text-align: center; color: var(--admin-text-secondary); padding: 40px;">尚無圖案，請上傳圖案圖片</p>';
+        return;
+    }
+    
+    preview.innerHTML = uploadedData.patterns.map(pattern => `
+        <div class="preview-item" data-id="${pattern.id}">
+            <div style="width: 80px; height: 80px; margin: 0 auto; border-radius: 8px; overflow: hidden; background: #f0f0f0;">
+                ${pattern.url ? 
+                    `<div style="width: 100%; height: 100%; background: url(${pattern.url}) repeat; background-size: 40px 40px;"></div>` : 
+                    pattern.githubPath ? 
+                    `<div style="width: 100%; height: 100%; background: url(https://raw.githubusercontent.com/${GitHubConfig.owner}/${GitHubConfig.repo}/${GitHubConfig.branch}/${pattern.githubPath}) repeat; background-size: 40px 40px;"></div>` :
+                    '<div style="text-align:center; line-height: 80px;">無預覽</div>'}
+            </div>
+            <p>${pattern.name}</p>
+            <span class="badge ${pattern.uploaded ? 'badge-success' : 'badge-warning'}">
+                ${pattern.uploaded ? '已上傳' : '待上傳'}
+            </span>
+            <div style="display: flex; gap: 4px; margin-top: 8px;">
+                ${!pattern.uploaded ? 
+                    `<button class="btn btn-sm btn-info" onclick="uploadSinglePattern('${pattern.id}')" title="上傳">
+                        <span class="material-icons">upload</span>
+                    </button>` : ''}
+                <button class="btn btn-sm btn-danger" onclick="deletePattern('${pattern.id}')" title="刪除">
+                    <span class="material-icons">delete</span>
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// 上傳單個形狀
+async function uploadSingleShape(shapeId) {
+    const shape = uploadedData.shapes.find(s => s.id == shapeId);
+    if (!shape) return;
+    
+    const success = await uploadShapeFile(shape);
+    if (success) {
+        shape.uploaded = true;
+        updateShapesPreview();
+    }
+}
+
+// 上傳單個圖案
+async function uploadSinglePattern(patternId) {
+    const pattern = uploadedData.patterns.find(p => p.id == patternId);
+    if (!pattern) return;
+    
+    const success = await uploadPatternFile(pattern);
+    if (success) {
+        pattern.uploaded = true;
+        updatePatternsPreview();
+    }
+}
+
+// 上傳形狀檔案到 GitHub
+async function uploadShapeFile(shapeData) {
+    const token = GitHubConfig.getToken();
+    if (!token) {
+        GitHubConfig.promptToken();
+        return false;
+    }
+    
+    try {
+        console.log('開始上傳形狀檔案:', shapeData.name);
+        showNotification(`正在上傳形狀: ${shapeData.name}...`, 'info');
+        
+        const base64Content = shapeData.url.split(',')[1];
+        const filePath = `assets/shapes/${shapeData.filename}`;
+        const apiUrl = `https://api.github.com/repos/${GitHubConfig.owner}/${GitHubConfig.repo}/contents/${filePath}`;
+        
+        // 檢查檔案是否已存在
+        let sha = null;
+        const checkResponse = await fetch(apiUrl, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+        
+        if (checkResponse.ok) {
+            const existingFile = await checkResponse.json();
+            sha = existingFile.sha;
+            console.log('檔案已存在，將更新');
+        }
+        
+        const requestBody = {
+            message: `Upload shape: ${shapeData.name}`,
+            content: base64Content,
+            branch: GitHubConfig.branch
+        };
+        
+        if (sha) {
+            requestBody.sha = sha;
+        }
+        
+        const uploadResponse = await fetch(apiUrl, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+        
+        if (uploadResponse.ok) {
+            const result = await uploadResponse.json();
+            console.log('形狀檔案上傳成功:', result.content.path);
+            shapeData.githubPath = filePath;
+            shapeData.uploaded = true;
+            showNotification(`形狀 ${shapeData.name} 上傳成功`, 'success');
+            return true;
+        } else {
+            const error = await uploadResponse.json();
+            console.error('上傳失敗:', error);
+            showNotification(`形狀上傳失敗: ${error.message}`, 'danger');
+            return false;
+        }
+        
+    } catch (error) {
+        console.error('上傳錯誤:', error);
+        showNotification('形狀上傳失敗：' + error.message, 'danger');
+        return false;
+    }
+}
+
+// 上傳圖案檔案到 GitHub
+async function uploadPatternFile(patternData) {
+    const token = GitHubConfig.getToken();
+    if (!token) {
+        GitHubConfig.promptToken();
+        return false;
+    }
+    
+    try {
+        console.log('開始上傳圖案檔案:', patternData.name);
+        showNotification(`正在上傳圖案: ${patternData.name}...`, 'info');
+        
+        const base64Content = patternData.url.split(',')[1];
+        const filePath = `assets/patterns/${patternData.filename}`;
+        const apiUrl = `https://api.github.com/repos/${GitHubConfig.owner}/${GitHubConfig.repo}/contents/${filePath}`;
+        
+        // 檢查檔案是否已存在
+        let sha = null;
+        const checkResponse = await fetch(apiUrl, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+        
+        if (checkResponse.ok) {
+            const existingFile = await checkResponse.json();
+            sha = existingFile.sha;
+            console.log('檔案已存在，將更新');
+        }
+        
+        const requestBody = {
+            message: `Upload pattern: ${patternData.name}`,
+            content: base64Content,
+            branch: GitHubConfig.branch
+        };
+        
+        if (sha) {
+            requestBody.sha = sha;
+        }
+        
+        const uploadResponse = await fetch(apiUrl, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+        
+        if (uploadResponse.ok) {
+            const result = await uploadResponse.json();
+            console.log('圖案檔案上傳成功:', result.content.path);
+            patternData.githubPath = filePath;
+            patternData.uploaded = true;
+            showNotification(`圖案 ${patternData.name} 上傳成功`, 'success');
+            return true;
+        } else {
+            const error = await uploadResponse.json();
+            console.error('上傳失敗:', error);
+            showNotification(`圖案上傳失敗: ${error.message}`, 'danger');
+            return false;
+        }
+        
+    } catch (error) {
+        console.error('上傳錯誤:', error);
+        showNotification('圖案上傳失敗：' + error.message, 'danger');
+        return false;
+    }
+}
+
+// 批次上傳所有形狀
+async function uploadAllShapes() {
+    const token = GitHubConfig.getToken();
+    if (!token) {
+        GitHubConfig.promptToken();
+        return;
+    }
+    
+    const unuploadedShapes = uploadedData.shapes.filter(s => !s.uploaded);
+    
+    if (unuploadedShapes.length === 0) {
+        showNotification('沒有需要上傳的形狀', 'info');
+        return;
+    }
+    
+    showNotification(`開始上傳 ${unuploadedShapes.length} 個形狀檔案...`, 'info');
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const shape of unuploadedShapes) {
+        if (shape.url && shape.url.startsWith('data:')) {
+            const success = await uploadShapeFile(shape);
+            if (success) {
+                successCount++;
+            } else {
+                failCount++;
+            }
+            
+            // 避免 API 限制，加入延遲
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+    }
+    
+    updateShapesPreview();
+    
+    if (successCount > 0) {
+        showNotification(`成功上傳 ${successCount} 個形狀檔案`, 'success');
+    }
+    
+    if (failCount > 0) {
+        showNotification(`${failCount} 個形狀上傳失敗`, 'warning');
+    }
+    
+    // 上傳完成後自動儲存設定
+    setTimeout(() => {
+        saveToGitHub();
+    }, 2000);
+}
+
+// 批次上傳所有圖案
+async function uploadAllPatterns() {
+    const token = GitHubConfig.getToken();
+    if (!token) {
+        GitHubConfig.promptToken();
+        return;
+    }
+    
+    const unuploadedPatterns = uploadedData.patterns.filter(p => !p.uploaded);
+    
+    if (unuploadedPatterns.length === 0) {
+        showNotification('沒有需要上傳的圖案', 'info');
+        return;
+    }
+    
+    showNotification(`開始上傳 ${unuploadedPatterns.length} 個圖案檔案...`, 'info');
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const pattern of unuploadedPatterns) {
+        if (pattern.url && pattern.url.startsWith('data:')) {
+            const success = await uploadPatternFile(pattern);
+            if (success) {
+                successCount++;
+            } else {
+                failCount++;
+            }
+            
+            // 避免 API 限制，加入延遲
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+    }
+    
+    updatePatternsPreview();
+    
+    if (successCount > 0) {
+        showNotification(`成功上傳 ${successCount} 個圖案檔案`, 'success');
+    }
+    
+    if (failCount > 0) {
+        showNotification(`${failCount} 個圖案上傳失敗`, 'warning');
+    }
+    
+    // 上傳完成後自動儲存設定
+    setTimeout(() => {
+        saveToGitHub();
+    }, 2000);
 }
 
 // 顏色管理頁面
