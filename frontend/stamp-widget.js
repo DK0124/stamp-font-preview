@@ -1707,33 +1707,37 @@
             this.updateAllExternalPreviews();
         },
 
-        // 載入字體
+        // 在 stamp-widget.js 中修正 loadFont 函數
         loadFont: async function(fontData) {
-            if (!fontData || this.loadedFonts[fontData.id]) {
+            if (fontData.systemFont) {
+                return true;
+            }
+            
+            if (this.loadedFonts[fontData.id]) {
                 return this.loadedFonts[fontData.id];
             }
             
             try {
                 let fontUrl;
                 
+                // 使用正確的路徑格式
                 if (fontData.githubPath) {
-                    fontUrl = `${this.GITHUB_RAW_URL}${fontData.githubPath}`;
+                    // 使用 githubPath
+                    fontUrl = `https://raw.githubusercontent.com/DK0124/stamp-font-preview/main/${fontData.githubPath}`;
                 } else if (fontData.filename) {
-                    fontUrl = `${this.GITHUB_RAW_URL}assets/fonts/${fontData.filename}`;
+                    // 使用 filename
+                    fontUrl = `https://raw.githubusercontent.com/DK0124/stamp-font-preview/main/assets/fonts/${fontData.filename}`;
                 } else {
-                    console.error('字體沒有有效的路徑:', fontData);
+                    console.error('字體缺少路徑資訊:', fontData);
                     return null;
                 }
                 
-                // 加入時間戳避免快取
-                fontUrl += '?t=' + Date.now();
+                console.log('載入字體:', fontData.name, 'from', fontUrl);
                 
-                console.log(`載入字體: ${fontData.displayName} from ${fontUrl}`);
-                
-                // 使用 Blob URL 隱藏真實路徑
                 const response = await fetch(fontUrl);
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    console.error(`載入字體失敗: ${fontUrl} - ${response.status}`);
+                    return null;
                 }
                 
                 const blob = await response.blob();
@@ -1744,8 +1748,7 @@
                     `url(${blobUrl})`,
                     {
                         weight: fontData.weight || 'normal',
-                        style: 'normal',
-                        display: 'swap'
+                        style: 'normal'
                     }
                 );
                 
@@ -1753,16 +1756,15 @@
                 document.fonts.add(fontFace);
                 this.loadedFonts[fontData.id] = fontFace;
                 
-                // 延遲撤銷 Blob URL（確保字體已載入）
+                // 延遲釋放 blob URL
                 setTimeout(() => {
                     URL.revokeObjectURL(blobUrl);
-                }, 10000);
+                }, 5000);
                 
-                console.log(`✓ 字體載入成功: ${fontData.displayName}`);
+                console.log('字體載入成功:', fontData.name);
                 return fontFace;
-                
             } catch (error) {
-                console.error(`載入字體失敗 ${fontData.displayName}:`, error);
+                console.error(`載入字體失敗 ${fontData.name}:`, error);
                 return null;
             }
         },
