@@ -91,7 +91,14 @@
       "githubPath": "assets/fonts/胖西手寫體 全繁體.ttf"
     }
   ],
-  "shapes": [],
+  "shapes": [
+    {
+      "id": 1753794629711.0564,
+      "name": "來喝咖啡logo",
+      "class": "來喝咖啡logo",
+      "githubPath": "assets/shapes/來喝咖啡logo.jpg"
+    }
+  ],
   "patterns": [
     {
       "id": 1753794610605.3848,
@@ -211,7 +218,7 @@
       ]
     }
   ],
-  "lastUpdate": "2025-07-29T13:10:18.979Z",
+  "lastUpdate": "2025-07-29T13:10:36.682Z",
   "version": "3.0.0",
   "frontendSecurity": {
     "preventScreenshot": false,
