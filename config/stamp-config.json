@@ -152,6 +152,23 @@
       ]
     }
   ],
-  "lastUpdate": "2025-07-29T05:28:48.328Z",
-  "version": "2.1.0"
+  "lastUpdate": "2025-07-29T11:54:57.694Z",
+  "version": "2.2.0",
+  "frontendSecurity": {
+    "preventScreenshot": true,
+    "enableWatermark": true,
+    "disableRightClick": true,
+    "disableTextSelect": true,
+    "disableDevTools": true,
+    "disablePrint": true,
+    "disableDrag": true,
+    "blurOnLoseFocus": true,
+    "watermarkText": "© 2025 印章系統 - 版權所有",
+    "watermarkInterval": "60",
+    "watermarkOpacity": "0.03",
+    "watermarkFontSize": "10",
+    "screenshotWarning": "禁止截圖 - 版權所有",
+    "devToolsWarning": "警告：偵測到開發者工具！\n本系統內容受版權保護，禁止任何形式的複製或下載。",
+    "lastUpdate": "2025-07-29T11:54:56.381Z"
+  }
 }
