@@ -205,23 +205,23 @@
       ]
     }
   ],
-  "lastUpdate": "2025-07-29T12:27:39.296Z",
+  "lastUpdate": "2025-07-29T13:00:36.524Z",
   "version": "3.0.0",
   "frontendSecurity": {
-    "preventScreenshot": true,
-    "enableWatermark": true,
-    "disableRightClick": true,
-    "disableTextSelect": true,
-    "disableDevTools": true,
-    "disablePrint": true,
-    "disableDrag": true,
-    "blurOnLoseFocus": true,
+    "preventScreenshot": false,
+    "enableWatermark": false,
+    "disableRightClick": false,
+    "disableTextSelect": false,
+    "disableDevTools": false,
+    "disablePrint": false,
+    "disableDrag": false,
+    "blurOnLoseFocus": false,
     "watermarkText": "© 2025 ctmtw 版權所有",
     "watermarkInterval": "60",
     "watermarkOpacity": "0.03",
     "watermarkFontSize": "10",
     "screenshotWarning": "禁止截圖 - 版權所有",
     "devToolsWarning": "警告：偵測到開發者工具！\n本系統內容受版權保護，禁止任何形式的複製或下載。",
-    "lastUpdate": "2025-07-29T12:25:32.988Z"
+    "lastUpdate": "2025-07-29T13:00:35.181Z"
   }
 }
