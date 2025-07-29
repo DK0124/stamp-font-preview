@@ -92,7 +92,13 @@
     }
   ],
   "shapes": [],
-  "patterns": [],
+  "patterns": [
+    {
+      "id": 1753794610605.3848,
+      "name": "黑貓",
+      "githubPath": "assets/patterns/黑貓.png"
+    }
+  ],
   "colors": [
     {
       "id": 1753758334164,
@@ -205,7 +211,7 @@
       ]
     }
   ],
-  "lastUpdate": "2025-07-29T13:09:56.320Z",
+  "lastUpdate": "2025-07-29T13:10:18.979Z",
   "version": "3.0.0",
   "frontendSecurity": {
     "preventScreenshot": false,
