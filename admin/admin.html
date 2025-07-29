@@ -3,45 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>印章系統管理後台</title>
+    <title>印章系統後台管理</title>
+    
+    <!-- Material Icons -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <style>
-        :root {
-            --admin-primary: #2c3e50;
-            --admin-secondary: #34495e;
-            --admin-accent: #3498db;
-            --admin-success: #27ae60;
-            --admin-warning: #f39c12;
-            --admin-danger: #e74c3c;
-            --admin-bg: #ecf0f1;
-            --admin-card: #ffffff;
-            --admin-text: #2c3e50;
-            --admin-border: #bdc3c7;
+    
+    <!-- Admin CSS -->
+    <link rel="stylesheet" href="admin.css">
+    
+    <!-- 防止被 iframe 嵌入 -->
+    <script>
+        if (window.top !== window.self) {
+            window.top.location = window.self.location;
         }
-
-        * {
+    </script>
+    
+    <style>
+        /* 初始載入樣式 */
+        body {
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
+            background: var(--admin-bg-primary, #0a0a0a);
+            color: var(--admin-text-primary, #ffffff);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            overflow: hidden;
         }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", sans-serif;
-            background-color: var(--admin-bg);
-            color: var(--admin-text);
-            position: relative;
-            overflow-x: hidden;
+        
+        /* 載入畫面 */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--admin-bg-primary, #0a0a0a);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
         }
-
-        /* 防止複製與截圖 */
-        body {
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-            -webkit-touch-callout: none;
+        
+        .loading-content {
+            text-align: center;
         }
-
+        
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 3px solid rgba(106, 27, 154, 0.2);
+            border-top-color: var(--admin-accent, #6a1b9a);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            color: var(--admin-text-secondary, #b0b0b0);
+            font-size: 14px;
+        }
+        
+        /* 防截圖保護層 */
+        .screenshot-protection {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            color: #fff;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            z-index: 10000;
+        }
+        
+        .screenshot-protection .material-icons {
+            font-size: 72px;
+            margin-bottom: 20px;
+            color: #ff5252;
+        }
+        
         /* 浮水印層 */
         .watermark-layer {
             position: fixed;
@@ -50,477 +96,221 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
-            z-index: 9999;
-            opacity: 0.1;
-            transform: rotate(-45deg);
-            font-size: 40px;
-            font-weight: bold;
-            color: var(--admin-text);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-wrap: wrap;
-            overflow: hidden;
+            z-index: 1000;
+            opacity: 0.05;
+            display: none; /* 後台預設不顯示 */
         }
-
+        
         .watermark-text {
-            margin: 50px;
+            position: absolute;
+            color: var(--admin-accent, #6a1b9a);
+            font-size: 12px;
+            font-weight: 500;
+            transform: rotate(-45deg);
+            user-select: none;
             white-space: nowrap;
         }
-
-        /* 側邊欄 */
-        .admin-sidebar {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: 260px;
-            height: 100vh;
-            background: var(--admin-primary);
-            color: white;
-            overflow-y: auto;
-            z-index: 1000;
-            transition: transform 0.3s ease;
-        }
-
-        .admin-logo {
-            padding: 30px 20px;
-            text-align: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .admin-logo h1 {
-            font-size: 24px;
-            font-weight: 600;
-        }
-
-        .admin-nav {
-            padding: 20px 0;
-        }
-
-        .admin-nav-item {
-            display: flex;
-            align-items: center;
-            padding: 15px 20px;
-            color: rgba(255, 255, 255, 0.8);
-            text-decoration: none;
-            transition: all 0.3s;
-            cursor: pointer;
-            position: relative;
-        }
-
-        .admin-nav-item:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-        }
-
-        .admin-nav-item.active {
-            background: var(--admin-accent);
-            color: white;
-        }
-
-        .admin-nav-item .material-icons {
-            margin-right: 15px;
-            font-size: 20px;
-        }
-
-        /* 主內容區 */
-        .admin-main {
-            margin-left: 260px;
-            min-height: 100vh;
-            background: var(--admin-bg);
-        }
-
-        .admin-header {
-            background: white;
-            padding: 20px 30px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .admin-content {
-            padding: 30px;
-        }
-
-        /* 卡片 */
-        .admin-card {
-            background: var(--admin-card);
-            border-radius: 10px;
-            padding: 25px;
-            margin-bottom: 25px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        }
-
-        .admin-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid var(--admin-border);
-        }
-
-        .admin-card-title {
-            font-size: 20px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        /* 上傳區域 */
-        .upload-area {
-            border: 2px dashed var(--admin-border);
-            border-radius: 10px;
-            padding: 40px;
-            text-align: center;
-            transition: all 0.3s;
-            cursor: pointer;
-            position: relative;
-        }
-
-        .upload-area:hover {
-            border-color: var(--admin-accent);
-            background: rgba(52, 152, 219, 0.05);
-        }
-
-        .upload-area.dragging {
-            border-color: var(--admin-accent);
-            background: rgba(52, 152, 219, 0.1);
-        }
-
-        .upload-icon {
-            font-size: 48px;
-            color: var(--admin-border);
-            margin-bottom: 15px;
-        }
-
-        /* 表格 */
-        .admin-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .admin-table th,
-        .admin-table td {
-            padding: 15px;
-            text-align: left;
-            border-bottom: 1px solid var(--admin-border);
-        }
-
-        .admin-table th {
-            background: var(--admin-bg);
-            font-weight: 600;
-            color: var(--admin-text);
-        }
-
-        .admin-table tr:hover {
-            background: var(--admin-bg);
-        }
-
-        /* 按鈕 */
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .btn-primary {
-            background: var(--admin-accent);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #2980b9;
-        }
-
-        .btn-success {
-            background: var(--admin-success);
-            color: white;
-        }
-
-        .btn-danger {
-            background: var(--admin-danger);
-            color: white;
-        }
-
-        .btn-sm {
-            padding: 6px 12px;
-            font-size: 12px;
-        }
-
-        /* 表單控制項 */
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-            color: var(--admin-text);
-        }
-
-        .form-control {
-            width: 100%;
-            padding: 10px 15px;
-            border: 1px solid var(--admin-border);
-            border-radius: 5px;
-            font-size: 14px;
-            transition: all 0.3s;
-        }
-
-        .form-control:focus {
-            outline: none;
-            border-color: var(--admin-accent);
-            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-        }
-
-        /* 網格佈局 */
-        .grid {
-            display: grid;
-            gap: 20px;
-        }
-
-        .grid-2 {
-            grid-template-columns: repeat(2, 1fr);
-        }
-
-        .grid-3 {
-            grid-template-columns: repeat(3, 1fr);
-        }
-
-        .grid-4 {
-            grid-template-columns: repeat(4, 1fr);
-        }
-
-        /* 預覽區 */
-        .preview-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        .preview-item {
-            background: var(--admin-bg);
-            border-radius: 8px;
-            padding: 15px;
-            text-align: center;
-            position: relative;
-            transition: all 0.3s;
-            cursor: move;
-        }
-
-        .preview-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        .preview-item.dragging {
-            opacity: 0.5;
-        }
-
-        /* 模態框 */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 2000;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal.active {
-            display: flex;
-        }
-
-        .modal-content {
-            background: white;
-            border-radius: 10px;
-            padding: 30px;
-            max-width: 600px;
-            width: 90%;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .modal-close {
-            cursor: pointer;
-            font-size: 24px;
-            color: var(--admin-border);
-            transition: color 0.3s;
-        }
-
-        .modal-close:hover {
-            color: var(--admin-text);
-        }
-
-        /* 顏色選擇器 */
-        .color-picker-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-            gap: 10px;
-            margin-top: 15px;
-        }
-
-        .color-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px;
-            background: var(--admin-bg);
-            border-radius: 5px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .color-item:hover {
-            transform: scale(1.05);
-        }
-
-        .color-preview {
-            width: 40px;
-            height: 40px;
-            border-radius: 5px;
-            border: 2px solid var(--admin-border);
-        }
-
-        /* 響應式設計 */
-        @media (max-width: 768px) {
-            .admin-sidebar {
-                transform: translateX(-100%);
-            }
-
-            .admin-sidebar.active {
-                transform: translateX(0);
-            }
-
-            .admin-main {
-                margin-left: 0;
-            }
-
-            .grid-2,
-            .grid-3,
-            .grid-4 {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        /* 防截圖覆蓋層 */
-        .screenshot-protection {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: black;
-            z-index: 10000;
-            display: none;
-            color: white;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-        }
-
-        /* 拖放排序 */
-        .sortable-ghost {
-            opacity: 0.4;
-        }
-
-        .sortable-drag {
-            opacity: 0.9;
+        
+        /* 禁用選取 */
+        .no-select {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
     </style>
 </head>
-<body>
-    <!-- 浮水印層 -->
-    <div class="watermark-layer" id="watermarkLayer"></div>
-
-    <!-- 防截圖層 -->
-    <div class="screenshot-protection" id="screenshotProtection">
-        <div>系統已偵測到截圖行為</div>
-    </div>
-
-    <!-- 側邊欄 -->
-    <aside class="admin-sidebar">
-        <div class="admin-logo">
-            <h1>印章管理系統</h1>
-        </div>
-        <nav class="admin-nav">
-            <a class="admin-nav-item active" data-page="dashboard">
-                <span class="material-icons">dashboard</span>
-                總覽
-            </a>
-            <a class="admin-nav-item" data-page="fonts">
-                <span class="material-icons">text_fields</span>
-                字體管理
-            </a>
-            <a class="admin-nav-item" data-page="shapes">
-                <span class="material-icons">category</span>
-                形狀管理
-            </a>
-            <a class="admin-nav-item" data-page="patterns">
-                <span class="material-icons">palette</span>
-                圖案管理
-            </a>
-            <a class="admin-nav-item" data-page="colors">
-                <span class="material-icons">color_lens</span>
-                顏色管理
-            </a>
-            <a class="admin-nav-item" data-page="security">
-                <span class="material-icons">security</span>
-                安全設定
-            </a>
-        </nav>
-    </aside>
-
-    <!-- 主內容 -->
-    <main class="admin-main">
-        <header class="admin-header">
-            <h2 id="pageTitle">總覽</h2>
-            <div class="admin-user">
-                <span>管理員：DK0124</span>
-            </div>
-        </header>
-
-        <div class="admin-content" id="adminContent">
-            <!-- 動態內容載入區 -->
-        </div>
-    </main>
-
-    <!-- 模態框 -->
-    <div class="modal" id="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="modalTitle">標題</h3>
-                <span class="material-icons modal-close" onclick="closeModal()">close</span>
-            </div>
-            <div id="modalBody">
-                <!-- 動態內容 -->
-            </div>
+<body class="no-select">
+    <!-- 載入畫面 -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">系統載入中...</div>
         </div>
     </div>
+    
+    <!-- 主要內容區域 (由 JavaScript 動態生成) -->
+    
+    <!-- 防截圖保護層 -->
+    <div id="screenshotProtection" class="screenshot-protection">
+        <span class="material-icons">no_photography</span>
+        <p>禁止截圖</p>
+    </div>
+    
+    <!-- 浮水印層 (後台用) -->
+    <div id="watermarkLayer" class="watermark-layer"></div>
+    
+    <!-- 載入必要的函式庫 -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    
+    <!-- Admin JavaScript -->
     <script src="admin.js"></script>
+    
+    <script>
+        // 系統初始化
+        window.addEventListener('load', function() {
+            // 移除載入畫面
+            setTimeout(() => {
+                const loadingScreen = document.getElementById('loadingScreen');
+                if (loadingScreen) {
+                    loadingScreen.style.opacity = '0';
+                    setTimeout(() => loadingScreen.remove(), 300);
+                }
+            }, 500);
+        });
+        
+        // 防止開發者工具快捷鍵（基本防護）
+        document.addEventListener('keydown', function(e) {
+            // F12
+            if (e.keyCode === 123) {
+                e.preventDefault();
+                return false;
+            }
+            // Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C
+            if (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) {
+                e.preventDefault();
+                return false;
+            }
+            // Ctrl+U
+            if (e.ctrlKey && e.keyCode === 85) {
+                e.preventDefault();
+                return false;
+            }
+        });
+        
+        // 防止右鍵選單（基本防護）
+        document.addEventListener('contextmenu', function(e) {
+            if (!e.ctrlKey) { // 允許 Ctrl+右鍵用於開發
+                e.preventDefault();
+                return false;
+            }
+        });
+        
+        // 偵測頁面可見性變化（防截圖）
+        document.addEventListener('visibilitychange', function() {
+            // 這個功能將由 admin.js 根據設定控制
+        });
+        
+        // 防止拖曳
+        document.addEventListener('dragstart', function(e) {
+            if (e.target.tagName === 'IMG') {
+                e.preventDefault();
+                return false;
+            }
+        });
+        
+        // 防止列印
+        window.addEventListener('beforeprint', function(e) {
+            // 這個功能將由 admin.js 根據設定控制
+        });
+        
+        // 偵測視窗失焦
+        window.addEventListener('blur', function() {
+            // 這個功能將由 admin.js 根據設定控制
+        });
+        
+        // 系統訊息
+        console.log('%c⚠️ 警告！', 'color: red; font-size: 30px; font-weight: bold;');
+        console.log('%c此為印章系統後台管理介面，請勿進行任何未授權的操作。', 'color: red; font-size: 16px;');
+        console.log('%c所有操作都將被記錄。', 'color: orange; font-size: 14px;');
+    </script>
+    
+    <!-- 效能監控 -->
+    <script>
+        // 簡單的效能監控
+        window.addEventListener('load', function() {
+            if (window.performance) {
+                const perfData = window.performance.timing;
+                const pageLoadTime = perfData.loadEventEnd - perfData.navigationStart;
+                console.log('頁面載入時間:', pageLoadTime + 'ms');
+            }
+        });
+        
+        // 錯誤捕捉
+        window.addEventListener('error', function(e) {
+            console.error('系統錯誤:', e.error);
+            // 可以將錯誤發送到伺服器記錄
+        });
+        
+        // 未處理的 Promise 錯誤
+        window.addEventListener('unhandledrejection', function(e) {
+            console.error('未處理的 Promise 錯誤:', e.reason);
+            e.preventDefault();
+        });
+    </script>
+    
+    <!-- 瀏覽器相容性檢查 -->
+    <script>
+        // 檢查必要的 API 支援
+        (function() {
+            const requiredFeatures = [
+                'Promise',
+                'fetch',
+                'localStorage',
+                'sessionStorage',
+                'FileReader',
+                'Blob',
+                'URL'
+            ];
+            
+            const unsupported = requiredFeatures.filter(feature => !(feature in window));
+            
+            if (unsupported.length > 0) {
+                console.warn('瀏覽器不支援以下功能:', unsupported);
+                alert('您的瀏覽器版本過舊，請更新到最新版本以獲得最佳體驗。');
+            }
+        })();
+    </script>
+    
+    <!-- 自動儲存提示 -->
+    <script>
+        // 定期提醒儲存（如果有未儲存的變更）
+        let unsavedChanges = false;
+        
+        window.addEventListener('beforeunload', function(e) {
+            if (unsavedChanges) {
+                e.preventDefault();
+                e.returnValue = '您有未儲存的變更，確定要離開嗎？';
+            }
+        });
+        
+        // 標記未儲存的變更
+        window.markUnsavedChanges = function() {
+            unsavedChanges = true;
+        };
+        
+        // 清除未儲存標記
+        window.clearUnsavedChanges = function() {
+            unsavedChanges = false;
+        };
+    </script>
+    
+    <!-- 網路狀態監控 -->
+    <script>
+        // 監控網路連線狀態
+        window.addEventListener('online', function() {
+            console.log('網路已連線');
+            if (window.showNotification) {
+                window.showNotification('網路已恢復連線', 'success');
+            }
+        });
+        
+        window.addEventListener('offline', function() {
+            console.log('網路已斷線');
+            if (window.showNotification) {
+                window.showNotification('網路連線中斷，部分功能可能無法使用', 'warning');
+            }
+        });
+    </script>
+    
+    <!-- Meta 標籤 -->
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#6a1b9a">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <!-- 防止快取敏感資料 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
 </body>
 </html>
