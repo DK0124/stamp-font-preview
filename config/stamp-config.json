@@ -1,27 +1,8 @@
 {
-  "fonts": [
-    {
-      "id": 1753756008186.43,
-      "name": "儷中黑外字集",
-      "filename": "儷中黑外字集.ttf",
-      "displayName": "儷中黑外字集",
-      "category": "custom",
-      "weight": "normal",
-      "githubPath": "assets/fonts/儷中黑外字集.ttf"
-    },
-    {
-      "id": 1753756008188.6182,
-      "name": "儷中宋外字集",
-      "filename": "儷中宋外字集.ttf",
-      "displayName": "儷中宋外字集",
-      "category": "custom",
-      "weight": "normal",
-      "githubPath": "assets/fonts/儷中宋外字集.ttf"
-    }
-  ],
+  "fonts": [],
   "shapes": [],
   "patterns": [],
   "colors": [],
-  "lastUpdate": "2025-07-29T02:27:02.620Z",
-  "version": "2.0.0"
+  "lastUpdate": "2025-07-29T03:02:32.303Z",
+  "version": "2.0.3"
 }
