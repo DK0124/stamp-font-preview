@@ -1,72 +1,27 @@
 {
   "fonts": [
     {
-      "id": 1753754300615.8044,
+      "id": 1753756008186.43,
       "name": "儷中黑外字集",
       "filename": "儷中黑外字集.ttf",
       "displayName": "儷中黑外字集",
       "category": "custom",
       "weight": "normal",
-      "githubPath": null
+      "githubPath": "assets/fonts/儷中黑外字集.ttf"
     },
     {
-      "id": 1753754300616.1396,
-      "name": "儷粗黑外字集",
-      "filename": "儷粗黑外字集.ttf",
-      "displayName": "儷粗黑外字集",
-      "category": "custom",
-      "weight": "normal",
-      "githubPath": null
-    },
-    {
-      "id": 1753754300617.5762,
-      "name": "儷金黑外字集",
-      "filename": "儷金黑外字集.ttf",
-      "displayName": "儷金黑外字集",
-      "category": "custom",
-      "weight": "normal",
-      "githubPath": null
-    },
-    {
-      "id": 1753754300620.953,
+      "id": 1753756008188.6182,
       "name": "儷中宋外字集",
       "filename": "儷中宋外字集.ttf",
       "displayName": "儷中宋外字集",
       "category": "custom",
       "weight": "normal",
-      "githubPath": null
-    },
-    {
-      "id": 1753754300621.5244,
-      "name": "儷特圓外字集",
-      "filename": "儷特圓外字集.ttf",
-      "displayName": "儷特圓外字集",
-      "category": "custom",
-      "weight": "normal",
-      "githubPath": null
-    },
-    {
-      "id": 1753754300623.9866,
-      "name": "儷宋外字集",
-      "filename": "儷宋外字集.ttf",
-      "displayName": "儷宋外字集",
-      "category": "custom",
-      "weight": "normal",
-      "githubPath": null
-    },
-    {
-      "id": 1753754300625.1067,
-      "name": "儷粗宋外字集",
-      "filename": "儷粗宋外字集.ttf",
-      "displayName": "儷粗宋外字集",
-      "category": "custom",
-      "weight": "normal",
-      "githubPath": null
+      "githubPath": "assets/fonts/儷中宋外字集.ttf"
     }
   ],
   "shapes": [],
   "patterns": [],
   "colors": [],
-  "lastUpdate": "2025-07-29T02:18:13.632Z",
+  "lastUpdate": "2025-07-29T02:27:02.620Z",
   "version": "2.0.0"
 }
