@@ -1,9 +1,50 @@
 {
-  "fonts": [],
+  "fonts": [
+    {
+      "id": 1753807741158.7705,
+      "name": "粉圓體全繁體",
+      "filename": "粉圓體全繁體.ttf",
+      "displayName": "粉圓體全繁體",
+      "category": "custom",
+      "weight": "normal",
+      "systemFont": null,
+      "githubPath": "assets/fonts/粉圓體全繁體.ttf"
+    },
+    {
+      "id": 1753807741173.5852,
+      "name": "辰宇落雁體 等寬版全繁體",
+      "filename": "辰宇落雁體 等寬版全繁體.ttf",
+      "displayName": "辰宇落雁體 等寬版全繁體",
+      "category": "custom",
+      "weight": "normal",
+      "systemFont": null,
+      "githubPath": "assets/fonts/辰宇落雁體 等寬版全繁體.ttf"
+    },
+    {
+      "id": 1753807741200.4119,
+      "name": "辰宇落雁體 不等寬版全繁體",
+      "filename": "辰宇落雁體 不等寬版全繁體.ttf",
+      "displayName": "辰宇落雁體 不等寬版全繁體",
+      "category": "custom",
+      "weight": "normal",
+      "systemFont": null,
+      "githubPath": "assets/fonts/辰宇落雁體 不等寬版全繁體.ttf"
+    },
+    {
+      "id": 1753807741220.614,
+      "name": "金萱那堤全繁體",
+      "filename": "金萱那堤全繁體.ttf",
+      "displayName": "金萱那堤全繁體",
+      "category": "custom",
+      "weight": "normal",
+      "systemFont": null,
+      "githubPath": "assets/fonts/金萱那堤全繁體.ttf"
+    }
+  ],
   "shapes": [],
   "patterns": [],
   "colors": [],
-  "lastUpdate": "2025-07-29T16:47:15.992Z",
+  "lastUpdate": "2025-07-29T16:49:36.953Z",
   "version": "3.0.0",
   "frontendSecurity": {
     "preventScreenshot": false,
