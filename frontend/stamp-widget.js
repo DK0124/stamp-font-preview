@@ -1,9 +1,9 @@
 /**
- * 印章預覽小工具 - 完整功能版
+ * 印章預覽小工具 - 完整卡片化版本
  * @author DK0124
- * @version 6.0.0
+ * @version 7.0.0
  * @date 2025-01-29
- * @description 與後台風格一致的前台印章預覽系統
+ * @description 完全依賴後台資料，採用卡片化設計的印章預覽系統
  */
 
 (function() {
@@ -23,9 +23,6 @@
         },
         get CONFIG_URL() {
             return `${this.BASE_URL}/config/stamp-config.json`;
-        },
-        get SECURITY_URL() {
-            return `${this.BASE_URL}/config/security-config.json`;
         }
     };
     
@@ -58,7 +55,7 @@
         });
     }
     
-    // 樣式定義 - 與後台一致
+    // 樣式定義 - 與後台一致的卡片化設計
     const styles = `
         /* CSS 變數定義 - 與後台保持一致 */
         #stamp-font-widget-container {
@@ -126,7 +123,7 @@
             box-shadow: var(--glass-shadow);
             position: relative;
             width: 100%;
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }
         
@@ -145,7 +142,7 @@
             z-index: 0;
         }
         
-        /* 頂部裝飾條 - 與後台一致的漸變動畫 */
+        /* 頂部裝飾條 */
         .stamp-widget-wrapper::after {
             content: '';
             position: absolute;
@@ -170,17 +167,20 @@
             background: var(--glass-bg-heavy);
             backdrop-filter: var(--glass-blur);
             -webkit-backdrop-filter: var(--glass-blur);
-            padding: var(--sw-spacing);
-            border-bottom: 1px solid var(--sw-border);
+            padding: calc(var(--sw-spacing) * 0.75) var(--sw-spacing);
+            border-bottom: 1px solid var(--glass-border);
             position: relative;
             z-index: 1;
+            min-height: 72px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 0 rgba(132, 115, 106, 0.05);
         }
         
         .sw-header-content {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
             gap: 16px;
         }
         
@@ -188,36 +188,88 @@
             display: flex;
             align-items: center;
             gap: 12px;
-            font-size: 24px;
+            font-size: 28px;
             font-weight: 600;
             color: var(--sw-text-primary);
             letter-spacing: -0.5px;
         }
         
         .sw-header-title .material-icons {
-            font-size: 32px;
+            font-size: 36px;
             color: var(--sw-accent);
             background: var(--sw-accent-light);
-            padding: 8px;
+            padding: 10px;
             border-radius: var(--sw-radius-sm);
         }
         
-        .sw-header-subtitle {
-            font-size: 14px;
+        /* 步驟指示器 */
+        .sw-steps {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+        
+        .sw-step {
+            display: flex;
+            align-items: center;
+            gap: 8px;
             color: var(--sw-text-secondary);
-            margin-top: 4px;
-            margin-left: 44px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: var(--transition-base);
+        }
+        
+        .sw-step.active {
+            color: var(--sw-accent);
+        }
+        
+        .sw-step-number {
+            width: 32px;
+            height: 32px;
+            background: rgba(255, 255, 255, 0.5);
+            border: 2px solid var(--sw-border);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            transition: var(--transition-base);
+        }
+        
+        .sw-step.active .sw-step-number {
+            background: var(--sw-accent);
+            border-color: var(--sw-accent);
+            color: white;
+        }
+        
+        .sw-step.completed .sw-step-number {
+            background: var(--sw-success);
+            border-color: var(--sw-success);
+            color: white;
+        }
+        
+        .sw-step.completed .sw-step-number::after {
+            content: '✓';
+            font-size: 16px;
         }
         
         /* 主要內容區 */
         .sw-main-content {
             display: grid;
-            grid-template-columns: 1fr;
+            grid-template-columns: 1fr 380px;
             position: relative;
             z-index: 1;
+            min-height: 600px;
         }
         
-        /* 預覽區 */
+        /* 左側控制區 */
+        .sw-controls-section {
+            padding: var(--sw-spacing);
+            overflow-y: auto;
+            max-height: calc(100vh - 200px);
+        }
+        
+        /* 右側預覽區 */
         .sw-preview-section {
             background: linear-gradient(135deg, var(--sw-accent-light) 0%, rgba(247, 236, 213, 0.1) 100%);
             padding: calc(var(--sw-spacing) * 2);
@@ -225,8 +277,10 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 400px;
-            position: relative;
+            position: sticky;
+            top: 0;
+            height: calc(100vh - 72px);
+            max-height: 800px;
             overflow: hidden;
         }
         
@@ -271,7 +325,7 @@
             -webkit-backdrop-filter: var(--glass-blur-heavy);
             border: 1px solid var(--glass-border);
             border-radius: var(--sw-radius-lg);
-            padding: 32px;
+            padding: 40px;
             box-shadow: 
                 var(--glass-shadow),
                 inset 0 1px 0 var(--glass-border);
@@ -281,7 +335,7 @@
         }
         
         .sw-canvas-wrapper:hover {
-            transform: translateY(-4px);
+            transform: translateY(-4px) scale(1.02);
             box-shadow: var(--glass-shadow-hover);
         }
         
@@ -290,37 +344,28 @@
             background: white;
             border-radius: var(--sw-radius);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            cursor: zoom-in;
         }
         
-        /* 控制區 */
-        .sw-controls-section {
-            background: var(--sw-bg-primary);
-            padding: var(--sw-spacing);
-        }
-        
-        .sw-controls-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: var(--sw-spacing);
-        }
-        
-        /* 控制卡片 - 與後台 admin-card 一致 */
-        .sw-control-card {
+        /* 卡片樣式 - 與後台 admin-card 一致 */
+        .sw-card {
             background: var(--glass-bg);
             backdrop-filter: var(--glass-blur);
             -webkit-backdrop-filter: var(--glass-blur);
             border: 1px solid var(--glass-border);
             border-radius: var(--sw-radius);
             padding: calc(var(--sw-spacing) * 1.2);
+            margin-bottom: var(--sw-spacing);
             box-shadow: var(--glass-shadow);
             transition: var(--transition-base);
             animation: cardEntry 0.4s ease backwards;
         }
         
-        .sw-control-card:nth-child(1) { animation-delay: 0.1s; }
-        .sw-control-card:nth-child(2) { animation-delay: 0.2s; }
-        .sw-control-card:nth-child(3) { animation-delay: 0.3s; }
-        .sw-control-card:nth-child(4) { animation-delay: 0.4s; }
+        .sw-card:nth-child(1) { animation-delay: 0.1s; }
+        .sw-card:nth-child(2) { animation-delay: 0.2s; }
+        .sw-card:nth-child(3) { animation-delay: 0.3s; }
+        .sw-card:nth-child(4) { animation-delay: 0.4s; }
+        .sw-card:nth-child(5) { animation-delay: 0.5s; }
         
         @keyframes cardEntry {
             from {
@@ -333,38 +378,42 @@
             }
         }
         
-        .sw-control-card:hover {
+        .sw-card:hover {
             transform: translateY(-2px);
             box-shadow: var(--glass-shadow-hover);
         }
         
-        .sw-control-header {
+        .sw-card-header {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 12px;
             margin-bottom: calc(var(--sw-spacing) * 0.8);
             padding-bottom: calc(var(--sw-spacing) * 0.8);
             border-bottom: 1px solid var(--sw-border);
         }
         
-        .sw-control-title {
+        .sw-card-title {
             display: flex;
             align-items: center;
             gap: 12px;
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 600;
             color: var(--sw-text-primary);
         }
         
-        .sw-control-title .material-icons {
+        .sw-card-title .material-icons {
             color: var(--sw-accent);
             background: var(--sw-accent-light);
             padding: 8px;
             border-radius: var(--sw-radius-sm);
-            font-size: 20px;
+            font-size: 24px;
         }
         
-        /* 文字輸入 - 與後台 form-control 一致 */
+        /* 文字輸入 */
+        .sw-text-input-wrapper {
+            position: relative;
+        }
+        
         .sw-text-input {
             width: 100%;
             padding: 14px 18px;
@@ -372,12 +421,13 @@
             border: 2px solid transparent;
             border-radius: var(--sw-radius-sm);
             color: var(--sw-text-primary);
-            font-size: 15px;
+            font-size: 16px;
             font-weight: 400;
             transition: var(--transition-base);
             backdrop-filter: blur(5px);
             -webkit-backdrop-filter: blur(5px);
             text-align: center;
+            letter-spacing: 0.5px;
         }
         
         .sw-text-input:hover {
@@ -401,30 +451,129 @@
         
         /* 字數提示 */
         .sw-text-counter {
-            display: block;
-            text-align: right;
+            position: absolute;
+            right: 12px;
+            bottom: -24px;
             font-size: 12px;
             color: var(--sw-text-secondary);
-            margin-top: 8px;
+            font-weight: 500;
+        }
+        
+        /* 搜尋框 */
+        .sw-search-box {
+            position: relative;
+            margin-bottom: 16px;
+        }
+        
+        .sw-search-input {
+            width: 100%;
+            padding: 10px 16px 10px 40px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid var(--sw-border);
+            border-radius: var(--sw-radius-sm);
+            font-size: 14px;
+            color: var(--sw-text-primary);
+            transition: var(--transition-base);
+        }
+        
+        .sw-search-input:focus {
+            outline: none;
+            background: white;
+            border-color: var(--sw-accent);
+            box-shadow: 0 0 0 3px var(--sw-accent-light);
+        }
+        
+        .sw-search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--sw-text-secondary);
+            font-size: 18px;
+            pointer-events: none;
+        }
+        
+        /* 分類標籤 */
+        .sw-categories {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            padding: 2px;
+        }
+        
+        .sw-categories::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .sw-category-tag {
+            padding: 6px 16px;
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid var(--sw-border);
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--sw-text-secondary);
+            cursor: pointer;
+            transition: var(--transition-base);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        
+        .sw-category-tag:hover {
+            background: white;
+            color: var(--sw-text-primary);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(132, 115, 106, 0.1);
+        }
+        
+        .sw-category-tag.active {
+            background: var(--sw-accent);
+            color: white;
+            border-color: var(--sw-accent);
         }
         
         /* 選項網格 */
         .sw-option-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
             gap: 16px;
-            max-height: 320px;
+            max-height: 360px;
             overflow-y: auto;
             padding: 4px;
             scroll-behavior: smooth;
         }
         
-        /* 選項項目 - 與後台 preview-item 風格一致 */
+        /* 字體網格 */
+        .sw-fonts-grid {
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        }
+        
+        /* 形狀網格 */
+        .sw-shapes-grid {
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            max-height: 280px;
+        }
+        
+        /* 顏色網格 */
+        .sw-colors-grid {
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            max-height: 280px;
+        }
+        
+        /* 圖案網格 */
+        .sw-patterns-grid {
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            max-height: 280px;
+        }
+        
+        /* 選項項目 */
         .sw-option-item {
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(5px);
             -webkit-backdrop-filter: blur(5px);
-            border: 1px solid var(--glass-border);
+            border: 2px solid transparent;
             border-radius: var(--sw-radius);
             padding: 20px;
             text-align: center;
@@ -433,8 +582,9 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
             gap: 12px;
-            min-height: 140px;
+            min-height: 120px;
             position: relative;
             overflow: hidden;
         }
@@ -454,6 +604,7 @@
         .sw-option-item:hover {
             transform: translateY(-4px);
             box-shadow: var(--glass-shadow-hover);
+            border-color: var(--sw-border);
         }
         
         .sw-option-item:hover::before {
@@ -463,6 +614,7 @@
         .sw-option-item.selected {
             background: var(--sw-accent-light);
             border-color: var(--sw-accent);
+            box-shadow: 0 0 0 3px rgba(159, 178, 142, 0.2);
         }
         
         .sw-option-item.selected::after {
@@ -496,13 +648,14 @@
         
         /* 字體預覽 */
         .sw-font-preview {
-            font-size: 28px;
+            font-size: 32px;
             color: var(--sw-text-primary);
-            min-height: 40px;
+            min-height: 48px;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: var(--transition-base);
+            letter-spacing: 0.5px;
         }
         
         .sw-option-item:hover .sw-font-preview {
@@ -510,23 +663,46 @@
         }
         
         .sw-font-name {
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 600;
             color: var(--sw-text-secondary);
             word-break: break-word;
         }
         
+        .sw-font-category {
+            font-size: 11px;
+            color: var(--sw-text-secondary);
+            opacity: 0.7;
+            font-weight: 500;
+            padding: 2px 8px;
+            background: rgba(132, 115, 106, 0.1);
+            border-radius: 12px;
+        }
+        
         /* 形狀預覽 */
         .sw-shape-preview {
-            width: 60px;
-            height: 60px;
+            width: 80px;
+            height: 80px;
             border: 3px solid var(--sw-text-primary);
+            transition: var(--transition-base);
+            position: relative;
+        }
+        
+        .sw-shape-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: grayscale(1) opacity(0.8);
             transition: var(--transition-base);
         }
         
         .sw-option-item:hover .sw-shape-preview {
             border-color: var(--sw-accent);
-            transform: scale(1.1);
+            transform: scale(1.1) rotate(5deg);
+        }
+        
+        .sw-option-item:hover .sw-shape-preview img {
+            filter: grayscale(0) opacity(1);
         }
         
         .sw-shape-name {
@@ -535,10 +711,57 @@
             color: var(--sw-text-primary);
         }
         
-        /* 顏色預覽 - 與後台 color-preview 一致 */
+        /* 邊框樣式選擇 */
+        .sw-border-styles {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: var(--sw-radius-sm);
+            overflow-x: auto;
+        }
+        
+        .sw-border-style {
+            width: 48px;
+            height: 48px;
+            background: rgba(255, 255, 255, 0.7);
+            border: 2px solid transparent;
+            border-radius: var(--sw-radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition-base);
+            flex-shrink: 0;
+        }
+        
+        .sw-border-style:hover {
+            transform: scale(1.1);
+            background: white;
+            box-shadow: 0 4px 12px rgba(132, 115, 106, 0.1);
+        }
+        
+        .sw-border-style.selected {
+            background: var(--sw-accent);
+            border-color: var(--sw-accent);
+        }
+        
+        .sw-border-style svg {
+            width: 32px;
+            height: 32px;
+        }
+        
+        /* 顏色預覽 */
+        .sw-color-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
         .sw-color-preview {
-            width: 56px;
-            height: 56px;
+            width: 64px;
+            height: 64px;
             border-radius: var(--sw-radius-sm);
             box-shadow: 
                 0 4px 12px rgba(0, 0, 0, 0.1),
@@ -546,6 +769,7 @@
             position: relative;
             overflow: hidden;
             transition: var(--transition-base);
+            cursor: pointer;
         }
         
         .sw-color-preview::after {
@@ -567,43 +791,65 @@
         }
         
         .sw-color-name {
-            font-size: 14px;
-            font-weight: 500;
+            font-size: 13px;
+            font-weight: 600;
             color: var(--sw-text-primary);
+        }
+        
+        .sw-color-shades {
+            display: flex;
+            gap: 4px;
+            justify-content: center;
+        }
+        
+        .sw-color-shade {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: var(--transition-base);
+        }
+        
+        .sw-color-shade:hover {
+            transform: scale(1.3);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
         }
         
         /* 圖案預覽 */
         .sw-pattern-preview {
-            width: 48px;
-            height: 48px;
+            width: 64px;
+            height: 64px;
             display: flex;
             align-items: center;
             justify-content: center;
             border-radius: var(--sw-radius-sm);
             background: rgba(0, 0, 0, 0.05);
             overflow: hidden;
+            position: relative;
         }
         
         .sw-pattern-preview img {
-            max-width: 32px;
-            max-height: 32px;
+            max-width: 48px;
+            max-height: 48px;
             object-fit: contain;
             opacity: 0.8;
             transition: var(--transition-base);
         }
         
         .sw-option-item:hover .sw-pattern-preview img {
-            transform: scale(1.2);
+            transform: scale(1.2) rotate(10deg);
             opacity: 1;
         }
         
         .sw-pattern-none {
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 600;
             color: var(--sw-text-secondary);
+            opacity: 0.7;
         }
         
-        /* 按鈕樣式 - 與後台完全一致 */
+        /* 按鈕樣式 */
         .sw-btn {
             display: inline-flex;
             align-items: center;
@@ -669,14 +915,13 @@
             box-shadow: 0 4px 16px rgba(132, 115, 106, 0.15);
         }
         
-        .sw-btn-success { 
-            background: var(--sw-success);
-            box-shadow: 0 2px 8px rgba(129, 199, 132, 0.2);
-        }
-        
         .sw-btn-lg {
             padding: 16px 32px;
             font-size: 16px;
+        }
+        
+        .sw-btn-block {
+            width: 100%;
         }
         
         /* 下載區域 */
@@ -685,13 +930,21 @@
             flex-direction: column;
             align-items: center;
             gap: 16px;
-            margin-top: 24px;
+            margin-top: 32px;
         }
         
         .sw-download-info {
             font-size: 14px;
             color: var(--sw-text-secondary);
             text-align: center;
+            line-height: 1.6;
+        }
+        
+        .sw-download-options {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
         
         /* 載入狀態 */
@@ -700,7 +953,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 500px;
+            min-height: 600px;
             padding: 40px;
             gap: 20px;
         }
@@ -801,7 +1054,7 @@
             opacity: 0.5;
         }
         
-        /* 通知提示 - 與後台 notification 一致 */
+        /* 通知提示 */
         .sw-notification {
             position: fixed;
             bottom: 24px;
@@ -850,80 +1103,27 @@
             }
         }
         
-        /* 搜尋框 */
-        .sw-search-box {
-            position: relative;
-            margin-bottom: 16px;
-        }
-        
-        .sw-search-input {
-            width: 100%;
-            padding: 10px 16px 10px 40px;
-            background: rgba(255, 255, 255, 0.8);
-            border: 1px solid var(--sw-border);
-            border-radius: var(--sw-radius-sm);
-            font-size: 14px;
-            color: var(--sw-text-primary);
-            transition: var(--transition-base);
-        }
-        
-        .sw-search-input:focus {
-            outline: none;
-            background: white;
-            border-color: var(--sw-accent);
-            box-shadow: 0 0 0 3px var(--sw-accent-light);
-        }
-        
-        .sw-search-icon {
+        /* 提示工具 */
+        .sw-tooltip {
             position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--sw-text-secondary);
-            font-size: 18px;
-            pointer-events: none;
-        }
-        
-        /* 分類標籤 */
-        .sw-categories {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 16px;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: none;
-            padding: 2px;
-        }
-        
-        .sw-categories::-webkit-scrollbar {
-            display: none;
-        }
-        
-        .sw-category-tag {
-            padding: 6px 16px;
-            background: rgba(255, 255, 255, 0.7);
-            border: 1px solid var(--sw-border);
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--sw-text-secondary);
-            cursor: pointer;
-            transition: var(--transition-base);
-            white-space: nowrap;
-            flex-shrink: 0;
-        }
-        
-        .sw-category-tag:hover {
-            background: white;
+            background: var(--glass-bg-heavy);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            padding: 8px 12px;
+            border-radius: var(--sw-radius-sm);
+            font-size: 12px;
             color: var(--sw-text-primary);
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(132, 115, 106, 0.1);
+            box-shadow: 0 4px 12px rgba(132, 115, 106, 0.1);
+            white-space: nowrap;
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
         }
         
-        .sw-category-tag.active {
-            background: var(--sw-accent);
-            color: white;
-            border-color: var(--sw-accent);
+        .sw-tooltip.show {
+            opacity: 1;
         }
         
         /* 滾動條美化 */
@@ -946,68 +1146,110 @@
             background: var(--sw-accent);
         }
         
+        /* 模態框 */
+        .sw-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(132, 115, 106, 0.4);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 4000;
+            align-items: center;
+            justify-content: center;
+            padding: var(--sw-spacing);
+        }
+        
+        .sw-modal.active {
+            display: flex;
+            animation: fadeIn 0.2s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .sw-modal-content {
+            background: var(--glass-bg-heavy);
+            backdrop-filter: var(--glass-blur-heavy);
+            -webkit-backdrop-filter: var(--glass-blur-heavy);
+            border-radius: var(--sw-radius-lg);
+            padding: 32px;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow: auto;
+            box-shadow: 
+                0 24px 48px rgba(132, 115, 106, 0.2),
+                inset 0 1px 0 var(--glass-border);
+            border: 1px solid var(--glass-border);
+            animation: slideUp 0.3s ease;
+        }
+        
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
         /* 響應式設計 */
-        @media (min-width: 768px) {
+        @media (max-width: 1200px) {
             .sw-main-content {
-                grid-template-columns: 1fr 1fr;
+                grid-template-columns: 1fr;
             }
             
             .sw-preview-section {
-                position: sticky;
-                top: 0;
-                height: 100vh;
-                max-height: 800px;
+                position: relative;
+                height: auto;
+                min-height: 400px;
+                padding: var(--sw-spacing);
             }
             
             .sw-controls-section {
-                max-height: 100vh;
-                overflow-y: auto;
+                max-height: none;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .sw-header {
+                flex-direction: column;
+                gap: 16px;
+                padding: 16px;
             }
             
-            .sw-controls-grid {
+            .sw-steps {
+                display: none;
+            }
+            
+            .sw-fonts-grid {
                 grid-template-columns: 1fr;
             }
-        }
-        
-        @media (min-width: 1024px) {
-            .sw-option-grid {
-                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            }
-        }
-        
-        @media (max-width: 767px) {
-            .sw-header {
-                padding: 20px;
-            }
             
-            .sw-header-title {
-                font-size: 20px;
-            }
-            
-            .sw-header-title .material-icons {
-                font-size: 28px;
-            }
-            
-            .sw-preview-section {
-                padding: 24px;
-                min-height: 300px;
+            .sw-shapes-grid,
+            .sw-colors-grid,
+            .sw-patterns-grid {
+                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
             }
             
             .sw-canvas-wrapper {
                 padding: 24px;
             }
             
-            .sw-controls-section {
-                padding: 16px;
-            }
-            
-            .sw-control-card {
+            .sw-card {
                 padding: 20px;
             }
             
-            .sw-option-grid {
-                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-                max-height: 240px;
+            .sw-option-item {
+                padding: 16px;
+                min-height: 100px;
             }
             
             .sw-font-preview {
@@ -1015,8 +1257,8 @@
             }
             
             .sw-shape-preview {
-                width: 50px;
-                height: 50px;
+                width: 60px;
+                height: 60px;
             }
             
             .sw-color-preview {
@@ -1034,7 +1276,7 @@
             -webkit-touch-callout: none;
         }
         
-        /* 浮水印 - 與後台一致 */
+        /* 浮水印 */
         .sw-watermark {
             position: fixed;
             top: 0;
@@ -1175,7 +1417,7 @@
                     <div class="material-icons sw-error-icon">error_outline</div>
                     <div class="sw-error-title">載入失敗</div>
                     <div class="sw-error-message">${message}</div>
-                    <button class="sw-btn sw-btn-danger" onclick="location.reload()">
+                    <button class="sw-btn" onclick="location.reload()">
                         <span class="material-icons">refresh</span>
                         重新載入
                     </button>
@@ -1210,13 +1452,13 @@
             
             // 初始化狀態
             this.config = null;
-            this.securitySettings = null;
             this.currentSelection = {
                 text: '範例印章',
                 font: null,
                 shape: null,
                 color: null,
                 pattern: null,
+                borderStyle: 'solid',
                 category: 'all'
             };
             
@@ -1224,6 +1466,7 @@
             this.canvas = null;
             this.ctx = null;
             this.categories = new Set(['all']);
+            this.currentStep = 1;
             
             // 開始初始化
             this.init();
@@ -1235,10 +1478,7 @@
                 this.showLoading();
                 
                 // 載入配置
-                const [configLoaded, securityLoaded] = await Promise.all([
-                    this.loadConfig(),
-                    this.loadSecuritySettings()
-                ]);
+                const configLoaded = await this.loadConfig();
                 
                 if (!configLoaded) {
                     throw new Error('無法載入系統設定');
@@ -1261,9 +1501,7 @@
                 await this.loadResources();
                 
                 // 套用安全設定
-                if (securityLoaded) {
-                    this.applySecuritySettings();
-                }
+                this.applySecuritySettings();
                 
                 // 初始預覽
                 this.updatePreview();
@@ -1298,20 +1536,16 @@
                     });
                 }
                 
-                // 設定預設選項
-                if (config.fonts?.length > 0) {
-                    this.currentSelection.font = config.fonts[0];
-                }
-                if (config.shapes?.length > 0) {
-                    this.currentSelection.shape = config.shapes[0];
-                }
-                if (config.colors?.length > 0) {
-                    this.currentSelection.color = config.colors[0];
-                }
-                if (config.patterns?.length > 0) {
-                    // 預設不選擇圖案
-                    this.currentSelection.pattern = null;
-                }
+                // 設定預設選項（不預設選擇）
+                this.currentSelection = {
+                    text: '範例印章',
+                    font: null,
+                    shape: null,
+                    color: null,
+                    pattern: null,
+                    borderStyle: 'solid',
+                    category: 'all'
+                };
                 
                 return true;
                 
@@ -1319,41 +1553,6 @@
                 console.error('❌ 載入設定失敗:', error);
                 return false;
             }
-        }
-        
-        async loadSecuritySettings() {
-            try {
-                // 優先從主設定檔載入
-                if (this.config?.frontendSecurity) {
-                    this.securitySettings = this.config.frontendSecurity;
-                    return true;
-                }
-                
-                // 嘗試載入獨立的安全設定檔
-                const response = await fetch(CONFIG.SECURITY_URL + '?t=' + Date.now());
-                if (response.ok) {
-                    this.securitySettings = await response.json();
-                    console.log('✅ 安全設定載入成功');
-                    return true;
-                }
-                
-            } catch (error) {
-                console.warn('⚠️ 安全設定載入失敗，使用預設值');
-            }
-            
-            // 使用預設值
-            this.securitySettings = {
-                disableTextSelect: true,
-                disableRightClick: true,
-                disableDrag: true,
-                enableWatermark: false,
-                preventScreenshot: false,
-                disableDevTools: false,
-                disablePrint: false,
-                blurOnLoseFocus: false
-            };
-            
-            return false;
         }
         
         hasData() {
@@ -1398,19 +1597,72 @@
                     <!-- 標題區 -->
                     <div class="sw-header">
                         <div class="sw-header-content">
-                            <div>
-                                <h1 class="sw-header-title">
-                                    <span class="material-icons">verified</span>
-                                    印章預覽系統
-                                </h1>
-                                <p class="sw-header-subtitle">自訂您的專屬印章樣式</p>
+                            <h1 class="sw-header-title">
+                                <span class="material-icons">verified</span>
+                                印章預覽系統
+                            </h1>
+                        </div>
+                        
+                        <!-- 步驟指示器 -->
+                        <div class="sw-steps">
+                            <div class="sw-step active" data-step="1">
+                                <div class="sw-step-number">1</div>
+                                <span>輸入文字</span>
+                            </div>
+                            <div class="sw-step" data-step="2">
+                                <div class="sw-step-number">2</div>
+                                <span>選擇字體</span>
+                            </div>
+                            <div class="sw-step" data-step="3">
+                                <div class="sw-step-number">3</div>
+                                <span>選擇樣式</span>
+                            </div>
+                            <div class="sw-step" data-step="4">
+                                <div class="sw-step-number">4</div>
+                                <span>下載印章</span>
                             </div>
                         </div>
                     </div>
                     
                     <!-- 主要內容 -->
                     <div class="sw-main-content">
-                        <!-- 預覽區 -->
+                        <!-- 左側控制區 -->
+                        <div class="sw-controls-section">
+                            <!-- 文字輸入卡片 -->
+                            <div class="sw-card">
+                                <div class="sw-card-header">
+                                    <div class="sw-card-title">
+                                        <span class="material-icons">edit</span>
+                                        印章文字
+                                    </div>
+                                </div>
+                                <div class="sw-text-input-wrapper">
+                                    <input type="text" 
+                                           class="sw-text-input" 
+                                           id="text-${widgetId}"
+                                           placeholder="請輸入印章文字（最多6字）" 
+                                           maxlength="6" 
+                                           value="${this.currentSelection.text}">
+                                    <span class="sw-text-counter" id="text-counter-${widgetId}">
+                                        ${this.currentSelection.text.length} / 6 字
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <!-- 字體選擇卡片 -->
+                            ${this.renderFontsCard(widgetId)}
+                            
+                            <!-- 形狀選擇卡片 -->
+                            ${this.renderShapesCard(widgetId)}
+                            
+                            <!-- 顏色選擇卡片 -->
+                            ${this.renderColorsCard(widgetId)}
+                            
+                            <!-- 圖案選擇卡片 -->
+                            ${this.renderPatternsCard(widgetId)}
+                        </div>
+                        
+                        <!-- 右側預覽區 -->
                         <div class="sw-preview-section">
                             <div class="sw-canvas-wrapper">
                                 <canvas id="canvas-${widgetId}" 
@@ -1425,45 +1677,18 @@
                                     <span class="material-icons">download</span>
                                     下載印章圖片
                                 </button>
+                                <div class="sw-download-options">
+                                    <button class="sw-btn sw-btn-secondary" onclick="StampWidget.instance.downloadStamp('png')">
+                                        PNG (透明背景)
+                                    </button>
+                                    <button class="sw-btn sw-btn-secondary" onclick="StampWidget.instance.downloadStamp('jpg')">
+                                        JPG (白色背景)
+                                    </button>
+                                </div>
                                 <div class="sw-download-info">
-                                    將以 PNG 格式下載高解析度印章圖片
+                                    將以高解析度下載您的專屬印章圖片<br>
+                                    建議用於文件、合約或其他正式用途
                                 </div>
-                            </div>
-                        </div>
-                        
-                        <!-- 控制區 -->
-                        <div class="sw-controls-section">
-                            <div class="sw-controls-grid">
-                                <!-- 文字輸入 -->
-                                <div class="sw-control-card">
-                                    <div class="sw-control-header">
-                                        <div class="sw-control-title">
-                                            <span class="material-icons">edit</span>
-                                            印章文字
-                                        </div>
-                                    </div>
-                                    <input type="text" 
-                                           class="sw-text-input" 
-                                           id="text-${widgetId}"
-                                           placeholder="請輸入印章文字" 
-                                           maxlength="6" 
-                                           value="${this.currentSelection.text}">
-                                    <span class="sw-text-counter" id="text-counter-${widgetId}">
-                                        ${this.currentSelection.text.length} / 6 字
-                                    </span>
-                                </div>
-                                
-                                <!-- 字體選擇 -->
-                                ${this.renderFontsSection(widgetId)}
-                                
-                                <!-- 形狀選擇 -->
-                                ${this.renderShapesSection(widgetId)}
-                                
-                                <!-- 顏色選擇 -->
-                                ${this.renderColorsSection(widgetId)}
-                                
-                                <!-- 圖案選擇 -->
-                                ${this.renderPatternsSection(widgetId)}
                             </div>
                         </div>
                     </div>
@@ -1481,18 +1706,24 @@
                     <div style="font-size: 16px; margin-top: 8px;">本系統內容受版權保護</div>
                 </div>
             `;
+            
+            // 保存實例以供全域存取
+            StampWidget.instance = this;
         }
         
-        renderFontsSection(widgetId) {
+        renderFontsCard(widgetId) {
             if (!this.config.fonts?.length) return '';
             
             return `
-                <div class="sw-control-card">
-                    <div class="sw-control-header">
-                        <div class="sw-control-title">
+                <div class="sw-card">
+                    <div class="sw-card-header">
+                        <div class="sw-card-title">
                             <span class="material-icons">text_fields</span>
                             選擇字體
                         </div>
+                        <span style="font-size: 14px; color: var(--sw-text-secondary);">
+                            共 ${this.config.fonts.length} 種字體
+                        </span>
                     </div>
                     
                     ${this.categories.size > 2 ? `
@@ -1518,16 +1749,17 @@
                                placeholder="搜尋字體...">
                     </div>
                     
-                    <div class="sw-option-grid" id="fonts-grid-${widgetId}">
+                    <div class="sw-option-grid sw-fonts-grid" id="fonts-grid-${widgetId}">
                         ${this.config.fonts.map((font, index) => `
-                            <div class="sw-option-item sw-font-item ${index === 0 ? 'selected' : ''}" 
+                            <div class="sw-option-item sw-font-item" 
                                  data-font-index="${index}"
                                  data-font-name="${font.displayName || font.name}"
                                  data-font-category="${font.category || 'custom'}">
                                 <div class="sw-font-preview" id="font-preview-${widgetId}-${index}">
-                                    載入中...
+                                    <span style="opacity: 0.3;">載入中...</span>
                                 </div>
                                 <div class="sw-font-name">${font.displayName || font.name}</div>
+                                ${font.category ? `<div class="sw-font-category">${font.category}</div>` : ''}
                             </div>
                         `).join('')}
                     </div>
@@ -1535,68 +1767,127 @@
             `;
         }
         
-        renderShapesSection(widgetId) {
+        renderShapesCard(widgetId) {
             if (!this.config.shapes?.length) return '';
             
             return `
-                <div class="sw-control-card">
-                    <div class="sw-control-header">
-                        <div class="sw-control-title">
+                <div class="sw-card">
+                    <div class="sw-card-header">
+                        <div class="sw-card-title">
                             <span class="material-icons">category</span>
                             選擇形狀
                         </div>
                     </div>
                     
-                    <div class="sw-option-grid" id="shapes-grid-${widgetId}">
+                    <div class="sw-option-grid sw-shapes-grid" id="shapes-grid-${widgetId}">
                         ${this.config.shapes.map((shape, index) => {
                             let shapeStyle = '';
+                            let shapeContent = '';
                             
-                            switch(shape.name) {
-                                case '圓形':
-                                    shapeStyle = 'border-radius: 50%;';
-                                    break;
-                                case '橢圓形':
-                                    shapeStyle = 'border-radius: 50%; width: 80px; height: 55px;';
-                                    break;
-                                case '長方形':
-                                    shapeStyle = 'width: 80px; height: 55px;';
-                                    break;
-                                case '圓角方形':
-                                    shapeStyle = 'border-radius: 16px;';
-                                    break;
+                            if (shape.githubPath) {
+                                // 使用上傳的形狀圖片
+                                const imgUrl = Utils.getGitHubRawUrl(shape.githubPath);
+                                shapeContent = `<img src="${imgUrl}" alt="${shape.name}">`;
+                            } else {
+                                // 使用預設形狀
+                                switch(shape.name) {
+                                    case '圓形':
+                                        shapeStyle = 'border-radius: 50%;';
+                                        break;
+                                    case '橢圓形':
+                                        shapeStyle = 'border-radius: 50%; width: 100px; height: 70px;';
+                                        break;
+                                    case '長方形':
+                                        shapeStyle = 'width: 100px; height: 70px;';
+                                        break;
+                                    case '圓角方形':
+                                        shapeStyle = 'border-radius: 16px;';
+                                        break;
+                                }
                             }
                             
                             return `
-                                <div class="sw-option-item ${index === 0 ? 'selected' : ''}" 
+                                <div class="sw-option-item" 
                                      data-shape-index="${index}">
-                                    <div class="sw-shape-preview" style="${shapeStyle}"></div>
+                                    <div class="sw-shape-preview" style="${shapeStyle}">
+                                        ${shapeContent}
+                                    </div>
                                     <div class="sw-shape-name">${shape.name}</div>
                                 </div>
                             `;
                         }).join('')}
                     </div>
+                    
+                    <!-- 邊框樣式選擇 -->
+                    <div style="margin-top: 20px;">
+                        <div style="font-size: 14px; font-weight: 600; color: var(--sw-text-primary); margin-bottom: 12px;">
+                            邊框樣式
+                        </div>
+                        <div class="sw-border-styles" id="border-styles-${widgetId}">
+                            <div class="sw-border-style selected" data-style="solid">
+                                <svg viewBox="0 0 32 32">
+                                    <circle cx="16" cy="16" r="12" fill="none" 
+                                            stroke="currentColor" stroke-width="2" />
+                                </svg>
+                            </div>
+                            <div class="sw-border-style" data-style="double">
+                                <svg viewBox="0 0 32 32">
+                                    <circle cx="16" cy="16" r="10" fill="none" 
+                                            stroke="currentColor" stroke-width="1" />
+                                    <circle cx="16" cy="16" r="14" fill="none" 
+                                            stroke="currentColor" stroke-width="1" />
+                                </svg>
+                            </div>
+                            <div class="sw-border-style" data-style="dashed">
+                                <svg viewBox="0 0 32 32">
+                                    <circle cx="16" cy="16" r="12" fill="none" 
+                                            stroke="currentColor" stroke-width="2" 
+                                            stroke-dasharray="4,2" />
+                                </svg>
+                            </div>
+                            <div class="sw-border-style" data-style="dotted">
+                                <svg viewBox="0 0 32 32">
+                                    <circle cx="16" cy="16" r="12" fill="none" 
+                                            stroke="currentColor" stroke-width="2" 
+                                            stroke-dasharray="1,2" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             `;
         }
         
-        renderColorsSection(widgetId) {
+        renderColorsCard(widgetId) {
             if (!this.config.colors?.length) return '';
             
             return `
-                <div class="sw-control-card">
-                    <div class="sw-control-header">
-                        <div class="sw-control-title">
+                <div class="sw-card">
+                    <div class="sw-card-header">
+                        <div class="sw-card-title">
                             <span class="material-icons">palette</span>
                             選擇顏色
                         </div>
                     </div>
                     
-                    <div class="sw-option-grid" id="colors-grid-${widgetId}">
+                    <div class="sw-option-grid sw-colors-grid" id="colors-grid-${widgetId}">
                         ${this.config.colors.map((color, index) => `
-                            <div class="sw-option-item ${index === 0 ? 'selected' : ''}" 
+                            <div class="sw-option-item sw-color-item" 
                                  data-color-index="${index}">
-                                <div class="sw-color-preview" 
-                                     style="background: ${color.main};"></div>
+                                <div class="sw-color-group">
+                                    <div class="sw-color-preview" 
+                                         style="background: ${color.main};"
+                                         data-color="${color.main}"></div>
+                                    ${color.shades && color.shades.length > 1 ? `
+                                    <div class="sw-color-shades">
+                                        ${color.shades.map(shade => `
+                                            <div class="sw-color-shade" 
+                                                 style="background: ${shade};"
+                                                 data-color="${shade}"></div>
+                                        `).join('')}
+                                    </div>
+                                    ` : ''}
+                                </div>
                                 <div class="sw-color-name">${color.name}</div>
                             </div>
                         `).join('')}
@@ -1605,19 +1896,19 @@
             `;
         }
         
-        renderPatternsSection(widgetId) {
+        renderPatternsCard(widgetId) {
             if (!this.config.patterns?.length) return '';
             
             return `
-                <div class="sw-control-card">
-                    <div class="sw-control-header">
-                        <div class="sw-control-title">
+                <div class="sw-card">
+                    <div class="sw-card-header">
+                        <div class="sw-card-title">
                             <span class="material-icons">texture</span>
                             選擇圖案 (選填)
                         </div>
                     </div>
                     
-                    <div class="sw-option-grid" id="patterns-grid-${widgetId}">
+                    <div class="sw-option-grid sw-patterns-grid" id="patterns-grid-${widgetId}">
                         <div class="sw-option-item selected" 
                              data-pattern-index="-1">
                             <div class="sw-pattern-preview">
@@ -1660,7 +1951,12 @@
                     textCounter.textContent = `${e.target.value.length} / 6 字`;
                     this.updatePreview();
                     this.updateFontPreviews();
+                    this.updateStep(1);
                 }, 300));
+                
+                textInput.addEventListener('focus', () => {
+                    this.updateStep(1);
+                });
             }
             
             // 字體分類
@@ -1694,6 +1990,7 @@
                     if (item) {
                         const index = parseInt(item.dataset.fontIndex);
                         this.selectFont(index);
+                        this.updateStep(2);
                     }
                 });
             }
@@ -1706,6 +2003,23 @@
                     if (item) {
                         const index = parseInt(item.dataset.shapeIndex);
                         this.selectShape(index);
+                        this.updateStep(3);
+                    }
+                });
+            }
+            
+            // 邊框樣式選擇
+            const borderStyles = document.getElementById(`border-styles-${widgetId}`);
+            if (borderStyles) {
+                borderStyles.addEventListener('click', (e) => {
+                    const style = e.target.closest('.sw-border-style');
+                    if (style) {
+                        borderStyles.querySelectorAll('.sw-border-style').forEach(s => 
+                            s.classList.remove('selected')
+                        );
+                        style.classList.add('selected');
+                        this.currentSelection.borderStyle = style.dataset.style;
+                        this.updatePreview();
                     }
                 });
             }
@@ -1715,9 +2029,14 @@
             if (colorsGrid) {
                 colorsGrid.addEventListener('click', (e) => {
                     const item = e.target.closest('.sw-option-item');
-                    if (item) {
+                    const colorPreview = e.target.closest('.sw-color-preview');
+                    const colorShade = e.target.closest('.sw-color-shade');
+                    
+                    if (item && (colorPreview || colorShade)) {
                         const index = parseInt(item.dataset.colorIndex);
-                        this.selectColor(index);
+                        const color = (colorPreview || colorShade).dataset.color;
+                        this.selectColor(index, color);
+                        this.updateStep(3);
                     }
                 });
             }
@@ -1739,6 +2058,7 @@
             if (downloadBtn) {
                 downloadBtn.addEventListener('click', () => {
                     this.downloadStamp();
+                    this.updateStep(4);
                 });
             }
             
@@ -1747,6 +2067,13 @@
             if (canvasWrapper) {
                 canvasWrapper.addEventListener('dblclick', () => {
                     this.showPreviewModal();
+                });
+            }
+            
+            // Canvas hover 效果
+            if (this.canvas) {
+                this.canvas.addEventListener('mouseenter', () => {
+                    this.canvas.style.cursor = 'zoom-in';
                 });
             }
         }
@@ -1778,34 +2105,42 @@
             if (this.config.patterns?.length > 0) {
                 this.preloadPatterns();
             }
+            
+            // 預載形狀圖片
+            if (this.config.shapes?.length > 0) {
+                this.preloadShapes();
+            }
         }
         
         async loadFonts() {
             const widgetId = this.widgetId;
+            const loadPromises = [];
             
             for (let i = 0; i < this.config.fonts.length; i++) {
                 const font = this.config.fonts[i];
                 const preview = document.getElementById(`font-preview-${widgetId}-${i}`);
                 
-                try {
-                    const success = await this.loadFont(font);
-                    
+                const loadPromise = this.loadFont(font).then(success => {
                     if (preview) {
                         if (success) {
-                            preview.style.fontFamily = `CustomFont${font.id}, serif`;
-                            preview.textContent = this.currentSelection.text.substring(0, 2) || '印';
-                            preview.style.opacity = '1';
+                            preview.innerHTML = `<span style="font-family: CustomFont${font.id}, serif; font-weight: ${font.weight || 'normal'};">
+                                ${this.currentSelection.text.substring(0, 2) || '印'}
+                            </span>`;
                         } else {
                             preview.innerHTML = '<span style="color: var(--sw-danger); font-size: 14px;">載入失敗</span>';
                         }
                     }
-                } catch (error) {
+                }).catch(error => {
                     console.error(`載入字體失敗: ${font.name}`, error);
                     if (preview) {
                         preview.innerHTML = '<span style="color: var(--sw-danger); font-size: 14px;">載入失敗</span>';
                     }
-                }
+                });
+                
+                loadPromises.push(loadPromise);
             }
+            
+            await Promise.all(loadPromises);
         }
         
         async loadFont(fontData) {
@@ -1870,6 +2205,15 @@
             });
         }
         
+        preloadShapes() {
+            this.config.shapes.forEach(shape => {
+                if (shape.githubPath) {
+                    const img = new Image();
+                    img.src = Utils.getGitHubRawUrl(shape.githubPath);
+                }
+            });
+        }
+        
         filterFonts(category) {
             const fontItems = document.querySelectorAll('.sw-font-item');
             
@@ -1924,17 +2268,20 @@
             }
         }
         
-        selectColor(index) {
+        selectColor(index, color) {
             if (index >= 0 && index < this.config.colors.length) {
-                this.currentSelection.color = this.config.colors[index];
+                this.currentSelection.color = { ...this.config.colors[index], selected: color };
                 
                 // 更新選中狀態
                 document.querySelectorAll(`#colors-grid-${this.widgetId} .sw-option-item`).forEach((item, i) => {
                     item.classList.toggle('selected', i === index);
                 });
                 
+                // 更新邊框樣式顏色
+                this.updateBorderStyleColors();
+                
                 this.updatePreview();
-                Utils.showNotification(`已選擇顏色: ${this.currentSelection.color.name}`, 'info');
+                Utils.showNotification(`已選擇顏色: ${this.config.colors[index].name}`, 'info');
             }
         }
         
@@ -1960,14 +2307,39 @@
             }
         }
         
+        updateBorderStyleColors() {
+            const color = this.currentSelection.color?.selected || this.currentSelection.color?.main || '#9fb28e';
+            
+            document.querySelectorAll('.sw-border-style svg').forEach(svg => {
+                svg.style.color = color;
+            });
+        }
+        
         updateFontPreviews() {
             const widgetId = this.widgetId;
             const text = this.currentSelection.text.substring(0, 2) || '印';
             
             this.config.fonts?.forEach((font, index) => {
                 const preview = document.getElementById(`font-preview-${widgetId}-${index}`);
-                if (preview && preview.style.fontFamily) {
-                    preview.textContent = text;
+                if (preview && preview.querySelector('span') && !preview.querySelector('span').style.opacity) {
+                    preview.querySelector('span').textContent = text;
+                }
+            });
+        }
+        
+        updateStep(step) {
+            if (step > this.currentStep) {
+                this.currentStep = step;
+            }
+            
+            document.querySelectorAll('.sw-step').forEach(stepEl => {
+                const stepNum = parseInt(stepEl.dataset.step);
+                stepEl.classList.remove('active', 'completed');
+                
+                if (stepNum < this.currentStep) {
+                    stepEl.classList.add('completed');
+                } else if (stepNum === this.currentStep) {
+                    stepEl.classList.add('active');
                 }
             });
         }
@@ -1982,11 +2354,32 @@
             // 清空畫布
             ctx.clearRect(0, 0, width, height);
             
+            // 如果沒有選擇任何內容，顯示提示
+            if (!this.currentSelection.font || !this.currentSelection.shape || !this.currentSelection.color) {
+                ctx.save();
+                ctx.fillStyle = '#a09389';
+                ctx.font = '16px Noto Sans TC';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('請選擇字體、形狀和顏色', width / 2, height / 2);
+                ctx.restore();
+                return;
+            }
+            
             // 設定樣式
-            const color = this.currentSelection.color?.main || '#9fb28e';
+            const color = this.currentSelection.color?.selected || this.currentSelection.color?.main || '#9fb28e';
             ctx.strokeStyle = color;
             ctx.fillStyle = color;
             ctx.lineWidth = 6;
+            
+            // 設定邊框樣式
+            if (this.currentSelection.borderStyle === 'dashed') {
+                ctx.setLineDash([12, 6]);
+            } else if (this.currentSelection.borderStyle === 'dotted') {
+                ctx.setLineDash([3, 6]);
+            } else {
+                ctx.setLineDash([]);
+            }
             
             // 繪製形狀
             const shape = this.currentSelection.shape;
@@ -1996,93 +2389,129 @@
             
             ctx.save();
             
+            // 設定陰影效果
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetX = 3;
+            ctx.shadowOffsetY = 3;
+            
             if (shape) {
-                // 設定陰影效果
-                ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
-                ctx.shadowBlur = 10;
-                ctx.shadowOffsetX = 3;
-                ctx.shadowOffsetY = 3;
-                
-                switch (shape.name) {
-                    case '圓形':
-                        ctx.beginPath();
-                        ctx.arc(centerX, centerY, size / 2, 0, Math.PI * 2);
-                        ctx.stroke();
-                        break;
+                if (shape.githubPath) {
+                    // 使用自訂形狀圖片
+                    const img = new Image();
+                    img.src = Utils.getGitHubRawUrl(shape.githubPath);
+                    img.onload = () => {
+                        ctx.save();
+                        // 清空畫布
+                        ctx.clearRect(0, 0, width, height);
                         
-                    case '橢圓形':
-                        ctx.beginPath();
-                        ctx.ellipse(centerX, centerY, size * 0.6, size * 0.4, 0, 0, Math.PI * 2);
-                        ctx.stroke();
-                        break;
+                        // 繪製形狀圖片
+                        ctx.globalCompositeOperation = 'multiply';
+                        ctx.drawImage(img, centerX - size/2, centerY - size/2, size, size);
+                        ctx.restore();
                         
-                    case '長方形':
-                        ctx.strokeRect(centerX - size * 0.55, centerY - size * 0.35, size * 1.1, size * 0.7);
-                        break;
-                        
-                    case '圓角方形':
-                        this.roundRect(ctx, centerX - size / 2, centerY - size / 2, size, size, 30);
-                        ctx.stroke();
-                        break;
-                        
-                    default:
-                        // 如果有自訂形狀圖片
-                        if (shape.githubPath) {
-                            const img = new Image();
-                            img.src = Utils.getGitHubRawUrl(shape.githubPath);
-                            img.onload = () => {
-                                ctx.save();
-                                ctx.globalCompositeOperation = 'multiply';
-                                ctx.drawImage(img, centerX - size/2, centerY - size/2, size, size);
-                                ctx.restore();
-                                this.drawText(ctx, centerX, centerY, size);
-                            };
-                            ctx.restore();
-                            return;
-                        } else {
+                        // 繪製文字和圖案
+                        this.drawTextAndPattern(ctx, centerX, centerY, size);
+                    };
+                    ctx.restore();
+                    return;
+                } else {
+                    // 繪製預設形狀
+                    switch (shape.name) {
+                        case '圓形':
+                            ctx.beginPath();
+                            ctx.arc(centerX, centerY, size / 2, 0, Math.PI * 2);
+                            if (this.currentSelection.borderStyle === 'double') {
+                                ctx.stroke();
+                                ctx.beginPath();
+                                ctx.arc(centerX, centerY, size / 2 - 10, 0, Math.PI * 2);
+                            }
+                            ctx.stroke();
+                            break;
+                            
+                        case '橢圓形':
+                            ctx.beginPath();
+                            ctx.ellipse(centerX, centerY, size * 0.6, size * 0.4, 0, 0, Math.PI * 2);
+                            if (this.currentSelection.borderStyle === 'double') {
+                                ctx.stroke();
+                                ctx.beginPath();
+                                ctx.ellipse(centerX, centerY, size * 0.6 - 10, size * 0.4 - 10, 0, 0, Math.PI * 2);
+                            }
+                            ctx.stroke();
+                            break;
+                            
+                        case '長方形':
+                            if (this.currentSelection.borderStyle === 'double') {
+                                ctx.strokeRect(centerX - size * 0.55, centerY - size * 0.35, size * 1.1, size * 0.7);
+                                ctx.strokeRect(centerX - size * 0.55 + 10, centerY - size * 0.35 + 10, size * 1.1 - 20, size * 0.7 - 20);
+                            } else {
+                                ctx.strokeRect(centerX - size * 0.55, centerY - size * 0.35, size * 1.1, size * 0.7);
+                            }
+                            break;
+                            
+                        case '圓角方形':
+                            this.roundRect(ctx, centerX - size / 2, centerY - size / 2, size, size, 30);
+                            if (this.currentSelection.borderStyle === 'double') {
+                                ctx.stroke();
+                                this.roundRect(ctx, centerX - size / 2 + 10, centerY - size / 2 + 10, size - 20, size - 20, 25);
+                            }
+                            ctx.stroke();
+                            break;
+                            
+                        default:
                             // 預設圓形
                             ctx.beginPath();
                             ctx.arc(centerX, centerY, size / 2, 0, Math.PI * 2);
                             ctx.stroke();
-                        }
+                    }
                 }
             }
             
+            ctx.restore();
+            
+            // 繪製文字和圖案
+            this.drawTextAndPattern(ctx, centerX, centerY, size);
+        }
+        
+        drawTextAndPattern(ctx, centerX, centerY, size) {
             // 繪製圖案填充
             if (this.currentSelection.pattern?.githubPath) {
                 const patternImg = new Image();
                 patternImg.src = Utils.getGitHubRawUrl(this.currentSelection.pattern.githubPath);
                 patternImg.onload = () => {
-                    const pattern = ctx.createPattern(patternImg, 'repeat');
                     ctx.save();
                     ctx.globalAlpha = 0.1;
-                    ctx.fillStyle = pattern;
                     
-                    // 根據形狀填充
+                    // 建立剪裁路徑
+                    ctx.beginPath();
+                    const shape = this.currentSelection.shape;
                     switch (shape?.name) {
                         case '圓形':
-                            ctx.beginPath();
                             ctx.arc(centerX, centerY, size / 2 - 3, 0, Math.PI * 2);
-                            ctx.fill();
                             break;
                         case '橢圓形':
-                            ctx.beginPath();
                             ctx.ellipse(centerX, centerY, size * 0.6 - 3, size * 0.4 - 3, 0, 0, Math.PI * 2);
-                            ctx.fill();
                             break;
                         case '長方形':
-                            ctx.fillRect(centerX - size * 0.55 + 3, centerY - size * 0.35 + 3, size * 1.1 - 6, size * 0.7 - 6);
+                            ctx.rect(centerX - size * 0.55 + 3, centerY - size * 0.35 + 3, size * 1.1 - 6, size * 0.7 - 6);
                             break;
                         case '圓角方形':
                             this.roundRect(ctx, centerX - size / 2 + 3, centerY - size / 2 + 3, size - 6, size - 6, 27);
-                            ctx.fill();
                             break;
                     }
+                    ctx.clip();
+                    
+                    // 建立圖案
+                    const pattern = ctx.createPattern(patternImg, 'repeat');
+                    ctx.fillStyle = pattern;
+                    ctx.fillRect(0, 0, 300, 300);
+                    
                     ctx.restore();
+                    
+                    // 重新繪製文字
+                    this.drawText(ctx, centerX, centerY, size);
                 };
             }
-            
-            ctx.restore();
             
             // 繪製文字
             this.drawText(ctx, centerX, centerY, size);
@@ -2099,7 +2528,8 @@
             // 設定文字樣式
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillStyle = this.currentSelection.color?.main || '#9fb28e';
+            const color = this.currentSelection.color?.selected || this.currentSelection.color?.main || '#9fb28e';
+            ctx.fillStyle = color;
             
             // 移除文字陰影
             ctx.shadowColor = 'transparent';
@@ -2132,9 +2562,10 @@
                 ctx.font = `${fontSize}px serif`;
             }
             
-            // 垂直排列文字（如果超過2個字）
-            if (text.length > 2 && this.currentSelection.shape?.name !== '長方形' && this.currentSelection.shape?.name !== '橢圓形') {
-                // 分成兩行
+            // 根據形狀調整文字排列
+            const shape = this.currentSelection.shape;
+            if (text.length > 2 && shape && (shape.name === '圓形' || shape.name === '圓角方形')) {
+                // 垂直排列文字
                 const half = Math.ceil(text.length / 2);
                 const line1 = text.substring(0, half);
                 const line2 = text.substring(half);
@@ -2167,50 +2598,57 @@
         showPreviewModal() {
             // 建立放大預覽模態框
             const modal = document.createElement('div');
-            modal.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.8);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                z-index: 10000;
-                cursor: pointer;
+            modal.className = 'sw-modal active';
+            
+            const modalContent = document.createElement('div');
+            modalContent.className = 'sw-modal-content';
+            modalContent.style.textAlign = 'center';
+            
+            modalContent.innerHTML = `
+                <h2 style="margin-bottom: 24px; color: var(--sw-text-primary);">印章預覽</h2>
+                <canvas id="modal-canvas" width="600" height="600" style="
+                    background: white;
+                    border-radius: 16px;
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+                    margin-bottom: 24px;
+                "></canvas>
+                <div style="display: flex; gap: 12px; justify-content: center;">
+                    <button class="sw-btn" onclick="this.closest('.sw-modal').remove()">
+                        <span class="material-icons">close</span>
+                        關閉
+                    </button>
+                    <button class="sw-btn sw-btn-secondary" onclick="StampWidget.instance.downloadStamp('png')">
+                        <span class="material-icons">download</span>
+                        下載 PNG
+                    </button>
+                    <button class="sw-btn sw-btn-secondary" onclick="StampWidget.instance.downloadStamp('jpg')">
+                        <span class="material-icons">download</span>
+                        下載 JPG
+                    </button>
+                </div>
             `;
             
-            const largeCanvas = document.createElement('canvas');
-            largeCanvas.width = 600;
-            largeCanvas.height = 600;
-            largeCanvas.style.cssText = `
-                background: white;
-                border-radius: 16px;
-                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-                cursor: default;
-            `;
+            modal.appendChild(modalContent);
+            document.body.appendChild(modal);
             
             // 繪製放大版本
-            const largeCtx = largeCanvas.getContext('2d');
-            largeCtx.scale(2, 2);
+            const modalCanvas = document.getElementById('modal-canvas');
+            const modalCtx = modalCanvas.getContext('2d');
+            modalCtx.scale(2, 2);
             
             // 暫存當前畫布
             const originalCanvas = this.canvas;
             const originalCtx = this.ctx;
             
-            this.canvas = largeCanvas;
-            this.ctx = largeCtx;
+            this.canvas = modalCanvas;
+            this.ctx = modalCtx;
             this.updatePreview();
             
             // 恢復原畫布
             this.canvas = originalCanvas;
             this.ctx = originalCtx;
             
-            modal.appendChild(largeCanvas);
-            document.body.appendChild(modal);
-            
-            // 點擊關閉
+            // 點擊背景關閉
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) {
                     modal.remove();
@@ -2227,8 +2665,14 @@
             document.addEventListener('keydown', closeOnEsc);
         }
         
-        downloadStamp() {
+        downloadStamp(format = 'png') {
             if (!this.canvas) return;
+            
+            // 檢查是否有完整選擇
+            if (!this.currentSelection.font || !this.currentSelection.shape || !this.currentSelection.color) {
+                Utils.showNotification('請先選擇字體、形狀和顏色', 'warning');
+                return;
+            }
             
             Utils.showNotification('正在準備高解析度圖片...', 'info');
             
@@ -2243,9 +2687,11 @@
             
             downloadCtx.scale(scale, scale);
             
-            // 白色背景
-            downloadCtx.fillStyle = 'white';
-            downloadCtx.fillRect(0, 0, 300, 300);
+            // 根據格式設定背景
+            if (format === 'jpg') {
+                downloadCtx.fillStyle = 'white';
+                downloadCtx.fillRect(0, 0, 300, 300);
+            }
             
             // 暫存當前畫布
             const originalCanvas = this.canvas;
@@ -2262,29 +2708,34 @@
             
             // 下載檔案
             setTimeout(() => {
+                const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
+                const quality = format === 'jpg' ? 0.95 : 1.0;
+                
                 downloadCanvas.toBlob((blob) => {
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
                     
                     // 檔名包含選擇的資訊
-                    const timestamp = new Date().toISOString().replace(/:/g, '-').split('.')[0];
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
                     const fontName = this.currentSelection.font?.name || '預設';
                     const shapeName = this.currentSelection.shape?.name || '預設';
-                    a.download = `印章_${this.currentSelection.text}_${fontName}_${shapeName}_${timestamp}.png`;
+                    const colorName = this.currentSelection.color?.name || '預設';
+                    
+                    a.download = `印章_${this.currentSelection.text}_${fontName}_${shapeName}_${colorName}_${timestamp}.${format}`;
                     
                     a.click();
                     URL.revokeObjectURL(url);
                     
-                    Utils.showNotification('印章圖片已下載', 'success');
+                    Utils.showNotification(`印章圖片已下載 (${format.toUpperCase()})`, 'success');
                     
                     // 記錄下載
-                    this.logDownload();
-                }, 'image/png', 1.0);
+                    this.logDownload(format);
+                }, mimeType, quality);
             }, 100);
         }
         
-        logDownload() {
+        logDownload(format) {
             // 可以在這裡加入下載統計功能
             console.log('印章下載:', {
                 text: this.currentSelection.text,
@@ -2292,12 +2743,13 @@
                 shape: this.currentSelection.shape?.name,
                 color: this.currentSelection.color?.name,
                 pattern: this.currentSelection.pattern?.name,
+                format: format,
                 timestamp: new Date().toISOString()
             });
         }
         
         applySecuritySettings() {
-            const settings = this.securitySettings || {};
+            const settings = this.config?.frontendSecurity || {};
             
             // 禁止文字選取
             if (settings.disableTextSelect !== false) {
@@ -2512,7 +2964,7 @@
     window.StampWidget = StampWidget;
     
     // 版本資訊
-    console.log('%c🎯 印章預覽系統 v6.0.0', 'font-size: 16px; font-weight: bold; color: #9fb28e;');
+    console.log('%c🎯 印章預覽系統 v7.0.0', 'font-size: 16px; font-weight: bold; color: #9fb28e;');
     console.log('%c👤 作者: DK0124', 'color: #84736a;');
     console.log('%c📅 最後更新: 2025-01-29', 'color: #84736a;');
     console.log('%c🔗 GitHub: https://github.com/DK0124/stamp-font-preview', 'color: #64b5f6;');
