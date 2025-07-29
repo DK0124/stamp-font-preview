@@ -1,8 +1,8 @@
 /**
  * 印章系統後台管理
  * @author DK0124
- * @version 2.2.0
- * @date 2025-01-29
+ * @version 3.0.0
+ * @date 2025-07-29
  */
 
 // 全域變數
@@ -17,8 +17,10 @@ let uploadedData = {
 // 登入設定
 const AdminAuth = {
     defaultUsername: 'admin',
-    defaultPassword: '337088',
+    defaultPassword: '0918124726',
     sessionKey: 'admin_session',
+    maxLoginAttempts: 5,
+    lockoutDuration: 300000, // 5分鐘
     
     // 檢查是否已登入
     isLoggedIn: function() {
@@ -38,8 +40,40 @@ const AdminAuth = {
         }
     },
     
+    // 檢查帳號是否被鎖定
+    isLocked: function() {
+        const lockData = localStorage.getItem('admin_lockout');
+        if (!lockData) return false;
+        
+        const { lockedUntil } = JSON.parse(lockData);
+        if (new Date().getTime() < lockedUntil) {
+            return true;
+        } else {
+            localStorage.removeItem('admin_lockout');
+            return false;
+        }
+    },
+    
+    // 記錄失敗次數
+    recordFailedAttempt: function() {
+        const attempts = parseInt(localStorage.getItem('failed_attempts') || '0') + 1;
+        localStorage.setItem('failed_attempts', attempts.toString());
+        
+        if (attempts >= this.maxLoginAttempts) {
+            const lockedUntil = new Date().getTime() + this.lockoutDuration;
+            localStorage.setItem('admin_lockout', JSON.stringify({ lockedUntil }));
+            localStorage.removeItem('failed_attempts');
+            return true; // 已鎖定
+        }
+        return false; // 未鎖定
+    },
+    
     // 登入
     login: function(username, password) {
+        if (this.isLocked()) {
+            return { success: false, message: '帳號已被鎖定，請稍後再試' };
+        }
+        
         // 取得儲存的帳密（如果有）
         const savedAuth = JSON.parse(localStorage.getItem('admin_auth') || '{}');
         const validUsername = savedAuth.username || this.defaultUsername;
@@ -51,9 +85,18 @@ const AdminAuth = {
                 loginTime: new Date().getTime()
             };
             sessionStorage.setItem(this.sessionKey, JSON.stringify(sessionData));
-            return true;
+            localStorage.removeItem('failed_attempts');
+            return { success: true };
         }
-        return false;
+        
+        const locked = this.recordFailedAttempt();
+        const remainingAttempts = this.maxLoginAttempts - parseInt(localStorage.getItem('failed_attempts') || '0');
+        
+        if (locked) {
+            return { success: false, message: '登入失敗次數過多，帳號已被鎖定5分鐘' };
+        } else {
+            return { success: false, message: `登入失敗，剩餘嘗試次數: ${remainingAttempts}` };
+        }
     },
     
     // 登出
@@ -94,11 +137,26 @@ const GitHubConfig = {
     },
     
     promptToken: function() {
-        const token = prompt('請輸入 GitHub Personal Access Token:');
-        if (token) {
-            this.setToken(token);
-            return token;
-        }
+        const modal = `
+            <div class="form-group">
+                <label class="form-label">
+                    <span class="material-icons">vpn_key</span>
+                    GitHub Personal Access Token
+                </label>
+                <input type="password" class="form-control" id="githubTokenInput" placeholder="ghp_xxxxxxxxxxxx">
+                <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 8px;">
+                    需要具有 repo 權限的 token 才能上傳檔案
+                </p>
+            </div>
+            <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveGitHubToken()">
+                    <span class="material-icons">save</span>
+                    儲存
+                </button>
+            </div>
+        `;
+        showModal('設定 GitHub Token', modal);
         return null;
     }
 };
@@ -127,52 +185,44 @@ function showLoginPage() {
         <div class="login-container">
             <div class="login-box">
                 <div class="login-header">
-                    <span class="material-icons" style="font-size: 48px; color: var(--admin-accent);">admin_panel_settings</span>
+                    <span class="material-icons">admin_panel_settings</span>
                     <h2>印章系統後台管理</h2>
                 </div>
                 <form id="loginForm" onsubmit="handleLogin(event)">
                     <div class="form-group">
                         <label class="form-label">使用者名稱</label>
-                        <input type="text" class="form-control" id="username" required autofocus>
+                        <input type="text" class="form-control" id="username" required autofocus autocomplete="username">
                     </div>
                     <div class="form-group">
                         <label class="form-label">密碼</label>
-                        <input type="password" class="form-control" id="password" required>
+                        <input type="password" class="form-control" id="password" required autocomplete="current-password">
+                        <button type="button" class="btn btn-sm" style="position: absolute; right: 10px; top: 42px; background: none; color: var(--admin-text-secondary);" onclick="togglePassword()">
+                            <span class="material-icons" id="passwordToggle">visibility</span>
+                        </button>
                     </div>
                     <button type="submit" class="btn btn-primary" style="width: 100%;">
                         <span class="material-icons">login</span>
                         登入
                     </button>
                 </form>
-                <div id="loginError" style="color: var(--admin-danger); margin-top: 10px; display: none;"></div>
+                <div id="loginError" style="color: var(--admin-danger); margin-top: 16px; display: none; text-align: center;"></div>
             </div>
         </div>
-        <style>
-            .login-container {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                min-height: 100vh;
-                background: var(--admin-bg-primary);
-            }
-            .login-box {
-                background: var(--admin-bg-secondary);
-                padding: 40px;
-                border-radius: 10px;
-                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-                width: 100%;
-                max-width: 400px;
-            }
-            .login-header {
-                text-align: center;
-                margin-bottom: 30px;
-            }
-            .login-header h2 {
-                margin-top: 10px;
-                color: var(--admin-text-primary);
-            }
-        </style>
     `;
+}
+
+// 切換密碼顯示
+function togglePassword() {
+    const passwordInput = document.getElementById('password');
+    const toggleIcon = document.getElementById('passwordToggle');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleIcon.textContent = 'visibility_off';
+    } else {
+        passwordInput.type = 'password';
+        toggleIcon.textContent = 'visibility';
+    }
 }
 
 // 處理登入
@@ -181,16 +231,26 @@ function handleLogin(event) {
     
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
+    const errorDiv = document.getElementById('loginError');
     
-    if (AdminAuth.login(username, password)) {
+    const result = AdminAuth.login(username, password);
+    
+    if (result.success) {
+        errorDiv.style.display = 'none';
         window.location.reload();
     } else {
-        const errorDiv = document.getElementById('loginError');
-        errorDiv.textContent = '使用者名稱或密碼錯誤';
+        errorDiv.textContent = result.message;
         errorDiv.style.display = 'block';
         
         // 清除密碼欄位
         document.getElementById('password').value = '';
+        
+        // 震動效果
+        const loginBox = document.querySelector('.login-box');
+        loginBox.style.animation = 'shake 0.5s';
+        setTimeout(() => {
+            loginBox.style.animation = '';
+        }, 500);
     }
 }
 
@@ -199,31 +259,53 @@ function initializeAdmin() {
     // 重建頁面結構（登入後）
     document.body.innerHTML = `
         <div class="admin-wrapper">
-            <nav class="admin-sidebar">
+            <nav class="admin-sidebar" id="sidebar">
                 <div class="admin-logo">
                     <span class="material-icons">admin_panel_settings</span>
                     <h3>印章系統後台</h3>
                 </div>
                 <ul class="admin-nav">
-                    <li><a href="#" class="admin-nav-item active" data-page="dashboard"><span class="material-icons">dashboard</span> 總覽</a></li>
-                    <li><a href="#" class="admin-nav-item" data-page="fonts"><span class="material-icons">text_fields</span> 字體管理</a></li>
-                    <li><a href="#" class="admin-nav-item" data-page="shapes"><span class="material-icons">category</span> 形狀管理</a></li>
-                    <li><a href="#" class="admin-nav-item" data-page="patterns"><span class="material-icons">texture</span> 圖案管理</a></li>
-                    <li><a href="#" class="admin-nav-item" data-page="colors"><span class="material-icons">palette</span> 顏色管理</a></li>
-                    <li><a href="#" class="admin-nav-item" data-page="security"><span class="material-icons">security</span> 前台安全設定</a></li>
-                    <li><a href="#" class="admin-nav-item" data-page="account"><span class="material-icons">account_circle</span> 帳號設定</a></li>
+                    <li><a href="#" class="admin-nav-item active" data-page="dashboard">
+                        <span class="material-icons">dashboard</span> 總覽
+                    </a></li>
+                    <li><a href="#" class="admin-nav-item" data-page="fonts">
+                        <span class="material-icons">text_fields</span> 字體管理
+                    </a></li>
+                    <li><a href="#" class="admin-nav-item" data-page="shapes">
+                        <span class="material-icons">category</span> 形狀管理
+                    </a></li>
+                    <li><a href="#" class="admin-nav-item" data-page="patterns">
+                        <span class="material-icons">texture</span> 圖案管理
+                    </a></li>
+                    <li><a href="#" class="admin-nav-item" data-page="colors">
+                        <span class="material-icons">palette</span> 顏色管理
+                    </a></li>
+                    <li><a href="#" class="admin-nav-item" data-page="security">
+                        <span class="material-icons">security</span> 前台安全設定
+                    </a></li>
+                    <li><a href="#" class="admin-nav-item" data-page="account">
+                        <span class="material-icons">account_circle</span> 帳號設定
+                    </a></li>
                 </ul>
             </nav>
             <main class="admin-main">
                 <header class="admin-header">
-                    <h2 id="pageTitle">總覽</h2>
-                    <div class="admin-user">
-                        <span class="material-icons">account_circle</span>
-                        <span>管理員</span>
-                        <button class="btn btn-sm btn-secondary" onclick="AdminAuth.logout()">
-                            <span class="material-icons">logout</span>
-                            登出
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <button class="btn btn-sm btn-secondary" id="menuToggle" onclick="toggleSidebar()" style="display: none;">
+                            <span class="material-icons">menu</span>
                         </button>
+                        <h2 id="pageTitle">總覽</h2>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <div class="github-buttons" id="githubButtons"></div>
+                        <div class="admin-user">
+                            <span class="material-icons">account_circle</span>
+                            <span>管理員</span>
+                            <button class="btn btn-sm btn-secondary" onclick="AdminAuth.logout()">
+                                <span class="material-icons">logout</span>
+                                登出
+                            </button>
+                        </div>
                     </div>
                 </header>
                 <div class="admin-content" id="adminContent">
@@ -236,6 +318,7 @@ function initializeAdmin() {
             <p>禁止截圖</p>
         </div>
         <div id="watermarkLayer" class="watermark-layer"></div>
+        <div id="notificationContainer" class="notification-container"></div>
     `;
     
     // 側邊欄導航
@@ -250,19 +333,48 @@ function initializeAdmin() {
         });
     });
 
+    // 檢查螢幕寬度
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+
     // 載入初始頁面
     loadPage('dashboard');
     
     // 初始化後加入 GitHub 按鈕
     setTimeout(() => {
         addGitHubButtons();
-    }, 500);
+    }, 100);
+    
+    // 設定鍵盤快捷鍵
+    setupKeyboardShortcuts();
+}
+
+// 檢查螢幕寬度
+function checkScreenSize() {
+    const menuToggle = document.getElementById('menuToggle');
+    if (window.innerWidth <= 768) {
+        menuToggle.style.display = 'block';
+    } else {
+        menuToggle.style.display = 'none';
+        document.getElementById('sidebar').classList.remove('active');
+    }
+}
+
+// 切換側邊欄
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    sidebar.classList.toggle('active');
 }
 
 // 載入頁面內容
 function loadPage(page) {
     const content = document.getElementById('adminContent');
     const title = document.getElementById('pageTitle');
+    
+    // 關閉手機版側邊欄
+    if (window.innerWidth <= 768) {
+        document.getElementById('sidebar').classList.remove('active');
+    }
     
     switch(page) {
         case 'dashboard':
@@ -306,50 +418,45 @@ function loadPage(page) {
 function getDashboardContent() {
     return `
         <div class="grid grid-4">
-            <div class="admin-card">
-                <div class="admin-card-header">
-                    <div class="admin-card-title">
-                        <span class="material-icons">text_fields</span>
-                        字體數量
-                    </div>
+            <div class="stat-card">
+                <div class="admin-card-title">
+                    <span class="material-icons">text_fields</span>
+                    字體數量
                 </div>
-                <h2 style="font-size: 36px; color: var(--admin-accent);">${uploadedData.fonts.length}</h2>
-                <p style="font-size: 12px; color: var(--admin-border);">
+                <h2>${uploadedData.fonts.length}</h2>
+                <p style="font-size: 14px; color: var(--admin-text-secondary);">
                     已上傳: ${uploadedData.fonts.filter(f => f.uploaded).length}
                 </p>
             </div>
-            <div class="admin-card">
-                <div class="admin-card-header">
-                    <div class="admin-card-title">
-                        <span class="material-icons">category</span>
-                        形狀數量
-                    </div>
+            <div class="stat-card">
+                <div class="admin-card-title">
+                    <span class="material-icons">category</span>
+                    形狀數量
                 </div>
-                <h2 style="font-size: 36px; color: var(--admin-success);">${uploadedData.shapes.length}</h2>
-                <p style="font-size: 12px; color: var(--admin-border);">
+                <h2>${uploadedData.shapes.length}</h2>
+                <p style="font-size: 14px; color: var(--admin-text-secondary);">
                     已上傳: ${uploadedData.shapes.filter(s => s.uploaded).length}
                 </p>
             </div>
-            <div class="admin-card">
-                <div class="admin-card-header">
-                    <div class="admin-card-title">
-                        <span class="material-icons">palette</span>
-                        圖案數量
-                    </div>
+            <div class="stat-card">
+                <div class="admin-card-title">
+                    <span class="material-icons">texture</span>
+                    圖案數量
                 </div>
-                <h2 style="font-size: 36px; color: var(--admin-warning);">${uploadedData.patterns.length}</h2>
-                <p style="font-size: 12px; color: var(--admin-border);">
+                <h2>${uploadedData.patterns.length}</h2>
+                <p style="font-size: 14px; color: var(--admin-text-secondary);">
                     已上傳: ${uploadedData.patterns.filter(p => p.uploaded).length}
                 </p>
             </div>
-            <div class="admin-card">
-                <div class="admin-card-header">
-                    <div class="admin-card-title">
-                        <span class="material-icons">color_lens</span>
-                        顏色數量
-                    </div>
+            <div class="stat-card">
+                <div class="admin-card-title">
+                    <span class="material-icons">color_lens</span>
+                    顏色數量
                 </div>
-                <h2 style="font-size: 36px; color: var(--admin-danger);">${uploadedData.colors.length}</h2>
+                <h2>${uploadedData.colors.length}</h2>
+                <p style="font-size: 14px; color: var(--admin-text-secondary);">
+                    預設顏色組
+                </p>
             </div>
         </div>
         
@@ -362,14 +469,18 @@ function getDashboardContent() {
             </div>
             <div class="grid grid-2">
                 <div>
-                    <p>前台防截圖保護：<span id="frontSecurityStatus" style="color: var(--admin-success);">檢查中...</span></p>
-                    <p>前台浮水印保護：<span id="frontWatermarkStatus" style="color: var(--admin-success);">檢查中...</span></p>
-                    <p>前台右鍵保護：<span id="frontRightClickStatus" style="color: var(--admin-success);">檢查中...</span></p>
+                    <h4 style="color: var(--admin-accent); margin-bottom: 16px;">前台安全設定</h4>
+                    <p>防截圖保護：<span id="frontSecurityStatus" class="badge">檢查中...</span></p>
+                    <p>浮水印保護：<span id="frontWatermarkStatus" class="badge">檢查中...</span></p>
+                    <p>右鍵保護：<span id="frontRightClickStatus" class="badge">檢查中...</span></p>
+                    <p>開發者工具偵測：<span id="frontDevToolsStatus" class="badge">檢查中...</span></p>
                 </div>
                 <div>
+                    <h4 style="color: var(--admin-accent); margin-bottom: 16px;">系統資訊</h4>
                     <p>最後更新：${new Date().toLocaleString('zh-TW')}</p>
-                    <p>系統版本：2.2.0</p>
+                    <p>系統版本：3.0.0</p>
                     <p>登入時間：${new Date(JSON.parse(sessionStorage.getItem('admin_session')).loginTime).toLocaleString('zh-TW')}</p>
+                    <p>瀏覽器：${navigator.userAgent.match(/(Chrome|Safari|Firefox|Edge)/)?.[0] || 'Unknown'}</p>
                 </div>
             </div>
         </div>
@@ -377,12 +488,39 @@ function getDashboardContent() {
         <div class="admin-card">
             <div class="admin-card-header">
                 <div class="admin-card-title">
-                    <span class="material-icons">info</span>
+                    <span class="material-icons">cloud</span>
                     GitHub 連線狀態
                 </div>
+                <button class="btn btn-sm btn-info" onclick="testGitHubConnection()">
+                    <span class="material-icons">refresh</span>
+                    重新檢查
+                </button>
             </div>
             <div id="githubStatus">
                 <p>檢查中...</p>
+            </div>
+        </div>
+        
+        <div class="admin-card">
+            <div class="admin-card-header">
+                <div class="admin-card-title">
+                    <span class="material-icons">info</span>
+                    快速操作
+                </div>
+            </div>
+            <div class="grid grid-3">
+                <button class="btn btn-secondary" onclick="showShortcuts()" style="width: 100%;">
+                    <span class="material-icons">keyboard</span>
+                    查看快捷鍵
+                </button>
+                <button class="btn btn-secondary" onclick="exportSettings()" style="width: 100%;">
+                    <span class="material-icons">download</span>
+                    匯出設定
+                </button>
+                <button class="btn btn-secondary" onclick="importSettings()" style="width: 100%;">
+                    <span class="material-icons">upload</span>
+                    匯入設定
+                </button>
             </div>
         </div>
     `;
@@ -405,8 +543,8 @@ function getFontsContent() {
             <div class="upload-area" id="fontUploadArea">
                 <div class="upload-icon material-icons">cloud_upload</div>
                 <p>拖放字體檔案到此處，或點擊選擇檔案</p>
-                <p style="font-size: 12px; color: var(--admin-border); margin-top: 10px;">
-                    支援格式：.ttf, .otf, .woff, .woff2
+                <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 10px;">
+                    支援格式：.ttf, .otf, .woff, .woff2 | 最大檔案大小：10MB
                 </p>
                 <input type="file" id="fontFileInput" multiple accept=".ttf,.otf,.woff,.woff2" style="display: none;">
             </div>
@@ -429,17 +567,17 @@ function getFontsContent() {
                     </button>
                 </div>
             </div>
-            <div id="fontsList">
+            <div class="admin-table-container">
                 <table class="admin-table">
                     <thead>
                         <tr>
-                            <th>順序</th>
+                            <th width="40">順序</th>
                             <th>字體名稱</th>
                             <th>檔案名稱</th>
-                            <th>檔案大小</th>
-                            <th>字重</th>
-                            <th>狀態</th>
-                            <th>操作</th>
+                            <th width="100">檔案大小</th>
+                            <th width="100">字重</th>
+                            <th width="80">狀態</th>
+                            <th width="150">操作</th>
                         </tr>
                     </thead>
                     <tbody id="fontsTableBody" class="sortable-fonts">
@@ -460,12 +598,16 @@ function getShapesContent() {
                     <span class="material-icons">upload_file</span>
                     上傳形狀
                 </div>
+                <button class="btn btn-info" onclick="showShapeGuide()">
+                    <span class="material-icons">help</span>
+                    製作指南
+                </button>
             </div>
             <div class="upload-area" id="shapeUploadArea">
                 <div class="upload-icon material-icons">cloud_upload</div>
                 <p>拖放形狀圖片到此處，或點擊選擇檔案</p>
-                <p style="font-size: 12px; color: var(--admin-border); margin-top: 10px;">
-                    支援格式：.png, .jpg, .svg (建議使用透明背景PNG)
+                <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 10px;">
+                    支援格式：.png, .jpg, .svg | 建議尺寸：512x512px | 透明背景
                 </p>
                 <input type="file" id="shapeFileInput" multiple accept=".png,.jpg,.jpeg,.svg" style="display: none;">
             </div>
@@ -476,6 +618,12 @@ function getShapesContent() {
                 <div class="admin-card-title">
                     <span class="material-icons">grid_view</span>
                     形狀預覽
+                </div>
+                <div>
+                    <span class="badge badge-info">
+                        <span class="material-icons">info</span>
+                        共 ${uploadedData.shapes.length} 個形狀
+                    </span>
                 </div>
             </div>
             <div class="preview-grid" id="shapesPreview">
@@ -494,12 +642,16 @@ function getPatternsContent() {
                     <span class="material-icons">upload_file</span>
                     上傳圖案
                 </div>
+                <button class="btn btn-info" onclick="showPatternGuide()">
+                    <span class="material-icons">help</span>
+                    製作指南
+                </button>
             </div>
             <div class="upload-area" id="patternUploadArea">
                 <div class="upload-icon material-icons">cloud_upload</div>
                 <p>拖放圖案到此處，或點擊選擇檔案</p>
-                <p style="font-size: 12px; color: var(--admin-border); margin-top: 10px;">
-                    支援格式：.png, .jpg, .svg (建議尺寸：64x64px)
+                <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 10px;">
+                    支援格式：.png, .jpg, .svg | 建議尺寸：64x64px | 可平鋪圖案
                 </p>
                 <input type="file" id="patternFileInput" multiple accept=".png,.jpg,.jpeg,.svg" style="display: none;">
             </div>
@@ -510,6 +662,12 @@ function getPatternsContent() {
                 <div class="admin-card-title">
                     <span class="material-icons">auto_awesome</span>
                     圖案預覽
+                </div>
+                <div>
+                    <span class="badge badge-info">
+                        <span class="material-icons">info</span>
+                        共 ${uploadedData.patterns.length} 個圖案
+                    </span>
                 </div>
             </div>
             <div class="preview-grid" id="patternsPreview">
@@ -554,6 +712,10 @@ function getColorsContent() {
                     <span class="material-icons">color_lens</span>
                     顏色組列表
                 </div>
+                <button class="btn btn-secondary" onclick="loadDefaultColors()">
+                    <span class="material-icons">restore</span>
+                    載入預設顏色
+                </button>
             </div>
             <div class="color-picker-grid" id="colorGroups">
                 <!-- 動態載入 -->
@@ -562,7 +724,7 @@ function getColorsContent() {
     `;
 }
 
-// 前台安全設定頁面（與後台分離）
+// 前台安全設定頁面
 function getSecurityContent() {
     // 載入前台安全設定
     const savedSettings = JSON.parse(localStorage.getItem('frontend_security_settings') || '{}');
@@ -574,7 +736,10 @@ function getSecurityContent() {
                     <span class="material-icons">security</span>
                     前台安全防護設定
                 </div>
-                <span class="badge badge-info">這些設定只影響前台使用者介面</span>
+                <span class="badge badge-info">
+                    <span class="material-icons">info</span>
+                    這些設定只影響前台使用者介面
+                </span>
             </div>
             <div class="grid grid-2">
                 <div class="form-group">
@@ -582,7 +747,7 @@ function getSecurityContent() {
                         <input type="checkbox" id="frontPreventScreenshot" ${savedSettings.preventScreenshot !== false ? 'checked' : ''}>
                         防止截圖保護
                     </label>
-                    <p style="font-size: 12px; color: var(--admin-border); margin-top: 5px;">
+                    <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 5px;">
                         前台偵測到截圖行為時顯示黑畫面
                     </p>
                 </div>
@@ -591,7 +756,7 @@ function getSecurityContent() {
                         <input type="checkbox" id="frontEnableWatermark" ${savedSettings.enableWatermark !== false ? 'checked' : ''}>
                         啟用浮水印
                     </label>
-                    <p style="font-size: 12px; color: var(--admin-border); margin-top: 5px;">
+                    <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 5px;">
                         在前台印章預覽介面顯示浮水印
                     </p>
                 </div>
@@ -600,7 +765,7 @@ function getSecurityContent() {
                         <input type="checkbox" id="frontDisableRightClick" ${savedSettings.disableRightClick !== false ? 'checked' : ''}>
                         禁用右鍵選單
                     </label>
-                    <p style="font-size: 12px; color: var(--admin-border); margin-top: 5px;">
+                    <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 5px;">
                         防止前台使用者右鍵另存圖片
                     </p>
                 </div>
@@ -609,7 +774,7 @@ function getSecurityContent() {
                         <input type="checkbox" id="frontDisableTextSelect" ${savedSettings.disableTextSelect !== false ? 'checked' : ''}>
                         禁止文字選取
                     </label>
-                    <p style="font-size: 12px; color: var(--admin-border); margin-top: 5px;">
+                    <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 5px;">
                         防止前台使用者複製文字內容
                     </p>
                 </div>
@@ -618,7 +783,7 @@ function getSecurityContent() {
                         <input type="checkbox" id="frontDisableDevTools" ${savedSettings.disableDevTools !== false ? 'checked' : ''}>
                         偵測開發者工具
                     </label>
-                    <p style="font-size: 12px; color: var(--admin-border); margin-top: 5px;">
+                    <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 5px;">
                         前台開啟開發者工具時顯示警告
                     </p>
                 </div>
@@ -627,7 +792,7 @@ function getSecurityContent() {
                         <input type="checkbox" id="frontDisablePrint" ${savedSettings.disablePrint !== false ? 'checked' : ''}>
                         禁止列印
                     </label>
-                    <p style="font-size: 12px; color: var(--admin-border); margin-top: 5px;">
+                    <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 5px;">
                         防止前台使用者列印頁面
                     </p>
                 </div>
@@ -636,7 +801,7 @@ function getSecurityContent() {
                         <input type="checkbox" id="frontDisableDrag" ${savedSettings.disableDrag !== false ? 'checked' : ''}>
                         禁止拖曳圖片
                     </label>
-                    <p style="font-size: 12px; color: var(--admin-border); margin-top: 5px;">
+                    <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 5px;">
                         防止前台使用者拖曳圖片到其他地方
                     </p>
                 </div>
@@ -645,7 +810,7 @@ function getSecurityContent() {
                         <input type="checkbox" id="frontBlurOnLoseFocus" ${savedSettings.blurOnLoseFocus ? 'checked' : ''}>
                         失焦模糊
                     </label>
-                    <p style="font-size: 12px; color: var(--admin-border); margin-top: 5px;">
+                    <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 5px;">
                         當使用者切換視窗時模糊內容
                     </p>
                 </div>
@@ -679,9 +844,8 @@ function getSecurityContent() {
                     <input type="number" class="form-control" id="frontWatermarkInterval" value="${savedSettings.watermarkInterval || 60}" min="10">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">透明度</label>
+                    <label class="form-label">透明度 <span id="frontOpacityValue">${((savedSettings.watermarkOpacity || 0.03) * 100).toFixed(0)}%</span></label>
                     <input type="range" class="form-control" id="frontWatermarkOpacity" value="${savedSettings.watermarkOpacity || 0.03}" min="0.01" max="0.1" step="0.01">
-                    <span id="frontOpacityValue">${((savedSettings.watermarkOpacity || 0.03) * 100).toFixed(0)}%</span>
                 </div>
                 <div class="form-group">
                     <label class="form-label">字體大小</label>
@@ -734,9 +898,9 @@ function getAccountContent() {
                 </div>
                 <div class="form-group">
                     <label class="form-label">新密碼</label>
-                    <input type="password" class="form-control" id="newPassword" required minlength="6">
-                    <p style="font-size: 12px; color: var(--admin-border); margin-top: 5px;">
-                        密碼長度至少 6 個字元
+                    <input type="password" class="form-control" id="newPassword" required minlength="6" pattern="(?=.*\\d)(?=.*[a-z])(?=.*[A-Z]).{6,}" title="密碼必須包含大小寫字母和數字">
+                    <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 5px;">
+                        密碼長度至少 6 個字元，需包含大小寫字母和數字
                     </p>
                 </div>
                 <div class="form-group">
@@ -760,14 +924,29 @@ function getAccountContent() {
             <div class="info-list">
                 <p><strong>目前使用者：</strong> ${JSON.parse(sessionStorage.getItem('admin_session')).username}</p>
                 <p><strong>登入時間：</strong> ${new Date(JSON.parse(sessionStorage.getItem('admin_session')).loginTime).toLocaleString('zh-TW')}</p>
+                <p><strong>Session 到期：</strong> 24 小時後自動登出</p>
+                <p><strong>上次密碼更新：</strong> ${localStorage.getItem('last_password_change') || '從未更新'}</p>
+            </div>
+        </div>
+        
+        <div class="admin-card">
+            <div class="admin-card-header">
+                <div class="admin-card-title">
+                    <span class="material-icons">security</span>
+                    安全設定
+                </div>
+            </div>
+            <div class="info-list">
                 <p><strong>預設帳號：</strong> admin</p>
-                <p><strong>預設密碼：</strong> 337088</p>
+                <p><strong>預設密碼：</strong> 0918124726</p>
+                <p><strong>登入失敗鎖定：</strong> 5 次失敗後鎖定 5 分鐘</p>
+                <p><strong>建議：</strong> 請盡快修改預設密碼以確保安全</p>
             </div>
         </div>
     `;
 }
 
-// 初始化各頁面功能（保持原有功能）
+// 初始化各頁面功能
 function initializeFontsPage() {
     const uploadArea = document.getElementById('fontUploadArea');
     const fileInput = document.getElementById('fontFileInput');
@@ -796,6 +975,26 @@ function initializeFontsPage() {
     });
     
     updateFontsTable();
+    
+    // 初始化拖曳排序
+    if (typeof Sortable !== 'undefined') {
+        new Sortable(document.getElementById('fontsTableBody'), {
+            animation: 150,
+            handle: '.material-icons',
+            onEnd: function(evt) {
+                // 更新順序
+                const rows = document.querySelectorAll('#fontsTableBody tr');
+                const newOrder = [];
+                rows.forEach((row) => {
+                    const id = row.dataset.id;
+                    const font = uploadedData.fonts.find(f => f.id == id);
+                    if (font) newOrder.push(font);
+                });
+                uploadedData.fonts = newOrder;
+                showNotification('字體順序已更新', 'success');
+            }
+        });
+    }
 }
 
 function initializeShapesPage() {
@@ -876,6 +1075,14 @@ function initializeSecurityPage() {
     
     // 更新前台安全狀態顯示
     updateFrontendSecurityStatus();
+    
+    // 即時預覽變更
+    const checkboxes = document.querySelectorAll('#adminContent input[type="checkbox"]');
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            showNotification('記得儲存設定以套用變更', 'info');
+        });
+    });
 }
 
 // 更新前台安全狀態
@@ -883,16 +1090,18 @@ function updateFrontendSecurityStatus() {
     const settings = JSON.parse(localStorage.getItem('frontend_security_settings') || '{}');
     
     // 更新總覽頁面的狀態顯示
-    const statusElements = {
+    const statusMap = {
         'frontSecurityStatus': settings.preventScreenshot !== false,
         'frontWatermarkStatus': settings.enableWatermark !== false,
-        'frontRightClickStatus': settings.disableRightClick !== false
+        'frontRightClickStatus': settings.disableRightClick !== false,
+        'frontDevToolsStatus': settings.disableDevTools !== false
     };
     
-    for (const [id, enabled] of Object.entries(statusElements)) {
+    for (const [id, enabled] of Object.entries(statusMap)) {
         const element = document.getElementById(id);
         if (element) {
             element.textContent = enabled ? '啟用' : '停用';
+            element.className = enabled ? 'badge badge-success' : 'badge badge-warning';
             element.style.color = enabled ? 'var(--admin-success)' : 'var(--admin-warning)';
         }
     }
@@ -926,7 +1135,7 @@ function updateFrontendSecuritySettings() {
     // 更新狀態顯示
     updateFrontendSecurityStatus();
     
-    // 詢問是否同步到 GitHub
+    // 自動同步到 GitHub
     if (confirm('是否要將前台安全設定同步到 GitHub？')) {
         syncFrontendSecurityToGitHub(settings);
     }
@@ -996,6 +1205,7 @@ function handleChangePassword(event) {
     }
     
     if (AdminAuth.changePassword(currentPassword, newPassword)) {
+        localStorage.setItem('last_password_change', new Date().toLocaleString('zh-TW'));
         showNotification('密碼修改成功，請重新登入', 'success');
         setTimeout(() => {
             AdminAuth.logout();
@@ -1026,145 +1236,178 @@ function setupBackendSecurity() {
         }
     });
     
-    // 偵測開發者工具（僅警告）
-    let devtools = { open: false };
-    const threshold = 160;
-    
-    setInterval(() => {
-        if (window.outerHeight - window.innerHeight > threshold || 
-            window.outerWidth - window.innerWidth > threshold) {
-            if (!devtools.open) {
-                devtools.open = true;
-                console.warn('後台偵測到開發者工具');
-            }
-        } else {
-            devtools.open = false;
-        }
-    }, 500);
-    
     // Session 超時檢查
     setInterval(() => {
         if (!AdminAuth.isLoggedIn()) {
             window.location.reload();
         }
     }, 60000); // 每分鐘檢查一次
+    
+    // 監控頁面活動
+    let lastActivity = Date.now();
+    const activityTimeout = 30 * 60 * 1000; // 30分鐘無活動自動登出
+    
+    ['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(event => {
+        document.addEventListener(event, () => {
+            lastActivity = Date.now();
+        });
+    });
+    
+    setInterval(() => {
+        if (Date.now() - lastActivity > activityTimeout) {
+            showNotification('由於長時間無活動，系統將自動登出', 'warning');
+            setTimeout(() => {
+                AdminAuth.logout();
+            }, 5000);
+        }
+    }, 60000);
 }
 
-// 處理檔案上傳（保持原有功能）
+// 處理檔案上傳
 function handleFontFiles(files) {
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    
     Array.from(files).forEach(file => {
-        if (file.name.match(/\.(ttf|otf|woff|woff2)$/i)) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const extension = file.name.split('.').pop().toLowerCase();
-                const baseName = file.name.replace(/\.[^.]+$/, '');
-                
-                const fontData = {
-                    id: Date.now() + Math.random(),
-                    name: baseName,
-                    filename: file.name,
-                    extension: extension,
-                    file: file,
-                    size: (file.size / 1024).toFixed(2) + ' KB',
-                    weight: 'normal',
-                    fontSize: '16px',
-                    lineHeight: '1.5',
-                    url: e.target.result,
-                    uploaded: false,
-                    githubPath: null
-                };
-                
-                uploadedData.fonts.push(fontData);
-                updateFontsTable();
-                showNotification(`字體 "${baseName}" 已新增`, 'success');
-            };
-            reader.readAsDataURL(file);
+        if (!file.name.match(/\.(ttf|otf|woff|woff2)$/i)) {
+            showNotification(`檔案 "${file.name}" 格式不支援`, 'warning');
+            return;
         }
+        
+        if (file.size > maxSize) {
+            showNotification(`檔案 "${file.name}" 超過 10MB 限制`, 'warning');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const extension = file.name.split('.').pop().toLowerCase();
+            const baseName = file.name.replace(/\.[^.]+$/, '');
+            
+            const fontData = {
+                id: Date.now() + Math.random(),
+                name: baseName,
+                filename: file.name,
+                extension: extension,
+                file: file,
+                size: (file.size / 1024).toFixed(2) + ' KB',
+                weight: 'normal',
+                fontSize: '16px',
+                lineHeight: '1.5',
+                url: e.target.result,
+                uploaded: false,
+                githubPath: null
+            };
+            
+            uploadedData.fonts.push(fontData);
+            updateFontsTable();
+            showNotification(`字體 "${baseName}" 已新增`, 'success');
+        };
+        reader.readAsDataURL(file);
     });
 }
 
 function handleShapeFiles(files) {
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    
     Array.from(files).forEach(file => {
-        if (file.name.match(/\.(png|jpg|jpeg|svg)$/i)) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const extension = file.name.split('.').pop().toLowerCase();
-                const baseName = file.name.replace(/\.[^.]+$/, '');
-                
-                const shapeData = {
-                    id: Date.now() + Math.random(),
-                    name: baseName,
-                    filename: file.name,
-                    extension: extension,
-                    file: file,
-                    url: e.target.result,
-                    uploaded: false,
-                    githubPath: null
-                };
-                
-                uploadedData.shapes.push(shapeData);
-                updateShapesPreview();
-                showNotification(`形狀 "${baseName}" 已新增`, 'success');
-            };
-            reader.readAsDataURL(file);
+        if (!file.name.match(/\.(png|jpg|jpeg|svg)$/i)) {
+            showNotification(`檔案 "${file.name}" 格式不支援`, 'warning');
+            return;
         }
+        
+        if (file.size > maxSize) {
+            showNotification(`檔案 "${file.name}" 超過 5MB 限制`, 'warning');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const extension = file.name.split('.').pop().toLowerCase();
+            const baseName = file.name.replace(/\.[^.]+$/, '');
+            
+            const shapeData = {
+                id: Date.now() + Math.random(),
+                name: baseName,
+                filename: file.name,
+                extension: extension,
+                file: file,
+                url: e.target.result,
+                uploaded: false,
+                githubPath: null
+            };
+            
+            uploadedData.shapes.push(shapeData);
+            updateShapesPreview();
+            showNotification(`形狀 "${baseName}" 已新增`, 'success');
+        };
+        reader.readAsDataURL(file);
     });
 }
 
 function handlePatternFiles(files) {
+    const maxSize = 2 * 1024 * 1024; // 2MB
+    
     Array.from(files).forEach(file => {
-        if (file.name.match(/\.(png|jpg|jpeg|svg)$/i)) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const extension = file.name.split('.').pop().toLowerCase();
-                const baseName = file.name.replace(/\.[^.]+$/, '');
-                
-                const patternData = {
-                    id: Date.now() + Math.random(),
-                    name: baseName,
-                    filename: file.name,
-                    extension: extension,
-                    file: file,
-                    url: e.target.result,
-                    uploaded: false,
-                    githubPath: null
-                };
-                
-                uploadedData.patterns.push(patternData);
-                updatePatternsPreview();
-                showNotification(`圖案 "${baseName}" 已新增`, 'success');
-            };
-            reader.readAsDataURL(file);
+        if (!file.name.match(/\.(png|jpg|jpeg|svg)$/i)) {
+            showNotification(`檔案 "${file.name}" 格式不支援`, 'warning');
+            return;
         }
+        
+        if (file.size > maxSize) {
+            showNotification(`檔案 "${file.name}" 超過 2MB 限制`, 'warning');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const extension = file.name.split('.').pop().toLowerCase();
+            const baseName = file.name.replace(/\.[^.]+$/, '');
+            
+            const patternData = {
+                id: Date.now() + Math.random(),
+                name: baseName,
+                filename: file.name,
+                extension: extension,
+                file: file,
+                url: e.target.result,
+                uploaded: false,
+                githubPath: null
+            };
+            
+            uploadedData.patterns.push(patternData);
+            updatePatternsPreview();
+            showNotification(`圖案 "${baseName}" 已新增`, 'success');
+        };
+        reader.readAsDataURL(file);
     });
 }
 
-// 更新顯示函數（保持原有功能）
+// 更新顯示函數
 function updateFontsTable() {
     const tbody = document.getElementById('fontsTableBody');
     if (!tbody) return;
     
     tbody.innerHTML = uploadedData.fonts.map((font, index) => `
         <tr data-id="${font.id}">
-            <td><span class="material-icons" style="cursor: move;">drag_indicator</span></td>
-            <td>${font.name}</td>
-            <td>${font.filename || font.name + '.' + font.extension}</td>
+            <td><span class="material-icons" style="cursor: move; color: var(--admin-text-secondary);">drag_indicator</span></td>
+            <td style="font-weight: 600;">${font.name}</td>
+            <td style="color: var(--admin-text-secondary);">${font.filename || font.name + '.' + font.extension}</td>
             <td>${font.size}</td>
             <td>${font.weight}</td>
             <td>
                 ${font.uploaded ? 
-                    '<span style="color: var(--admin-success);">已上傳</span>' : 
-                    '<span style="color: var(--admin-warning);">待上傳</span>'}
+                    '<span class="badge badge-success">已上傳</span>' : 
+                    '<span class="badge badge-warning">待上傳</span>'}
             </td>
             <td>
-                <button class="btn btn-sm btn-primary" onclick="editFont('${font.id}')">
+                <button class="btn btn-sm btn-primary" onclick="editFont('${font.id}')" title="編輯">
                     <span class="material-icons">edit</span>
                 </button>
                 ${!font.uploaded ? 
-                    `<button class="btn btn-sm btn-info" onclick="uploadSingleFont('${font.id}')">
+                    `<button class="btn btn-sm btn-info" onclick="uploadSingleFont('${font.id}')" title="上傳">
                         <span class="material-icons">upload</span>
                     </button>` : ''}
-                <button class="btn btn-sm btn-danger" onclick="deleteFont('${font.id}')">
+                <button class="btn btn-sm btn-danger" onclick="deleteFont('${font.id}')" title="刪除">
                     <span class="material-icons">delete</span>
                 </button>
             </td>
@@ -1176,15 +1419,21 @@ function updateShapesPreview() {
     const preview = document.getElementById('shapesPreview');
     if (!preview) return;
     
+    if (uploadedData.shapes.length === 0) {
+        preview.innerHTML = '<p style="text-align: center; color: var(--admin-text-secondary); padding: 40px;">尚無形狀，請上傳形狀圖片</p>';
+        return;
+    }
+    
     preview.innerHTML = uploadedData.shapes.map(shape => `
         <div class="preview-item" data-id="${shape.id}">
-            <img src="${shape.url}" alt="${shape.name}" style="width: 100%; height: 100px; object-fit: contain;">
-            <p style="margin-top: 8px; font-size: 12px;">${shape.name}</p>
-            ${shape.uploaded ? 
-                '<span style="color: var(--admin-success); font-size: 10px;">已上傳</span>' : 
-                '<span style="color: var(--admin-warning); font-size: 10px;">待上傳</span>'}
-            <button class="btn btn-sm btn-danger" onclick="deleteShape('${shape.id}')" style="margin-top: 5px;">
+            <img src="${shape.url}" alt="${shape.name}">
+            <p>${shape.name}</p>
+            <span class="badge ${shape.uploaded ? 'badge-success' : 'badge-warning'}">
+                ${shape.uploaded ? '已上傳' : '待上傳'}
+            </span>
+            <button class="btn btn-sm btn-danger" onclick="deleteShape('${shape.id}')">
                 <span class="material-icons">delete</span>
+                刪除
             </button>
         </div>
     `).join('');
@@ -1194,15 +1443,21 @@ function updatePatternsPreview() {
     const preview = document.getElementById('patternsPreview');
     if (!preview) return;
     
+    if (uploadedData.patterns.length === 0) {
+        preview.innerHTML = '<p style="text-align: center; color: var(--admin-text-secondary); padding: 40px;">尚無圖案，請上傳圖案圖片</p>';
+        return;
+    }
+    
     preview.innerHTML = uploadedData.patterns.map(pattern => `
         <div class="preview-item" data-id="${pattern.id}">
-            <img src="${pattern.url}" alt="${pattern.name}" style="width: 64px; height: 64px; object-fit: contain;">
-            <p style="margin-top: 8px; font-size: 12px;">${pattern.name}</p>
-            ${pattern.uploaded ? 
-                '<span style="color: var(--admin-success); font-size: 10px;">已上傳</span>' : 
-                '<span style="color: var(--admin-warning); font-size: 10px;">待上傳</span>'}
-            <button class="btn btn-sm btn-danger" onclick="deletePattern('${pattern.id}')" style="margin-top: 5px;">
+            <div style="width: 80px; height: 80px; background: url(${pattern.url}) repeat; background-size: 40px 40px; border-radius: 8px; margin: 0 auto;"></div>
+            <p>${pattern.name}</p>
+            <span class="badge ${pattern.uploaded ? 'badge-success' : 'badge-warning'}">
+                ${pattern.uploaded ? '已上傳' : '待上傳'}
+            </span>
+            <button class="btn btn-sm btn-danger" onclick="deletePattern('${pattern.id}')">
                 <span class="material-icons">delete</span>
+                刪除
             </button>
         </div>
     `).join('');
@@ -1238,6 +1493,7 @@ function generateColorShades(baseColor) {
     const shades = [];
     const color = hexToRgb(baseColor);
     
+    // 生成 4 個漸層色
     for (let i = 0; i < 4; i++) {
         const factor = 1 - (i * 0.2);
         const shade = {
@@ -1268,12 +1524,22 @@ function displayColorGroups() {
     const container = document.getElementById('colorGroups');
     if (!container) return;
     
+    if (uploadedData.colors.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: var(--admin-text-secondary); padding: 40px;">尚無顏色組，請新增顏色</p>';
+        return;
+    }
+    
     container.innerHTML = uploadedData.colors.map(group => `
         <div class="color-item" data-id="${group.id}">
             <div class="color-preview" style="background-color: ${group.main};"></div>
-            <div>
-                <p style="font-weight: 500;">${group.name}</p>
-                <p style="font-size: 12px; color: var(--admin-border);">${group.main}</p>
+            <div style="flex: 1;">
+                <p style="font-weight: 600; margin: 0;">${group.name}</p>
+                <p style="font-size: 12px; color: var(--admin-text-secondary); margin: 4px 0 0;">${group.main}</p>
+                <div style="display: flex; gap: 4px; margin-top: 8px;">
+                    ${group.shades.map(shade => `
+                        <div style="width: 20px; height: 20px; background: ${shade}; border-radius: 4px;" title="${shade}"></div>
+                    `).join('')}
+                </div>
             </div>
             <button class="btn btn-sm btn-danger" onclick="deleteColor(${group.id})">
                 <span class="material-icons">delete</span>
@@ -1282,7 +1548,32 @@ function displayColorGroups() {
     `).join('');
 }
 
-// GitHub 整合功能（保持原有功能）
+// 載入預設顏色
+function loadDefaultColors() {
+    const defaultColors = [
+        { name: '經典紅', main: '#dc3545' },
+        { name: '寶藍色', main: '#0066cc' },
+        { name: '墨綠色', main: '#2d5a2d' },
+        { name: '紫羅蘭', main: '#6f42c1' },
+        { name: '金黃色', main: '#ffc107' },
+        { name: '深灰色', main: '#495057' }
+    ];
+    
+    defaultColors.forEach(color => {
+        const colorGroup = {
+            id: Date.now() + Math.random(),
+            name: color.name,
+            main: color.main,
+            shades: generateColorShades(color.main)
+        };
+        uploadedData.colors.push(colorGroup);
+    });
+    
+    displayColorGroups();
+    showNotification('已載入預設顏色', 'success');
+}
+
+// GitHub 整合功能
 async function deleteFileFromGitHub(filePath) {
     const token = GitHubConfig.getToken();
     if (!token) {
@@ -1474,7 +1765,13 @@ function editFont(id) {
                 <option value="900" ${font.weight === '900' ? 'selected' : ''}>900 - Black</option>
             </select>
         </div>
-        <button class="btn btn-primary" onclick="saveEditFont('${id}')">儲存</button>
+        <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+            <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+            <button class="btn btn-primary" onclick="saveEditFont('${id}')">
+                <span class="material-icons">save</span>
+                儲存
+            </button>
+        </div>
     `;
     
     showModal('編輯字體', content);
@@ -1507,8 +1804,8 @@ async function uploadSingleFont(fontId) {
 async function uploadFontFile(fontData) {
     const token = GitHubConfig.getToken();
     if (!token) {
-        const newToken = GitHubConfig.promptToken();
-        if (!newToken) return false;
+        GitHubConfig.promptToken();
+        return false;
     }
     
     try {
@@ -1577,8 +1874,8 @@ async function uploadFontFile(fontData) {
 async function uploadAllFonts() {
     const token = GitHubConfig.getToken();
     if (!token) {
-        const newToken = GitHubConfig.promptToken();
-        if (!newToken) return;
+        GitHubConfig.promptToken();
+        return;
     }
     
     const unuploadedFonts = uploadedData.fonts.filter(f => !f.uploaded);
@@ -1670,7 +1967,7 @@ async function getCurrentConfig() {
         })),
         colors: uploadedData.colors,
         lastUpdate: new Date().toISOString(),
-        version: '2.2.0'
+        version: '3.0.0'
     };
 }
 
@@ -1731,8 +2028,8 @@ async function saveConfigToGitHub(config) {
 async function saveToGitHub() {
     const token = GitHubConfig.getToken();
     if (!token) {
-        const newToken = GitHubConfig.promptToken();
-        if (!newToken) return;
+        GitHubConfig.promptToken();
+        return;
     }
     
     console.log('開始儲存設定到 GitHub...');
@@ -1841,6 +2138,7 @@ function updateGitHubStatus(connected) {
                     <span class="material-icons" style="vertical-align: middle;">warning</span>
                     未連接到 GitHub
                 </p>
+                <p>請設定 GitHub Token 以啟用同步功能</p>
             `;
         }
     }
@@ -1850,8 +2148,8 @@ function updateGitHubStatus(connected) {
 async function testGitHubConnection() {
     const token = GitHubConfig.getToken();
     if (!token) {
-        const newToken = GitHubConfig.promptToken();
-        if (!newToken) return;
+        GitHubConfig.promptToken();
+        return;
     }
     
     try {
@@ -1883,14 +2181,17 @@ async function testGitHubConnection() {
             const repoData = await repoResponse.json();
             console.log('可以存取 Repository:', repoData.full_name);
             showNotification('可以存取 Repository', 'success');
+            updateGitHubStatus(true);
         } else {
             console.error('無法存取 Repository');
             showNotification('無法存取 Repository', 'danger');
+            updateGitHubStatus(false);
         }
         
     } catch (error) {
         console.error('測試失敗:', error);
         showNotification('測試失敗: ' + error.message, 'danger');
+        updateGitHubStatus(false);
     }
 }
 
@@ -1903,6 +2204,17 @@ function clearGitHubToken() {
     }
 }
 
+// 儲存 GitHub Token
+function saveGitHubToken() {
+    const token = document.getElementById('githubTokenInput').value;
+    if (token) {
+        GitHubConfig.setToken(token);
+        closeModal();
+        showNotification('GitHub Token 已儲存', 'success');
+        testGitHubConnection();
+    }
+}
+
 // 匯出設定
 function exportSettings() {
     const settings = {
@@ -1912,7 +2224,7 @@ function exportSettings() {
         colors: uploadedData.colors,
         frontendSecurity: JSON.parse(localStorage.getItem('frontend_security_settings') || '{}'),
         exportDate: new Date().toISOString(),
-        version: '2.2.0'
+        version: '3.0.0'
     };
     
     const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
@@ -1972,8 +2284,8 @@ async function cleanupUnusedFiles() {
     
     const token = GitHubConfig.getToken();
     if (!token) {
-        const newToken = GitHubConfig.promptToken();
-        if (!newToken) return;
+        GitHubConfig.promptToken();
+        return;
     }
     
     showNotification('正在掃描未使用的檔案...', 'info');
@@ -2050,43 +2362,36 @@ async function cleanupUnusedFiles() {
 
 // 加入控制按鈕
 function addGitHubButtons() {
-    const header = document.querySelector('.admin-user');
-    if (header) {
-        const buttonGroup = document.createElement('div');
-        buttonGroup.style.cssText = 'display: flex; gap: 10px; margin-left: 20px;';
-        
-        buttonGroup.innerHTML = `
-            <button class="btn btn-warning" onclick="testGitHubConnection()">
+    const container = document.getElementById('githubButtons');
+    if (container) {
+        container.innerHTML = `
+            <button class="btn btn-warning" onclick="testGitHubConnection()" title="測試連線">
                 <span class="material-icons">bug_report</span>
-                測試連線
+                <span class="btn-text">測試</span>
             </button>
-            <button class="btn btn-primary" onclick="loadFromGitHub()">
+            <button class="btn btn-primary" onclick="loadFromGitHub()" title="從 GitHub 載入">
                 <span class="material-icons">cloud_download</span>
-                從 GitHub 載入
+                <span class="btn-text">載入</span>
             </button>
-            <button class="btn btn-success" onclick="saveToGitHub()">
+            <button class="btn btn-success" onclick="saveToGitHub()" title="儲存到 GitHub">
                 <span class="material-icons">cloud_upload</span>
-                儲存到 GitHub
+                <span class="btn-text">儲存</span>
             </button>
-            <button class="btn btn-secondary" onclick="exportSettings()">
-                <span class="material-icons">download</span>
-                匯出設定
-            </button>
-            <button class="btn btn-secondary" onclick="importSettings()">
-                <span class="material-icons">upload</span>
-                匯入設定
-            </button>
-            <button class="btn btn-warning" onclick="cleanupUnusedFiles()">
+            <button class="btn btn-warning" onclick="cleanupUnusedFiles()" title="清理未使用檔案">
                 <span class="material-icons">cleaning_services</span>
-                清理檔案
+                <span class="btn-text">清理</span>
             </button>
-            <button class="btn btn-danger" onclick="clearGitHubToken()">
+            <button class="btn btn-danger" onclick="clearGitHubToken()" title="清除 Token">
                 <span class="material-icons">key_off</span>
-                清除 Token
             </button>
         `;
         
-        header.parentElement.insertBefore(buttonGroup, header);
+        // 在小螢幕隱藏按鈕文字
+        if (window.innerWidth <= 1200) {
+            document.querySelectorAll('.btn-text').forEach(el => {
+                el.style.display = 'none';
+            });
+        }
     }
 }
 
@@ -2094,30 +2399,35 @@ function addGitHubButtons() {
 function showNotification(message, type = 'info') {
     console.log(`[${type.toUpperCase()}] ${message}`);
     
+    const container = document.getElementById('notificationContainer');
+    
     const notification = document.createElement('div');
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 15px 20px;
-        background: ${type === 'success' ? 'var(--admin-success)' : 
-                     type === 'warning' ? 'var(--admin-warning)' : 
-                     type === 'danger' ? 'var(--admin-danger)' : 'var(--admin-accent)'};
-        color: white;
-        border-radius: 5px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        z-index: 3000;
-        animation: slideIn 0.3s ease;
-        max-width: 400px;
+    notification.className = `notification ${type}`;
+    
+    const icons = {
+        'success': 'check_circle',
+        'warning': 'warning',
+        'danger': 'error',
+        'info': 'info'
+    };
+    
+    notification.innerHTML = `
+        <span class="material-icons">${icons[type] || 'info'}</span>
+        <div class="notification-content">
+            <div class="notification-message">${message}</div>
+        </div>
+        <button class="notification-close" onclick="this.parentElement.remove()">
+            <span class="material-icons">close</span>
+        </button>
     `;
-    notification.textContent = message;
     
-    document.body.appendChild(notification);
+    container.appendChild(notification);
     
+    // 自動移除
     setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease';
+        notification.style.animation = 'slideOutRight 0.3s ease forwards';
         setTimeout(() => notification.remove(), 300);
-    }, 3000);
+    }, 5000);
 }
 
 // 模態框功能
@@ -2131,7 +2441,7 @@ function showModal(title, content) {
             <div class="admin-modal-content">
                 <div class="admin-modal-header">
                     <h3 id="modalTitle"></h3>
-                    <button class="btn btn-sm" onclick="closeModal()">
+                    <button class="btn btn-sm" onclick="closeModal()" style="background: none; box-shadow: none;">
                         <span class="material-icons">close</span>
                     </button>
                 </div>
@@ -2144,6 +2454,14 @@ function showModal(title, content) {
     document.getElementById('modalTitle').textContent = title;
     document.getElementById('modalBody').innerHTML = content;
     modal.classList.add('active');
+    
+    // ESC 關閉
+    document.addEventListener('keydown', function closeOnEsc(e) {
+        if (e.key === 'Escape') {
+            closeModal();
+            document.removeEventListener('keydown', closeOnEsc);
+        }
+    });
 }
 
 function closeModal() {
@@ -2155,41 +2473,49 @@ function closeModal() {
 
 // 字體設定
 function showFontSettings() {
+    const settings = JSON.parse(localStorage.getItem('fontSettings') || '{}');
+    
     const content = `
         <div class="grid grid-2">
             <div class="form-group">
                 <label class="form-label">預設字體大小</label>
-                <input type="number" class="form-control" id="defaultFontSize" value="16" min="10" max="72">
+                <input type="number" class="form-control" id="defaultFontSize" value="${settings.defaultFontSize || 16}" min="10" max="72">
             </div>
             <div class="form-group">
                 <label class="form-label">預設行高</label>
-                <input type="number" class="form-control" id="defaultLineHeight" value="1.5" min="1" max="3" step="0.1">
+                <input type="number" class="form-control" id="defaultLineHeight" value="${settings.defaultLineHeight || 1.5}" min="1" max="3" step="0.1">
             </div>
             <div class="form-group">
                 <label class="form-label">預設字重</label>
                 <select class="form-control" id="defaultFontWeight">
-                    <option value="normal">Normal</option>
-                    <option value="bold">Bold</option>
-                    <option value="100">100 - Thin</option>
-                    <option value="300">300 - Light</option>
-                    <option value="400">400 - Regular</option>
-                    <option value="500">500 - Medium</option>
-                    <option value="600">600 - Semi Bold</option>
-                    <option value="700">700 - Bold</option>
-                    <option value="900">900 - Black</option>
+                    <option value="normal" ${settings.defaultFontWeight === 'normal' ? 'selected' : ''}>Normal</option>
+                    <option value="bold" ${settings.defaultFontWeight === 'bold' ? 'selected' : ''}>Bold</option>
+                    <option value="100" ${settings.defaultFontWeight === '100' ? 'selected' : ''}>100 - Thin</option>
+                    <option value="300" ${settings.defaultFontWeight === '300' ? 'selected' : ''}>300 - Light</option>
+                    <option value="400" ${settings.defaultFontWeight === '400' ? 'selected' : ''}>400 - Regular</option>
+                    <option value="500" ${settings.defaultFontWeight === '500' ? 'selected' : ''}>500 - Medium</option>
+                    <option value="600" ${settings.defaultFontWeight === '600' ? 'selected' : ''}>600 - Semi Bold</option>
+                    <option value="700" ${settings.defaultFontWeight === '700' ? 'selected' : ''}>700 - Bold</option>
+                    <option value="900" ${settings.defaultFontWeight === '900' ? 'selected' : ''}>900 - Black</option>
                 </select>
             </div>
             <div class="form-group">
                 <label class="form-label">字體渲染</label>
                 <select class="form-control" id="fontRendering">
-                    <option value="auto">自動</option>
-                    <option value="optimizeSpeed">速度優先</option>
-                    <option value="optimizeLegibility">清晰度優先</option>
-                    <option value="geometricPrecision">幾何精度</option>
+                    <option value="auto" ${settings.fontRendering === 'auto' ? 'selected' : ''}>自動</option>
+                    <option value="optimizeSpeed" ${settings.fontRendering === 'optimizeSpeed' ? 'selected' : ''}>速度優先</option>
+                    <option value="optimizeLegibility" ${settings.fontRendering === 'optimizeLegibility' ? 'selected' : ''}>清晰度優先</option>
+                    <option value="geometricPrecision" ${settings.fontRendering === 'geometricPrecision' ? 'selected' : ''}>幾何精度</option>
                 </select>
             </div>
         </div>
-        <button class="btn btn-primary" onclick="saveFontSettings()">儲存設定</button>
+        <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+            <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+            <button class="btn btn-primary" onclick="saveFontSettings()">
+                <span class="material-icons">save</span>
+                儲存設定
+            </button>
+        </div>
     `;
     
     showModal('字體全域設定', content);
@@ -2208,132 +2534,130 @@ function saveFontSettings() {
     showNotification('字體設定已儲存', 'success');
 }
 
-// 加入動畫樣式
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
+// 顯示形狀製作指南
+function showShapeGuide() {
+    const content = `
+        <h4>形狀製作指南</h4>
+        <div class="info-list">
+            <p><strong>建議尺寸：</strong> 512x512px（正方形）</p>
+            <p><strong>檔案格式：</strong> PNG（透明背景）、SVG（向量圖）</p>
+            <p><strong>設計原則：</strong></p>
+            <ul style="margin-left: 20px;">
+                <li>使用透明背景，避免白色底色</li>
+                <li>形狀應該填滿畫布，留適當邊距</li>
+                <li>線條清晰，避免過細的線條</li>
+                <li>考慮縮小後的可讀性</li>
+            </ul>
+            <p><strong>推薦工具：</strong></p>
+            <ul style="margin-left: 20px;">
+                <li>Adobe Illustrator（專業）</li>
+                <li>Inkscape（免費）</li>
+                <li>Figma（線上）</li>
+                <li>Canva（簡易）</li>
+            </ul>
+        </div>
+        <div style="text-align: center; margin-top: 24px;">
+            <button class="btn btn-primary" onclick="closeModal()">了解</button>
+        </div>
+    `;
+    
+    showModal('形狀製作指南', content);
+}
+
+// 顯示圖案製作指南
+function showPatternGuide() {
+    const content = `
+        <h4>圖案製作指南</h4>
+        <div class="info-list">
+            <p><strong>建議尺寸：</strong> 64x64px（可平鋪）</p>
+            <p><strong>檔案格式：</strong> PNG、JPG、SVG</p>
+            <p><strong>設計原則：</strong></p>
+            <ul style="margin-left: 20px;">
+                <li>圖案必須可無縫平鋪</li>
+                <li>避免過於複雜的圖案</li>
+                <li>注意對比度，避免太淺或太深</li>
+                <li>測試平鋪效果是否自然</li>
+            </ul>
+            <p><strong>圖案類型：</strong></p>
+            <ul style="margin-left: 20px;">
+                <li>幾何圖案（點、線、格子）</li>
+                <li>自然紋理（木紋、石紋）</li>
+                <li>抽象圖案（漸層、雜訊）</li>
+                <li>傳統圖案（雲紋、回紋）</li>
+            </ul>
+        </div>
+        <div style="text-align: center; margin-top: 24px;">
+            <button class="btn btn-primary" onclick="closeModal()">了解</button>
+        </div>
+    `;
+    
+    showModal('圖案製作指南', content);
+}
+
+// 顯示快捷鍵
+function showShortcuts() {
+    const content = `
+        <div class="shortcut-list">
+            <h4>鍵盤快捷鍵</h4>
+            <p><kbd>Ctrl</kbd> + <kbd>S</kbd> - 儲存到 GitHub</p>
+            <p><kbd>Ctrl</kbd> + <kbd>O</kbd> - 從 GitHub 載入</p>
+            <p><kbd>Ctrl</kbd> + <kbd>E</kbd> - 匯出設定</p>
+            <p><kbd>Ctrl</kbd> + <kbd>/</kbd> - 顯示快捷鍵</p>
+            <p><kbd>Esc</kbd> - 關閉彈窗</p>
+            
+            <h4 style="margin-top: 24px;">操作提示</h4>
+            <p>• 拖放檔案到上傳區域快速上傳</p>
+            <p>• 拖曳表格中的排序圖示調整順序</p>
+            <p>• 點擊顏色預覽可複製色碼</p>
+            <p>• Ctrl + 右鍵可在後台使用開發者工具</p>
+        </div>
+        <div style="text-align: center; margin-top: 24px;">
+            <button class="btn btn-primary" onclick="closeModal()">關閉</button>
+        </div>
+    `;
+    
+    showModal('快捷鍵與操作提示', content);
+}
+
+// 設定鍵盤快捷鍵
+function setupKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        // Ctrl+S 儲存
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            saveToGitHub();
         }
-        to {
-            transform: translateX(0);
-            opacity: 1;
+        
+        // Ctrl+O 載入
+        if (e.ctrlKey && e.key === 'o') {
+            e.preventDefault();
+            loadFromGitHub();
         }
-    }
-    
-    @keyframes slideOut {
-        from {
-            transform: translateX(0);
-            opacity: 1;
+        
+        // Ctrl+E 匯出
+        if (e.ctrlKey && e.key === 'e') {
+            e.preventDefault();
+            exportSettings();
         }
-        to {
-            transform: translateX(100%);
-            opacity: 0;
+        
+        // Ctrl+/ 顯示快捷鍵
+        if (e.ctrlKey && e.key === '/') {
+            e.preventDefault();
+            showShortcuts();
         }
-    }
-    
-    .sortable-ghost {
-        opacity: 0.5;
-        background: var(--admin-bg-secondary);
-    }
-    
-    .dragging {
-        border-color: var(--admin-accent) !important;
-        background: rgba(106, 27, 154, 0.1) !important;
-    }
-    
-    .admin-modal {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 2000;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .admin-modal.active {
-        display: flex;
-    }
-    
-    .admin-modal-content {
-        background: var(--admin-bg-primary);
-        border-radius: 8px;
-        width: 90%;
-        max-width: 600px;
-        max-height: 90vh;
-        overflow: hidden;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    }
-    
-    .admin-modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 20px;
-        border-bottom: 1px solid var(--admin-border);
-    }
-    
-    .admin-modal-header h3 {
-        margin: 0;
-        color: var(--admin-text-primary);
-    }
-    
-    .admin-modal-body {
-        padding: 20px;
-        overflow-y: auto;
-        max-height: calc(90vh - 80px);
-    }
-    
-    .badge {
-        display: inline-block;
-        padding: 4px 8px;
-        font-size: 12px;
-        font-weight: 500;
-        border-radius: 4px;
-        margin-left: 10px;
-    }
-    
-    .badge-info {
-        background: var(--admin-accent);
-        color: white;
-    }
-    
-    .info-list p {
-        margin: 10px 0;
-        color: var(--admin-text-secondary);
-    }
-    
-    .info-list strong {
-        color: var(--admin-text-primary);
+    });
+}
+
+// 加入震動動畫
+const shakeStyle = document.createElement('style');
+shakeStyle.textContent = `
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-10px); }
+        75% { transform: translateX(10px); }
     }
 `;
-document.head.appendChild(style);
-
-// 監聽鍵盤快捷鍵
-document.addEventListener('keydown', (e) => {
-    // Ctrl+S 儲存
-    if (e.ctrlKey && e.key === 's') {
-        e.preventDefault();
-        saveToGitHub();
-    }
-    
-    // Ctrl+O 載入
-    if (e.ctrlKey && e.key === 'o') {
-        e.preventDefault();
-        loadFromGitHub();
-    }
-    
-    // Ctrl+E 匯出
-    if (e.ctrlKey && e.key === 'e') {
-        e.preventDefault();
-        exportSettings();
-    }
-});
+document.head.appendChild(shakeStyle);
 
 // 離開頁面前提醒
 window.addEventListener('beforeunload', (e) => {
@@ -2347,7 +2671,7 @@ window.addEventListener('beforeunload', (e) => {
     }
 });
 
-console.log('印章系統後台管理 v2.2.0 已載入');
-console.log('作者: DK0124');
-console.log('最後更新: 2025-01-29');
-console.log('預設帳號: admin / 密碼: 337088');
+console.log('🎯 印章系統後台管理 v3.0.0');
+console.log('👤 作者: DK0124');
+console.log('📅 最後更新: 2025-07-29');
+console.log('🔐 預設帳號: admin / 密碼: 0918124726');
