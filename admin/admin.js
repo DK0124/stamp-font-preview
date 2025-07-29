@@ -1,7 +1,7 @@
 /**
  * 印章系統後台管理
  * @author DK0124
- * @version 2.0.2
+ * @version 2.0.3
  * @date 2025-01-29
  */
 
@@ -233,7 +233,7 @@ function getDashboardContent() {
                 </div>
                 <div>
                     <p>最後更新：${new Date().toLocaleString('zh-TW')}</p>
-                    <p>系統版本：2.0.2</p>
+                    <p>系統版本：2.0.3</p>
                     <p>授權狀態：<span style="color: var(--admin-success);">有效</span></p>
                 </div>
             </div>
@@ -1260,7 +1260,7 @@ async function saveToGitHub() {
             })),
             colors: uploadedData.colors,
             lastUpdate: new Date().toISOString(),
-            version: '2.0.2'
+            version: '2.0.3'
         };
         
         console.log('準備儲存的資料:', config);
@@ -1519,10 +1519,13 @@ function setupSecurityFeatures() {
     
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
-            document.getElementById('screenshotProtection').style.display = 'flex';
-            setTimeout(() => {
-                document.getElementById('screenshotProtection').style.display = 'none';
-            }, 2000);
+            const screenshotProtection = document.getElementById('screenshotProtection');
+            if (screenshotProtection) {
+                screenshotProtection.style.display = 'flex';
+                setTimeout(() => {
+                    screenshotProtection.style.display = 'none';
+                }, 2000);
+            }
         }
     });
     
@@ -1566,7 +1569,33 @@ function handleDevToolsOpen() {
     }
 }
 
-// 生成浮水印 (續)
+// 生成浮水印
+function generateWatermark() {
+    const existingWatermark = document.getElementById('watermarkLayer');
+    if (existingWatermark) {
+        existingWatermark.remove();
+    }
+    
+    const watermarkLayer = document.createElement('div');
+    watermarkLayer.id = 'watermarkLayer';
+    watermarkLayer.className = 'watermark-layer';
+    watermarkLayer.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 9999;
+        overflow: hidden;
+        opacity: 0.08;
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+    `;
+    
+    const watermarkTextInput = document.getElementById('watermarkText');
     const watermarkText = watermarkTextInput ? watermarkTextInput.value : `© 2025 印章系統 - DK0124`;
     
     const screenWidth = window.innerWidth;
@@ -1829,13 +1858,33 @@ function showNotification(message, type = 'info') {
 
 // 模態框功能
 function showModal(title, content) {
+    let modal = document.getElementById('modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'modal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modalTitle"></h3>
+                    <button class="modal-close" onclick="closeModal()">&times;</button>
+                </div>
+                <div class="modal-body" id="modalBody"></div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
     document.getElementById('modalTitle').textContent = title;
     document.getElementById('modalBody').innerHTML = content;
-    document.getElementById('modal').classList.add('active');
+    modal.classList.add('active');
 }
 
 function closeModal() {
-    document.getElementById('modal').classList.remove('active');
+    const modal = document.getElementById('modal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
 }
 
 // 字體設定
@@ -1954,7 +2003,7 @@ function exportSettings() {
         patterns: uploadedData.patterns,
         colors: uploadedData.colors,
         exportDate: new Date().toISOString(),
-        version: '2.0.2'
+        version: '2.0.3'
     };
     
     const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
@@ -2107,6 +2156,58 @@ style.textContent = `
     .notification-exit {
         animation: slideOut 0.3s ease;
     }
+    
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 2000;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .modal.active {
+        display: flex;
+    }
+    
+    .modal-content {
+        background: var(--admin-bg);
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        max-width: 600px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+    
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px;
+        border-bottom: 1px solid var(--admin-border);
+    }
+    
+    .modal-header h3 {
+        margin: 0;
+        color: var(--admin-text);
+    }
+    
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: var(--admin-text-secondary);
+    }
+    
+    .modal-body {
+        padding: 20px;
+    }
 `;
 document.head.appendChild(style);
 
@@ -2119,7 +2220,7 @@ async function checkForUpdates() {
         
         if (response.ok) {
             const versionData = await response.json();
-            const currentVersion = '2.0.2';
+            const currentVersion = '2.0.3';
             
             if (versionData.version !== currentVersion) {
                 showNotification(`新版本可用: ${versionData.version}`, 'info');
@@ -2162,6 +2263,6 @@ window.addEventListener('beforeunload', (e) => {
     }
 });
 
-console.log('印章系統後台管理 v2.0.2 已載入');
+console.log('印章系統後台管理 v2.0.3 已載入');
 console.log('作者: DK0124');
-console.log('最後更新: 2025-01-29');
+console.log('最後更新: 2025-07-29');
