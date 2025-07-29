@@ -554,6 +554,36 @@ function initializeColorsPage() {
 // 初始化安全設定頁面
 function initializeSecurityPage() {
     // 載入已儲存的設定
+    const savedSettings = localStorage.getItem('securitySettings');
+    if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        
+        // 設定各個 checkbox 的值
+        if (document.getElementById('preventScreenshot')) {
+            document.getElementById('preventScreenshot').checked = settings.preventScreenshot !== false;
+        }
+        if (document.getElementById('enableWatermark')) {
+            document.getElementById('enableWatermark').checked = settings.enableWatermark !== false;
+        }
+        if (document.getElementById('disableRightClick')) {
+            document.getElementById('disableRightClick').checked = settings.disableRightClick !== false;
+        }
+        if (document.getElementById('disableTextSelect')) {
+            document.getElementById('disableTextSelect').checked = settings.disableTextSelect !== false;
+        }
+        if (document.getElementById('disableDevTools')) {
+            document.getElementById('disableDevTools').checked = settings.disableDevTools !== false;
+        }
+        if (document.getElementById('encryptFonts')) {
+            document.getElementById('encryptFonts').checked = settings.encryptFonts !== false;
+        }
+        if (document.getElementById('watermarkText')) {
+            document.getElementById('watermarkText').value = settings.watermarkText || '© 2025 印章系統 - DK0124';
+        }
+        if (document.getElementById('watermarkInterval')) {
+            document.getElementById('watermarkInterval').value = settings.watermarkInterval || 60;
+        }
+    }
 }
 
 // 處理字體檔案
@@ -1428,19 +1458,39 @@ function addGitHubButtons() {
 
 // 安全防護功能
 function setupSecurityFeatures() {
-    // 禁用右鍵
-    document.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        return false;
-    });
+    // 讀取安全設定
+    const savedSettings = localStorage.getItem('securitySettings');
+    let settings = {
+        preventScreenshot: true,
+        enableWatermark: true,
+        disableRightClick: true,
+        disableTextSelect: true,
+        disableDevTools: true,
+        encryptFonts: true
+    };
     
-    // 禁用文字選擇
-    document.addEventListener('selectstart', (e) => {
-        e.preventDefault();
-        return false;
-    });
+    if (savedSettings) {
+        settings = JSON.parse(savedSettings);
+    }
     
-    // 禁用拖放
+    // 根據設定啟用功能
+    if (settings.disableRightClick) {
+        // 禁用右鍵
+        document.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            return false;
+        });
+    }
+    
+    if (settings.disableTextSelect) {
+        // 禁用文字選擇
+        document.addEventListener('selectstart', (e) => {
+            e.preventDefault();
+            return false;
+        });
+    }
+    
+    // 禁用拖放（保護圖片）
     document.addEventListener('dragstart', (e) => {
         if (e.target.tagName === 'IMG') {
             e.preventDefault();
@@ -1448,32 +1498,36 @@ function setupSecurityFeatures() {
         }
     });
     
-    // 偵測截圖（基於 visibility change）
-    document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-            // 可能正在截圖
-            document.getElementById('screenshotProtection').style.display = 'flex';
-            setTimeout(() => {
-                document.getElementById('screenshotProtection').style.display = 'none';
-            }, 2000);
-        }
-    });
-    
-    // 偵測開發者工具
-    let devtools = { open: false, orientation: null };
-    const threshold = 160;
-    
-    setInterval(() => {
-        if (window.outerHeight - window.innerHeight > threshold || 
-            window.outerWidth - window.innerWidth > threshold) {
-            if (!devtools.open) {
-                devtools.open = true;
-                handleDevToolsOpen();
+    if (settings.preventScreenshot) {
+        // 偵測截圖（基於 visibility change）
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // 可能正在截圖
+                document.getElementById('screenshotProtection').style.display = 'flex';
+                setTimeout(() => {
+                    document.getElementById('screenshotProtection').style.display = 'none';
+                }, 2000);
             }
-        } else {
-            devtools.open = false;
-        }
-    }, 500);
+        });
+    }
+    
+    if (settings.disableDevTools) {
+        // 偵測開發者工具
+        let devtools = { open: false, orientation: null };
+        const threshold = 160;
+        
+        setInterval(() => {
+            if (window.outerHeight - window.innerHeight > threshold || 
+                window.outerWidth - window.innerWidth > threshold) {
+                if (!devtools.open) {
+                    devtools.open = true;
+                    handleDevToolsOpen();
+                }
+            } else {
+                devtools.open = false;
+            }
+        }, 500);
+    }
     
     // 禁用 F12 和其他快捷鍵
     document.addEventListener('keydown', (e) => {
@@ -1509,7 +1563,10 @@ function generateWatermark() {
     const watermarkLayer = document.getElementById('watermarkLayer');
     const textElement = document.getElementById('watermarkText');
     const text = textElement ? textElement.value : '© 2025 印章系統 - DK0124';
-    
+    const savedSettings = localStorage.getItem('securitySettings');
+    let settings = {
+        enable
+
     watermarkLayer.innerHTML = '';
     for (let i = 0; i < 50; i++) {
         const span = document.createElement('span');
