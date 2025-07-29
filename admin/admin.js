@@ -1,7 +1,7 @@
 /**
  * 印章系統後台管理
  * @author DK0124
- * @version 2.1.0
+ * @version 2.2.0
  * @date 2025-01-29
  */
 
@@ -12,6 +12,69 @@ let uploadedData = {
     shapes: [],
     patterns: [],
     colors: []
+};
+
+// 登入設定
+const AdminAuth = {
+    defaultUsername: 'admin',
+    defaultPassword: '1234',
+    sessionKey: 'admin_session',
+    
+    // 檢查是否已登入
+    isLoggedIn: function() {
+        const session = sessionStorage.getItem(this.sessionKey);
+        if (!session) return false;
+        
+        try {
+            const sessionData = JSON.parse(session);
+            // 檢查 session 是否過期（24小時）
+            if (new Date().getTime() - sessionData.loginTime > 24 * 60 * 60 * 1000) {
+                this.logout();
+                return false;
+            }
+            return true;
+        } catch (e) {
+            return false;
+        }
+    },
+    
+    // 登入
+    login: function(username, password) {
+        // 取得儲存的帳密（如果有）
+        const savedAuth = JSON.parse(localStorage.getItem('admin_auth') || '{}');
+        const validUsername = savedAuth.username || this.defaultUsername;
+        const validPassword = savedAuth.password || this.defaultPassword;
+        
+        if (username === validUsername && password === validPassword) {
+            const sessionData = {
+                username: username,
+                loginTime: new Date().getTime()
+            };
+            sessionStorage.setItem(this.sessionKey, JSON.stringify(sessionData));
+            return true;
+        }
+        return false;
+    },
+    
+    // 登出
+    logout: function() {
+        sessionStorage.removeItem(this.sessionKey);
+        window.location.reload();
+    },
+    
+    // 修改密碼
+    changePassword: function(oldPassword, newPassword) {
+        const savedAuth = JSON.parse(localStorage.getItem('admin_auth') || '{}');
+        const currentPassword = savedAuth.password || this.defaultPassword;
+        
+        if (oldPassword === currentPassword) {
+            savedAuth.username = savedAuth.username || this.defaultUsername;
+            savedAuth.password = newPassword;
+            localStorage.setItem('admin_auth', JSON.stringify(savedAuth));
+            return true;
+        }
+        return false;
+    }
 };
 
 // GitHub 設定
@@ -42,9 +105,15 @@ const GitHubConfig = {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', function() {
+    // 檢查登入狀態
+    if (!AdminAuth.isLoggedIn()) {
+        showLoginPage();
+        return;
+    }
+    
+    // 已登入，初始化後台
     initializeAdmin();
-    setupSecurityFeatures();
-    generateWatermark();
+    setupBackendSecurity();
     
     // 載入 GitHub 設定
     setTimeout(() => {
@@ -52,11 +121,127 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 1000);
 });
 
+// 顯示登入頁面
+function showLoginPage() {
+    document.body.innerHTML = `
+        <div class="login-container">
+            <div class="login-box">
+                <div class="login-header">
+                    <span class="material-icons" style="font-size: 48px; color: var(--admin-accent);">admin_panel_settings</span>
+                    <h2>印章系統後台管理</h2>
+                </div>
+                <form id="loginForm" onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label class="form-label">使用者名稱</label>
+                        <input type="text" class="form-control" id="username" required autofocus>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">密碼</label>
+                        <input type="password" class="form-control" id="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">
+                        <span class="material-icons">login</span>
+                        登入
+                    </button>
+                </form>
+                <div id="loginError" style="color: var(--admin-danger); margin-top: 10px; display: none;"></div>
+            </div>
+        </div>
+        <style>
+            .login-container {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                background: var(--admin-bg-primary);
+            }
+            .login-box {
+                background: var(--admin-bg-secondary);
+                padding: 40px;
+                border-radius: 10px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+                width: 100%;
+                max-width: 400px;
+            }
+            .login-header {
+                text-align: center;
+                margin-bottom: 30px;
+            }
+            .login-header h2 {
+                margin-top: 10px;
+                color: var(--admin-text-primary);
+            }
+        </style>
+    `;
+}
+
+// 處理登入
+function handleLogin(event) {
+    event.preventDefault();
+    
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    
+    if (AdminAuth.login(username, password)) {
+        window.location.reload();
+    } else {
+        const errorDiv = document.getElementById('loginError');
+        errorDiv.textContent = '使用者名稱或密碼錯誤';
+        errorDiv.style.display = 'block';
+        
+        // 清除密碼欄位
+        document.getElementById('password').value = '';
+    }
+}
+
 // 初始化管理系統
 function initializeAdmin() {
+    // 重建頁面結構（登入後）
+    document.body.innerHTML = `
+        <div class="admin-wrapper">
+            <nav class="admin-sidebar">
+                <div class="admin-logo">
+                    <span class="material-icons">admin_panel_settings</span>
+                    <h3>印章系統後台</h3>
+                </div>
+                <ul class="admin-nav">
+                    <li><a href="#" class="admin-nav-item active" data-page="dashboard"><span class="material-icons">dashboard</span> 總覽</a></li>
+                    <li><a href="#" class="admin-nav-item" data-page="fonts"><span class="material-icons">text_fields</span> 字體管理</a></li>
+                    <li><a href="#" class="admin-nav-item" data-page="shapes"><span class="material-icons">category</span> 形狀管理</a></li>
+                    <li><a href="#" class="admin-nav-item" data-page="patterns"><span class="material-icons">texture</span> 圖案管理</a></li>
+                    <li><a href="#" class="admin-nav-item" data-page="colors"><span class="material-icons">palette</span> 顏色管理</a></li>
+                    <li><a href="#" class="admin-nav-item" data-page="security"><span class="material-icons">security</span> 前台安全設定</a></li>
+                    <li><a href="#" class="admin-nav-item" data-page="account"><span class="material-icons">account_circle</span> 帳號設定</a></li>
+                </ul>
+            </nav>
+            <main class="admin-main">
+                <header class="admin-header">
+                    <h2 id="pageTitle">總覽</h2>
+                    <div class="admin-user">
+                        <span class="material-icons">account_circle</span>
+                        <span>管理員</span>
+                        <button class="btn btn-sm btn-secondary" onclick="AdminAuth.logout()">
+                            <span class="material-icons">logout</span>
+                            登出
+                        </button>
+                    </div>
+                </header>
+                <div class="admin-content" id="adminContent">
+                    <!-- 動態內容 -->
+                </div>
+            </main>
+        </div>
+        <div id="screenshotProtection" class="screenshot-protection">
+            <span class="material-icons">no_photography</span>
+            <p>禁止截圖</p>
+        </div>
+        <div id="watermarkLayer" class="watermark-layer"></div>
+    `;
+    
     // 側邊欄導航
     document.querySelectorAll('.admin-nav-item').forEach(item => {
-        item.addEventListener('click', function() {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
             document.querySelectorAll('.admin-nav-item').forEach(i => i.classList.remove('active'));
             this.classList.add('active');
             
@@ -67,6 +252,11 @@ function initializeAdmin() {
 
     // 載入初始頁面
     loadPage('dashboard');
+    
+    // 初始化後加入 GitHub 按鈕
+    setTimeout(() => {
+        addGitHubButtons();
+    }, 500);
 }
 
 // 載入頁面內容
@@ -101,9 +291,13 @@ function loadPage(page) {
             initializeColorsPage();
             break;
         case 'security':
-            title.textContent = '安全設定';
+            title.textContent = '前台安全設定';
             content.innerHTML = getSecurityContent();
             initializeSecurityPage();
+            break;
+        case 'account':
+            title.textContent = '帳號設定';
+            content.innerHTML = getAccountContent();
             break;
     }
 }
@@ -168,14 +362,14 @@ function getDashboardContent() {
             </div>
             <div class="grid grid-2">
                 <div>
-                    <p>防截圖保護：<span style="color: var(--admin-success);">啟用</span></p>
-                    <p>浮水印保護：<span style="color: var(--admin-success);">啟用</span></p>
-                    <p>右鍵保護：<span style="color: var(--admin-success);">啟用</span></p>
+                    <p>前台防截圖保護：<span id="frontSecurityStatus" style="color: var(--admin-success);">檢查中...</span></p>
+                    <p>前台浮水印保護：<span id="frontWatermarkStatus" style="color: var(--admin-success);">檢查中...</span></p>
+                    <p>前台右鍵保護：<span id="frontRightClickStatus" style="color: var(--admin-success);">檢查中...</span></p>
                 </div>
                 <div>
                     <p>最後更新：${new Date().toLocaleString('zh-TW')}</p>
-                    <p>系統版本：2.1.0</p>
-                    <p>授權狀態：<span style="color: var(--admin-success);">有效</span></p>
+                    <p>系統版本：2.2.0</p>
+                    <p>登入時間：${new Date(JSON.parse(sessionStorage.getItem('admin_session')).loginTime).toLocaleString('zh-TW')}</p>
                 </div>
             </div>
         </div>
@@ -368,69 +562,220 @@ function getColorsContent() {
     `;
 }
 
-// 安全設定頁面
+// 前台安全設定頁面（與後台分離）
 function getSecurityContent() {
+    // 載入前台安全設定
+    const savedSettings = JSON.parse(localStorage.getItem('frontend_security_settings') || '{}');
+    
     return `
         <div class="admin-card">
             <div class="admin-card-header">
                 <div class="admin-card-title">
                     <span class="material-icons">security</span>
-                    安全防護設定
+                    前台安全防護設定
                 </div>
+                <span class="badge badge-info">這些設定只影響前台使用者介面</span>
             </div>
             <div class="grid grid-2">
                 <div class="form-group">
                     <label class="form-label">
-                        <input type="checkbox" id="preventScreenshot" checked>
+                        <input type="checkbox" id="frontPreventScreenshot" ${savedSettings.preventScreenshot !== false ? 'checked' : ''}>
                         防止截圖保護
                     </label>
                     <p style="font-size: 12px; color: var(--admin-border); margin-top: 5px;">
-                        偵測到截圖行為時顯示黑畫面
+                        前台偵測到截圖行為時顯示黑畫面
                     </p>
                 </div>
                 <div class="form-group">
                     <label class="form-label">
-                        <input type="checkbox" id="enableWatermark" checked>
+                        <input type="checkbox" id="frontEnableWatermark" ${savedSettings.enableWatermark !== false ? 'checked' : ''}>
                         啟用浮水印
                     </label>
                     <p style="font-size: 12px; color: var(--admin-border); margin-top: 5px;">
-                        在整個介面顯示浮水印
+                        在前台印章預覽介面顯示浮水印
                     </p>
                 </div>
                 <div class="form-group">
                     <label class="form-label">
-                        <input type="checkbox" id="disableRightClick" checked>
+                        <input type="checkbox" id="frontDisableRightClick" ${savedSettings.disableRightClick !== false ? 'checked' : ''}>
                         禁用右鍵選單
                     </label>
                     <p style="font-size: 12px; color: var(--admin-border); margin-top: 5px;">
-                        防止右鍵另存圖片
+                        防止前台使用者右鍵另存圖片
                     </p>
                 </div>
                 <div class="form-group">
                     <label class="form-label">
-                        <input type="checkbox" id="disableTextSelect" checked>
+                        <input type="checkbox" id="frontDisableTextSelect" ${savedSettings.disableTextSelect !== false ? 'checked' : ''}>
                         禁止文字選取
                     </label>
                     <p style="font-size: 12px; color: var(--admin-border); margin-top: 5px;">
-                        防止複製文字內容
+                        防止前台使用者複製文字內容
                     </p>
                 </div>
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="frontDisableDevTools" ${savedSettings.disableDevTools !== false ? 'checked' : ''}>
+                        偵測開發者工具
+                    </label>
+                    <p style="font-size: 12px; color: var(--admin-border); margin-top: 5px;">
+                        前台開啟開發者工具時顯示警告
+                    </p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="frontDisablePrint" ${savedSettings.disablePrint !== false ? 'checked' : ''}>
+                        禁止列印
+                    </label>
+                    <p style="font-size: 12px; color: var(--admin-border); margin-top: 5px;">
+                        防止前台使用者列印頁面
+                    </p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="frontDisableDrag" ${savedSettings.disableDrag !== false ? 'checked' : ''}>
+                        禁止拖曳圖片
+                    </label>
+                    <p style="font-size: 12px; color: var(--admin-border); margin-top: 5px;">
+                        防止前台使用者拖曳圖片到其他地方
+                    </p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="frontBlurOnLoseFocus" ${savedSettings.blurOnLoseFocus ? 'checked' : ''}>
+                        失焦模糊
+                    </label>
+                    <p style="font-size: 12px; color: var(--admin-border); margin-top: 5px;">
+                        當使用者切換視窗時模糊內容
+                    </p>
+                </div>
+            </div>
+            <div style="margin-top: 20px;">
+                <button class="btn btn-success" onclick="updateFrontendSecuritySettings()">
+                    <span class="material-icons">save</span>
+                    儲存前台安全設定
+                </button>
+                <button class="btn btn-secondary" onclick="resetFrontendSecuritySettings()" style="margin-left: 10px;">
+                    <span class="material-icons">restart_alt</span>
+                    重設為預設值
+                </button>
+            </div>
+        </div>
+        
+        <div class="admin-card">
+            <div class="admin-card-header">
+                <div class="admin-card-title">
+                    <span class="material-icons">text_fields</span>
+                    前台浮水印設定
+                </div>
+            </div>
+            <div class="grid grid-2">
+                <div class="form-group">
+                    <label class="form-label">浮水印文字</label>
+                    <input type="text" class="form-control" id="frontWatermarkText" value="${savedSettings.watermarkText || '© 2025 印章系統 - 版權所有'}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">更新頻率（秒）</label>
+                    <input type="number" class="form-control" id="frontWatermarkInterval" value="${savedSettings.watermarkInterval || 60}" min="10">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">透明度</label>
+                    <input type="range" class="form-control" id="frontWatermarkOpacity" value="${savedSettings.watermarkOpacity || 0.03}" min="0.01" max="0.1" step="0.01">
+                    <span id="frontOpacityValue">${((savedSettings.watermarkOpacity || 0.03) * 100).toFixed(0)}%</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">字體大小</label>
+                    <input type="number" class="form-control" id="frontWatermarkFontSize" value="${savedSettings.watermarkFontSize || 10}" min="8" max="20">
+                </div>
+            </div>
+            <button class="btn btn-success" onclick="updateFrontendWatermarkSettings()">
+                <span class="material-icons">save</span>
+                儲存浮水印設定
+            </button>
+        </div>
+        
+        <div class="admin-card">
+            <div class="admin-card-header">
+                <div class="admin-card-title">
+                    <span class="material-icons">warning</span>
+                    前台警告訊息設定
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">截圖警告訊息</label>
+                <input type="text" class="form-control" id="frontScreenshotWarning" value="${savedSettings.screenshotWarning || '禁止截圖 - 版權所有'}">
+            </div>
+            <div class="form-group">
+                <label class="form-label">開發者工具警告訊息</label>
+                <textarea class="form-control" id="frontDevToolsWarning" rows="3">${savedSettings.devToolsWarning || '警告：偵測到開發者工具！\n本系統內容受版權保護，禁止任何形式的複製或下載。'}</textarea>
+            </div>
+            <button class="btn btn-success" onclick="updateFrontendWarningMessages()">
+                <span class="material-icons">save</span>
+                儲存警告訊息
+            </button>
+        </div>
+    `;
+}
+
+// 帳號設定頁面
+function getAccountContent() {
+    return `
+        <div class="admin-card">
+            <div class="admin-card-header">
+                <div class="admin-card-title">
+                    <span class="material-icons">lock</span>
+                    修改密碼
+                </div>
+            </div>
+            <form onsubmit="handleChangePassword(event)">
+                <div class="form-group">
+                    <label class="form-label">目前密碼</label>
+                    <input type="password" class="form-control" id="currentPassword" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">新密碼</label>
+                    <input type="password" class="form-control" id="newPassword" required minlength="6">
+                    <p style="font-size: 12px; color: var(--admin-border); margin-top: 5px;">
+                        密碼長度至少 6 個字元
+                    </p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">確認新密碼</label>
+                    <input type="password" class="form-control" id="confirmPassword" required>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <span class="material-icons">save</span>
+                    更新密碼
+                </button>
+            </form>
+        </div>
+        
+        <div class="admin-card">
+            <div class="admin-card-header">
+                <div class="admin-card-title">
+                    <span class="material-icons">info</span>
+                    登入資訊
+                </div>
+            </div>
+            <div class="info-list">
+                <p><strong>目前使用者：</strong> ${JSON.parse(sessionStorage.getItem('admin_session')).username}</p>
+                <p><strong>登入時間：</strong> ${new Date(JSON.parse(sessionStorage.getItem('admin_session')).loginTime).toLocaleString('zh-TW')}</p>
+                <p><strong>預設帳號：</strong> admin</p>
+                <p><strong>預設密碼：</strong> 1234</p>
             </div>
         </div>
     `;
 }
 
-// 初始化字體頁面
+// 初始化各頁面功能（保持原有功能）
 function initializeFontsPage() {
     const uploadArea = document.getElementById('fontUploadArea');
     const fileInput = document.getElementById('fontFileInput');
     
     if (!uploadArea || !fileInput) return;
     
-    // 點擊上傳
     uploadArea.addEventListener('click', () => fileInput.click());
     
-    // 拖放上傳
     uploadArea.addEventListener('dragover', (e) => {
         e.preventDefault();
         uploadArea.classList.add('dragging');
@@ -450,11 +795,9 @@ function initializeFontsPage() {
         handleFontFiles(e.target.files);
     });
     
-    // 更新字體表格
     updateFontsTable();
 }
 
-// 初始化形狀頁面
 function initializeShapesPage() {
     const uploadArea = document.getElementById('shapeUploadArea');
     const fileInput = document.getElementById('shapeFileInput');
@@ -485,7 +828,6 @@ function initializeShapesPage() {
     updateShapesPreview();
 }
 
-// 初始化圖案頁面
 function initializePatternsPage() {
     const uploadArea = document.getElementById('patternUploadArea');
     const fileInput = document.getElementById('patternFileInput');
@@ -516,17 +858,199 @@ function initializePatternsPage() {
     updatePatternsPreview();
 }
 
-// 初始化顏色頁面
 function initializeColorsPage() {
     displayColorGroups();
 }
 
-// 初始化安全設定頁面
+// 初始化前台安全設定頁面
 function initializeSecurityPage() {
-    // 載入已儲存的設定
+    // 監聽透明度滑桿變化
+    const opacitySlider = document.getElementById('frontWatermarkOpacity');
+    const opacityValue = document.getElementById('frontOpacityValue');
+    
+    if (opacitySlider && opacityValue) {
+        opacitySlider.addEventListener('input', function() {
+            opacityValue.textContent = (this.value * 100).toFixed(0) + '%';
+        });
+    }
+    
+    // 更新前台安全狀態顯示
+    updateFrontendSecurityStatus();
 }
 
-// 處理字體檔案
+// 更新前台安全狀態
+function updateFrontendSecurityStatus() {
+    const settings = JSON.parse(localStorage.getItem('frontend_security_settings') || '{}');
+    
+    // 更新總覽頁面的狀態顯示
+    const statusElements = {
+        'frontSecurityStatus': settings.preventScreenshot !== false,
+        'frontWatermarkStatus': settings.enableWatermark !== false,
+        'frontRightClickStatus': settings.disableRightClick !== false
+    };
+    
+    for (const [id, enabled] of Object.entries(statusElements)) {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = enabled ? '啟用' : '停用';
+            element.style.color = enabled ? 'var(--admin-success)' : 'var(--admin-warning)';
+        }
+    }
+}
+
+// 更新前台安全設定
+function updateFrontendSecuritySettings() {
+    const settings = {
+        preventScreenshot: document.getElementById('frontPreventScreenshot').checked,
+        enableWatermark: document.getElementById('frontEnableWatermark').checked,
+        disableRightClick: document.getElementById('frontDisableRightClick').checked,
+        disableTextSelect: document.getElementById('frontDisableTextSelect').checked,
+        disableDevTools: document.getElementById('frontDisableDevTools').checked,
+        disablePrint: document.getElementById('frontDisablePrint').checked,
+        disableDrag: document.getElementById('frontDisableDrag').checked,
+        blurOnLoseFocus: document.getElementById('frontBlurOnLoseFocus').checked,
+        watermarkText: document.getElementById('frontWatermarkText').value,
+        watermarkInterval: document.getElementById('frontWatermarkInterval').value,
+        watermarkOpacity: document.getElementById('frontWatermarkOpacity').value,
+        watermarkFontSize: document.getElementById('frontWatermarkFontSize').value,
+        screenshotWarning: document.getElementById('frontScreenshotWarning').value,
+        devToolsWarning: document.getElementById('frontDevToolsWarning').value,
+        lastUpdate: new Date().toISOString()
+    };
+    
+    // 儲存到 localStorage
+    localStorage.setItem('frontend_security_settings', JSON.stringify(settings));
+    
+    showNotification('前台安全設定已儲存', 'success');
+    
+    // 更新狀態顯示
+    updateFrontendSecurityStatus();
+    
+    // 詢問是否同步到 GitHub
+    if (confirm('是否要將前台安全設定同步到 GitHub？')) {
+        syncFrontendSecurityToGitHub(settings);
+    }
+}
+
+// 更新前台浮水印設定
+function updateFrontendWatermarkSettings() {
+    const settings = JSON.parse(localStorage.getItem('frontend_security_settings') || '{}');
+    
+    settings.watermarkText = document.getElementById('frontWatermarkText').value;
+    settings.watermarkInterval = document.getElementById('frontWatermarkInterval').value;
+    settings.watermarkOpacity = document.getElementById('frontWatermarkOpacity').value;
+    settings.watermarkFontSize = document.getElementById('frontWatermarkFontSize').value;
+    
+    localStorage.setItem('frontend_security_settings', JSON.stringify(settings));
+    
+    showNotification('前台浮水印設定已更新', 'success');
+}
+
+// 更新前台警告訊息
+function updateFrontendWarningMessages() {
+    const settings = JSON.parse(localStorage.getItem('frontend_security_settings') || '{}');
+    
+    settings.screenshotWarning = document.getElementById('frontScreenshotWarning').value;
+    settings.devToolsWarning = document.getElementById('frontDevToolsWarning').value;
+    
+    localStorage.setItem('frontend_security_settings', JSON.stringify(settings));
+    
+    showNotification('前台警告訊息已更新', 'success');
+}
+
+// 重設前台安全設定
+function resetFrontendSecuritySettings() {
+    if (confirm('確定要將所有前台安全設定重設為預設值嗎？')) {
+        localStorage.removeItem('frontend_security_settings');
+        loadPage('security');
+        showNotification('前台安全設定已重設為預設值', 'info');
+    }
+}
+
+// 同步前台安全設定到 GitHub
+async function syncFrontendSecurityToGitHub(settings) {
+    try {
+        // 將前台安全設定加入整體設定
+        const config = await getCurrentConfig();
+        config.frontendSecurity = settings;
+        
+        await saveConfigToGitHub(config);
+        showNotification('前台安全設定已同步到 GitHub', 'success');
+    } catch (error) {
+        console.error('同步前台安全設定失敗:', error);
+        showNotification('同步前台安全設定失敗', 'danger');
+    }
+}
+
+// 處理修改密碼
+function handleChangePassword(event) {
+    event.preventDefault();
+    
+    const currentPassword = document.getElementById('currentPassword').value;
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    
+    if (newPassword !== confirmPassword) {
+        showNotification('新密碼與確認密碼不符', 'danger');
+        return;
+    }
+    
+    if (AdminAuth.changePassword(currentPassword, newPassword)) {
+        showNotification('密碼修改成功，請重新登入', 'success');
+        setTimeout(() => {
+            AdminAuth.logout();
+        }, 2000);
+    } else {
+        showNotification('目前密碼錯誤', 'danger');
+        document.getElementById('currentPassword').value = '';
+    }
+}
+
+// 後台安全防護（只針對後台）
+function setupBackendSecurity() {
+    // 後台專用的安全設定
+    
+    // 禁用右鍵（後台）
+    document.addEventListener('contextmenu', (e) => {
+        if (!e.ctrlKey) { // 允許 Ctrl+右鍵 for 開發
+            e.preventDefault();
+            return false;
+        }
+    });
+    
+    // 禁用文字選擇（部分區域）
+    document.addEventListener('selectstart', (e) => {
+        if (e.target.closest('.admin-table') || e.target.closest('.preview-item')) {
+            e.preventDefault();
+            return false;
+        }
+    });
+    
+    // 偵測開發者工具（僅警告）
+    let devtools = { open: false };
+    const threshold = 160;
+    
+    setInterval(() => {
+        if (window.outerHeight - window.innerHeight > threshold || 
+            window.outerWidth - window.innerWidth > threshold) {
+            if (!devtools.open) {
+                devtools.open = true;
+                console.warn('後台偵測到開發者工具');
+            }
+        } else {
+            devtools.open = false;
+        }
+    }, 500);
+    
+    // Session 超時檢查
+    setInterval(() => {
+        if (!AdminAuth.isLoggedIn()) {
+            window.location.reload();
+        }
+    }, 60000); // 每分鐘檢查一次
+}
+
+// 處理檔案上傳（保持原有功能）
 function handleFontFiles(files) {
     Array.from(files).forEach(file => {
         if (file.name.match(/\.(ttf|otf|woff|woff2)$/i)) {
@@ -559,7 +1083,6 @@ function handleFontFiles(files) {
     });
 }
 
-// 處理形狀檔案
 function handleShapeFiles(files) {
     Array.from(files).forEach(file => {
         if (file.name.match(/\.(png|jpg|jpeg|svg)$/i)) {
@@ -588,7 +1111,6 @@ function handleShapeFiles(files) {
     });
 }
 
-// 處理圖案檔案
 function handlePatternFiles(files) {
     Array.from(files).forEach(file => {
         if (file.name.match(/\.(png|jpg|jpeg|svg)$/i)) {
@@ -617,7 +1139,7 @@ function handlePatternFiles(files) {
     });
 }
 
-// 更新字體表格
+// 更新顯示函數（保持原有功能）
 function updateFontsTable() {
     const tbody = document.getElementById('fontsTableBody');
     if (!tbody) return;
@@ -650,7 +1172,6 @@ function updateFontsTable() {
     `).join('');
 }
 
-// 更新形狀預覽
 function updateShapesPreview() {
     const preview = document.getElementById('shapesPreview');
     if (!preview) return;
@@ -669,7 +1190,6 @@ function updateShapesPreview() {
     `).join('');
 }
 
-// 更新圖案預覽
 function updatePatternsPreview() {
     const preview = document.getElementById('patternsPreview');
     if (!preview) return;
@@ -688,7 +1208,7 @@ function updatePatternsPreview() {
     `).join('');
 }
 
-// 新增顏色組
+// 顏色管理功能
 function addColorGroup() {
     const name = document.getElementById('colorName').value;
     const mainColor = document.getElementById('colorMain').value;
@@ -708,19 +1228,16 @@ function addColorGroup() {
     uploadedData.colors.push(colorGroup);
     displayColorGroups();
     
-    // 清空輸入
     document.getElementById('colorName').value = '';
     document.getElementById('colorMain').value = '#dc3545';
     
     showNotification('顏色組新增成功', 'success');
 }
 
-// 生成顏色漸層
 function generateColorShades(baseColor) {
     const shades = [];
     const color = hexToRgb(baseColor);
     
-    // 生成4個漸層色
     for (let i = 0; i < 4; i++) {
         const factor = 1 - (i * 0.2);
         const shade = {
@@ -734,7 +1251,6 @@ function generateColorShades(baseColor) {
     return shades;
 }
 
-// 顏色轉換輔助函數
 function hexToRgb(hex) {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result ? {
@@ -748,7 +1264,6 @@ function rgbToHex(r, g, b) {
     return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
 
-// 顯示顏色組
 function displayColorGroups() {
     const container = document.getElementById('colorGroups');
     if (!container) return;
@@ -767,9 +1282,7 @@ function displayColorGroups() {
     `).join('');
 }
 
-// ============= GitHub 整合功能 =============
-
-// 從 GitHub 刪除檔案
+// GitHub 整合功能（保持原有功能）
 async function deleteFileFromGitHub(filePath) {
     const token = GitHubConfig.getToken();
     if (!token) {
@@ -780,7 +1293,6 @@ async function deleteFileFromGitHub(filePath) {
     try {
         const apiUrl = `https://api.github.com/repos/${GitHubConfig.owner}/${GitHubConfig.repo}/contents/${filePath}`;
         
-        // 先取得檔案資訊（需要 SHA）
         const getResponse = await fetch(apiUrl, {
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -790,13 +1302,12 @@ async function deleteFileFromGitHub(filePath) {
         
         if (!getResponse.ok) {
             console.log('檔案不存在或無法存取');
-            return true; // 檔案不存在也算刪除成功
+            return true;
         }
         
         const fileData = await getResponse.json();
         const sha = fileData.sha;
         
-        // 刪除檔案
         const deleteResponse = await fetch(apiUrl, {
             method: 'DELETE',
             headers: {
@@ -828,7 +1339,7 @@ async function deleteFileFromGitHub(filePath) {
     }
 }
 
-// 刪除字體
+// 刪除功能
 async function deleteFont(id) {
     const font = uploadedData.fonts.find(f => f.id == id);
     if (!font) return;
@@ -839,7 +1350,6 @@ async function deleteFont(id) {
     
     if (!confirm(confirmMessage)) return;
     
-    // 如果字體已上傳到 GitHub，先刪除檔案
     if (font.uploaded && font.githubPath) {
         showNotification(`正在從 GitHub 刪除字體檔案...`, 'info');
         
@@ -854,19 +1364,16 @@ async function deleteFont(id) {
         }
     }
     
-    // 從本地列表移除
     uploadedData.fonts = uploadedData.fonts.filter(f => f.id != id);
     updateFontsTable();
     
     showNotification(`字體 "${font.name}" 已刪除`, 'info');
     
-    // 自動儲存設定到 GitHub（更新 config.json）
     setTimeout(() => {
         saveToGitHub();
     }, 1000);
 }
 
-// 刪除形狀
 async function deleteShape(id) {
     const shape = uploadedData.shapes.find(s => s.id == id);
     if (!shape) return;
@@ -877,7 +1384,6 @@ async function deleteShape(id) {
     
     if (!confirm(confirmMessage)) return;
     
-    // 如果已上傳到 GitHub，先刪除檔案
     if (shape.uploaded && shape.githubPath) {
         showNotification(`正在從 GitHub 刪除形狀檔案...`, 'info');
         
@@ -892,19 +1398,16 @@ async function deleteShape(id) {
         }
     }
     
-    // 從本地列表移除
     uploadedData.shapes = uploadedData.shapes.filter(s => s.id != id);
     updateShapesPreview();
     
     showNotification(`形狀 "${shape.name}" 已刪除`, 'info');
     
-    // 自動儲存設定
     setTimeout(() => {
         saveToGitHub();
     }, 1000);
 }
 
-// 刪除圖案
 async function deletePattern(id) {
     const pattern = uploadedData.patterns.find(p => p.id == id);
     if (!pattern) return;
@@ -915,7 +1418,6 @@ async function deletePattern(id) {
     
     if (!confirm(confirmMessage)) return;
     
-    // 如果已上傳到 GitHub，先刪除檔案
     if (pattern.uploaded && pattern.githubPath) {
         showNotification(`正在從 GitHub 刪除圖案檔案...`, 'info');
         
@@ -930,19 +1432,16 @@ async function deletePattern(id) {
         }
     }
     
-    // 從本地列表移除
     uploadedData.patterns = uploadedData.patterns.filter(p => p.id != id);
     updatePatternsPreview();
     
     showNotification(`圖案 "${pattern.name}" 已刪除`, 'info');
     
-    // 自動儲存設定
     setTimeout(() => {
         saveToGitHub();
     }, 1000);
 }
 
-// 刪除顏色
 function deleteColor(id) {
     if (confirm('確定要刪除這個顏色組嗎？')) {
         uploadedData.colors = uploadedData.colors.filter(c => c.id != id);
@@ -951,7 +1450,7 @@ function deleteColor(id) {
     }
 }
 
-// 編輯字體
+// 編輯功能
 function editFont(id) {
     const font = uploadedData.fonts.find(f => f.id == id);
     if (!font) return;
@@ -981,7 +1480,6 @@ function editFont(id) {
     showModal('編輯字體', content);
 }
 
-// 儲存編輯的字體
 function saveEditFont(id) {
     const font = uploadedData.fonts.find(f => f.id == id);
     if (!font) return;
@@ -994,7 +1492,7 @@ function saveEditFont(id) {
     showNotification('字體已更新', 'success');
 }
 
-// 上傳單一字體檔案
+// 上傳功能
 async function uploadSingleFont(fontId) {
     const font = uploadedData.fonts.find(f => f.id == fontId);
     if (!font) return;
@@ -1006,7 +1504,6 @@ async function uploadSingleFont(fontId) {
     }
 }
 
-// 上傳字體檔案到 GitHub
 async function uploadFontFile(fontData) {
     const token = GitHubConfig.getToken();
     if (!token) {
@@ -1018,14 +1515,10 @@ async function uploadFontFile(fontData) {
         console.log('開始上傳字體檔案:', fontData.name);
         showNotification(`正在上傳字體: ${fontData.name}...`, 'info');
         
-        // 從 data URL 提取 base64 內容
         const base64Content = fontData.url.split(',')[1];
-        
-        // 檔案路徑 - 使用原始檔名
         const filePath = `assets/fonts/${fontData.filename}`;
         const apiUrl = `https://api.github.com/repos/${GitHubConfig.owner}/${GitHubConfig.repo}/contents/${filePath}`;
         
-        // 檢查檔案是否已存在
         let sha = null;
         const checkResponse = await fetch(apiUrl, {
             headers: {
@@ -1040,7 +1533,6 @@ async function uploadFontFile(fontData) {
             console.log('檔案已存在，將更新');
         }
         
-        // 上傳或更新檔案
         const requestBody = {
             message: `Upload font: ${fontData.name}`,
             content: base64Content,
@@ -1082,7 +1574,6 @@ async function uploadFontFile(fontData) {
     }
 }
 
-// 批次上傳所有字體檔案
 async function uploadAllFonts() {
     const token = GitHubConfig.getToken();
     if (!token) {
@@ -1111,7 +1602,6 @@ async function uploadAllFonts() {
                 failCount++;
             }
             
-            // 避免 API 限制，每個請求之間等待一下
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
     }
@@ -1127,7 +1617,6 @@ async function uploadAllFonts() {
     }
 }
 
-// 檢查字體路徑
 async function checkFontsPaths() {
     showNotification('正在檢查字體路徑...', 'info');
     
@@ -1155,6 +1644,89 @@ async function checkFontsPaths() {
     showNotification('路徑檢查完成', 'success');
 }
 
+// 取得目前設定
+async function getCurrentConfig() {
+    return {
+        fonts: uploadedData.fonts.map(f => ({
+            id: f.id,
+            name: f.name,
+            filename: f.filename,
+            displayName: f.name,
+            category: 'custom',
+            weight: f.weight || 'normal',
+            systemFont: null,
+            githubPath: f.githubPath || `assets/fonts/${f.filename}`
+        })),
+        shapes: uploadedData.shapes.map(s => ({
+            id: s.id,
+            name: s.name,
+            class: s.name,
+            githubPath: s.githubPath || null
+        })),
+        patterns: uploadedData.patterns.map(p => ({
+            id: p.id,
+            name: p.name,
+            githubPath: p.githubPath || null
+        })),
+        colors: uploadedData.colors,
+        lastUpdate: new Date().toISOString(),
+        version: '2.2.0'
+    };
+}
+
+// 儲存設定到 GitHub
+async function saveConfigToGitHub(config) {
+    const token = GitHubConfig.getToken();
+    if (!token) {
+        throw new Error('No GitHub token');
+    }
+    
+    const apiUrl = `https://api.github.com/repos/${GitHubConfig.owner}/${GitHubConfig.repo}/contents/${GitHubConfig.configPath}`;
+    
+    let sha = null;
+    const getResponse = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github.v3+json'
+        }
+    });
+    
+    if (getResponse.ok) {
+        const fileData = await getResponse.json();
+        sha = fileData.sha;
+    }
+    
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(config, null, 2))));
+    
+    const requestBody = {
+        message: `Update stamp config - ${new Date().toLocaleString('zh-TW')}`,
+        content: content,
+        branch: GitHubConfig.branch
+    };
+    
+    if (sha) {
+        requestBody.sha = sha;
+    }
+    
+    const updateResponse = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+    });
+    
+    if (!updateResponse.ok) {
+        const error = await updateResponse.json();
+        throw new Error(error.message || 'Update failed');
+    }
+    
+    return await updateResponse.json();
+}
+
 // 儲存到 GitHub
 async function saveToGitHub() {
     const token = GitHubConfig.getToken();
@@ -1166,102 +1738,16 @@ async function saveToGitHub() {
     console.log('開始儲存設定到 GitHub...');
     
     try {
-        // 準備設定資料 - 修正字體檔案路徑格式
-        const config = {
-            fonts: uploadedData.fonts.map(f => ({
-                id: f.id,
-                name: f.name,
-                filename: f.filename,  // 使用實際檔名
-                displayName: f.name,
-                category: 'custom',
-                weight: f.weight || 'normal',
-                systemFont: null,
-                githubPath: f.githubPath || `assets/fonts/${f.filename}`  // 確保路徑正確
-            })),
-            shapes: uploadedData.shapes.map(s => ({
-                id: s.id,
-                name: s.name,
-                class: s.name,
-                githubPath: s.githubPath || null
-            })),
-            patterns: uploadedData.patterns.map(p => ({
-                id: p.id,
-                name: p.name,
-                githubPath: p.githubPath || null
-            })),
-            colors: uploadedData.colors,
-            lastUpdate: new Date().toISOString(),
-            version: '2.1.0'
-        };
+        const config = await getCurrentConfig();
         
-        console.log('準備儲存的資料:', config);
-        
-        const apiUrl = `https://api.github.com/repos/${GitHubConfig.owner}/${GitHubConfig.repo}/contents/${GitHubConfig.configPath}`;
-        
-        // 取得現有檔案的 SHA
-        let sha = null;
-        console.log('正在取得檔案 SHA...');
-        
-        const getResponse = await fetch(apiUrl, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${GitHubConfig.getToken()}`,
-                'Accept': 'application/vnd.github.v3+json'
-            }
-        });
-        
-        if (getResponse.ok) {
-            const fileData = await getResponse.json();
-            sha = fileData.sha;
-            console.log('取得 SHA:', sha);
-        } else {
-            console.log('檔案不存在，將建立新檔案');
+        // 加入前台安全設定
+        const frontendSecurity = JSON.parse(localStorage.getItem('frontend_security_settings') || '{}');
+        if (Object.keys(frontendSecurity).length > 0) {
+            config.frontendSecurity = frontendSecurity;
         }
         
-        // 將資料轉換為 base64
-        const content = btoa(unescape(encodeURIComponent(JSON.stringify(config, null, 2))));
-        
-        // 建立請求 body
-        const requestBody = {
-            message: `Update stamp config - ${new Date().toLocaleString('zh-TW')}`,
-            content: content,
-            branch: GitHubConfig.branch
-        };
-        
-        // 如果有 SHA，加入到請求中
-        if (sha) {
-            requestBody.sha = sha;
-        }
-        
-        console.log('發送更新請求...');
-        
-        // 更新檔案
-        const updateResponse = await fetch(apiUrl, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${GitHubConfig.getToken()}`,
-                'Accept': 'application/vnd.github.v3+json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestBody)
-        });
-        
-        const responseData = await updateResponse.json();
-        console.log('GitHub 回應:', responseData);
-        
-        if (updateResponse.ok) {
-            showNotification('設定已成功儲存到 GitHub', 'success');
-            console.log('儲存成功！');
-            
-            // 顯示 commit 資訊
-            if (responseData.commit) {
-                console.log('Commit SHA:', responseData.commit.sha);
-                console.log('Commit URL:', responseData.commit.html_url);
-            }
-        } else {
-            console.error('GitHub API 錯誤:', responseData);
-            showNotification(`儲存失敗: ${responseData.message || '未知錯誤'}`, 'danger');
-        }
+        await saveConfigToGitHub(config);
+        showNotification('設定已成功儲存到 GitHub', 'success');
         
     } catch (error) {
         console.error('儲存過程發生錯誤:', error);
@@ -1269,7 +1755,7 @@ async function saveToGitHub() {
     }
 }
 
-// 從 GitHub 載入設定
+// 從 GitHub 載入
 async function loadFromGitHub() {
     try {
         const response = await fetch(
@@ -1279,17 +1765,19 @@ async function loadFromGitHub() {
         if (response.ok) {
             const config = await response.json();
             
-            // 更新本地資料
             uploadedData.fonts = config.fonts || [];
             uploadedData.shapes = config.shapes || [];
             uploadedData.patterns = config.patterns || [];
             uploadedData.colors = config.colors || [];
             
-            // 標記已上傳的項目
+            // 載入前台安全設定
+            if (config.frontendSecurity) {
+                localStorage.setItem('frontend_security_settings', JSON.stringify(config.frontendSecurity));
+            }
+            
             uploadedData.fonts.forEach(f => {
                 if (f.githubPath) {
                     f.uploaded = true;
-                    // 確保 filename 和 extension 正確
                     if (!f.filename && f.githubPath) {
                         f.filename = f.githubPath.split('/').pop();
                         f.extension = f.filename.split('.').pop();
@@ -1305,16 +1793,14 @@ async function loadFromGitHub() {
                 if (p.githubPath) p.uploaded = true;
             });
             
-            // 更新顯示
             if (currentPage === 'fonts') updateFontsTable();
             if (currentPage === 'shapes') updateShapesPreview();
             if (currentPage === 'patterns') updatePatternsPreview();
             if (currentPage === 'colors') displayColorGroups();
             if (currentPage === 'dashboard') updateDashboardStatus();
+            if (currentPage === 'security') loadPage('security');
             
             showNotification('設定載入成功', 'success');
-            
-            // 更新 GitHub 狀態
             updateGitHubStatus(true);
         } else {
             updateGitHubStatus(false);
@@ -1332,9 +1818,10 @@ function updateDashboardStatus() {
     if (statusElement) {
         updateGitHubStatus(true);
     }
+    updateFrontendSecurityStatus();
 }
 
-// 更新 GitHub 狀態顯示
+// 更新 GitHub 狀態
 function updateGitHubStatus(connected) {
     const statusElement = document.getElementById('githubStatus');
     if (statusElement) {
@@ -1368,7 +1855,6 @@ async function testGitHubConnection() {
     }
     
     try {
-        // 測試 Token
         console.log('測試 Token...');
         const userResponse = await fetch('https://api.github.com/user', {
             headers: {
@@ -1386,7 +1872,6 @@ async function testGitHubConnection() {
             return;
         }
         
-        // 測試 Repository 存取
         console.log('測試 Repository 存取...');
         const repoResponse = await fetch(`https://api.github.com/repos/${GitHubConfig.owner}/${GitHubConfig.repo}`, {
             headers: {
@@ -1425,8 +1910,9 @@ function exportSettings() {
         shapes: uploadedData.shapes,
         patterns: uploadedData.patterns,
         colors: uploadedData.colors,
+        frontendSecurity: JSON.parse(localStorage.getItem('frontend_security_settings') || '{}'),
         exportDate: new Date().toISOString(),
-        version: '2.1.0'
+        version: '2.2.0'
     };
     
     const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
@@ -1461,7 +1947,10 @@ function importSettings() {
                     uploadedData.patterns = settings.patterns || [];
                     uploadedData.colors = settings.colors || [];
                     
-                    // 更新顯示
+                    if (settings.frontendSecurity) {
+                        localStorage.setItem('frontend_security_settings', JSON.stringify(settings.frontendSecurity));
+                    }
+                    
                     loadPage(currentPage);
                     showNotification('設定已匯入', 'success');
                 }
@@ -1490,7 +1979,6 @@ async function cleanupUnusedFiles() {
     showNotification('正在掃描未使用的檔案...', 'info');
     
     try {
-        // 取得所有已記錄的檔案路徑
         const usedPaths = new Set();
         
         uploadedData.fonts.forEach(f => {
@@ -1505,7 +1993,6 @@ async function cleanupUnusedFiles() {
             if (p.githubPath) usedPaths.add(p.githubPath);
         });
         
-        // 掃描 GitHub 資料夾
         const folders = ['assets/fonts', 'assets/shapes', 'assets/patterns'];
         let unusedFiles = [];
         
@@ -1540,7 +2027,6 @@ async function cleanupUnusedFiles() {
             return;
         }
         
-        // 顯示未使用的檔案
         const fileList = unusedFiles.map(f => `- ${f.name} (${(f.size / 1024).toFixed(2)} KB)`).join('\n');
         
         if (confirm(`發現 ${unusedFiles.length} 個未使用的檔案：\n\n${fileList}\n\n確定要刪除這些檔案嗎？`)) {
@@ -1550,7 +2036,6 @@ async function cleanupUnusedFiles() {
                 const success = await deleteFileFromGitHub(file.path);
                 if (success) deleteCount++;
                 
-                // 避免 API 限制
                 await new Promise(resolve => setTimeout(resolve, 500));
             }
             
@@ -1605,85 +2090,10 @@ function addGitHubButtons() {
     }
 }
 
-// 安全防護功能
-function setupSecurityFeatures() {
-    // 禁用右鍵
-    document.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        return false;
-    });
-    
-    // 禁用文字選擇
-    document.addEventListener('selectstart', (e) => {
-        e.preventDefault();
-        return false;
-    });
-    
-    // 禁用拖放
-    document.addEventListener('dragstart', (e) => {
-        if (e.target.tagName === 'IMG') {
-            e.preventDefault();
-            return false;
-        }
-    });
-    
-    // 偵測開發者工具
-    let devtools = { open: false };
-    const threshold = 160;
-    
-    setInterval(() => {
-        if (window.outerHeight - window.innerHeight > threshold || 
-            window.outerWidth - window.innerWidth > threshold) {
-            if (!devtools.open) {
-                devtools.open = true;
-                console.log('開發者工具已開啟');
-            }
-        } else {
-            devtools.open = false;
-        }
-    }, 500);
-    
-    // 禁用 F12 和其他快捷鍵
-    document.addEventListener('keydown', (e) => {
-        // F12
-        if (e.keyCode === 123) {
-            e.preventDefault();
-            return false;
-        }
-        // Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C
-        if (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) {
-            e.preventDefault();
-            return false;
-        }
-        // Ctrl+U (查看源碼)
-        if (e.ctrlKey && e.keyCode === 85) {
-            e.preventDefault();
-            return false;
-        }
-    });
-}
-
-// 生成浮水印
-function generateWatermark() {
-    const watermarkLayer = document.getElementById('watermarkLayer');
-    if (!watermarkLayer) return;
-    
-    const text = '© 2025 印章系統 - DK0124';
-    
-    watermarkLayer.innerHTML = '';
-    for (let i = 0; i < 50; i++) {
-        const span = document.createElement('span');
-        span.className = 'watermark-text';
-        span.textContent = text;
-        watermarkLayer.appendChild(span);
-    }
-}
-
 // 顯示提示
 function showNotification(message, type = 'info') {
     console.log(`[${type.toUpperCase()}] ${message}`);
     
-    // 建立提示元素
     const notification = document.createElement('div');
     notification.style.cssText = `
         position: fixed;
@@ -1712,7 +2122,6 @@ function showNotification(message, type = 'info') {
 
 // 模態框功能
 function showModal(title, content) {
-    // 建立模態框
     let modal = document.getElementById('adminModal');
     if (!modal) {
         modal = document.createElement('div');
@@ -1786,7 +2195,6 @@ function showFontSettings() {
     showModal('字體全域設定', content);
 }
 
-// 儲存字體設定
 function saveFontSettings() {
     const settings = {
         defaultFontSize: document.getElementById('defaultFontSize').value,
@@ -1799,11 +2207,6 @@ function saveFontSettings() {
     closeModal();
     showNotification('字體設定已儲存', 'success');
 }
-
-// 初始化時加入按鈕和載入設定
-setTimeout(() => {
-    addGitHubButtons();
-}, 500);
 
 // 加入動畫樣式
 const style = document.createElement('style');
@@ -1840,7 +2243,6 @@ style.textContent = `
         background: rgba(106, 27, 154, 0.1) !important;
     }
     
-    /* 模態框樣式 */
     .admin-modal {
         display: none;
         position: fixed;
@@ -1886,6 +2288,29 @@ style.textContent = `
         overflow-y: auto;
         max-height: calc(90vh - 80px);
     }
+    
+    .badge {
+        display: inline-block;
+        padding: 4px 8px;
+        font-size: 12px;
+        font-weight: 500;
+        border-radius: 4px;
+        margin-left: 10px;
+    }
+    
+    .badge-info {
+        background: var(--admin-accent);
+        color: white;
+    }
+    
+    .info-list p {
+        margin: 10px 0;
+        color: var(--admin-text-secondary);
+    }
+    
+    .info-list strong {
+        color: var(--admin-text-primary);
+    }
 `;
 document.head.appendChild(style);
 
@@ -1912,7 +2337,6 @@ document.addEventListener('keydown', (e) => {
 
 // 離開頁面前提醒
 window.addEventListener('beforeunload', (e) => {
-    // 檢查是否有未儲存的變更
     const hasUnsavedChanges = uploadedData.fonts.some(f => !f.uploaded) ||
                               uploadedData.shapes.some(s => !s.uploaded) ||
                               uploadedData.patterns.some(p => !p.uploaded);
@@ -1923,6 +2347,7 @@ window.addEventListener('beforeunload', (e) => {
     }
 });
 
-console.log('印章系統後台管理 v2.1.0 已載入');
+console.log('印章系統後台管理 v2.2.0 已載入');
 console.log('作者: DK0124');
 console.log('最後更新: 2025-01-29');
+console.log('預設帳號: admin / 密碼: 1234');
