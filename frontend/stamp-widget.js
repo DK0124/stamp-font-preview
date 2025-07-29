@@ -1378,16 +1378,970 @@
             }
         },
 
-        // 以下其他方法保持不變...
-        // (包括 initializeCategories, initializeShapes, initializeBorderStyles, 
-        //  initializeColors, initializePatterns, setDefaultValues, 
-        //  updateBorderStyleColors, updateMainPreview, loadFont, 
-        //  createFontCard, loadAllFonts, updateAllFontPreviews, 
-        //  filterFonts, searchFonts, selectFontByName, 
-        //  setupBVShopListeners, syncToBVShop, findBVSelect, 
-        //  bindEvents, loadFromBVShop, createExternalPreview, 
-        //  updateExternalPreview, updateAllExternalPreviews 等方法)
-        // 這些方法的程式碼與之前相同，不需要修改
+        // 初始化分類
+        initializeCategories: function() {
+            if (!this.elements.categoriesContainer) return;
+            
+            this.elements.categoriesContainer.innerHTML = this.categories.map((cat, index) => `
+                <button class="scfw-category ${index === 0 ? 'active' : ''}" data-category="${cat}">
+                    ${cat === 'all' ? '全部' : 
+                      cat === 'traditional' ? '傳統' :
+                      cat === 'handwrite' ? '手寫' :
+                      cat === 'modern' ? '現代' :
+                      cat === 'custom' ? '自訂' : cat}
+                </button>
+            `).join('');
+            
+            // 綁定點擊事件
+            this.elements.categoriesContainer.querySelectorAll('.scfw-category').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    this.elements.categoriesContainer.querySelectorAll('.scfw-category').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    this.currentSelection.category = btn.dataset.category;
+                    this.filterFonts(btn.dataset.category);
+                });
+            });
+        },
+
+        // 初始化形狀
+        initializeShapes: function() {
+            const shapesGrid = this.elements.shapesGrid;
+            if (!shapesGrid || this.shapes.length === 0) return;
+            
+            shapesGrid.innerHTML = '';
+            
+            this.shapes.forEach((shape, index) => {
+                const item = document.createElement('div');
+                item.className = 'scfw-shape-item';
+                if (index === 0) {
+                    item.classList.add('selected');
+                    this.currentSelection.shape = shape.id;
+                }
+                item.dataset.shape = shape.id;
+                
+                let shapeStyle = '';
+                let dimensions = '';
+                
+                switch(shape.id) {
+                    case 'circle':
+                    case '圓形':
+                        shapeStyle = 'border-radius: 50%;';
+                        break;
+                    case 'ellipse':
+                    case '橢圓形':
+                        shapeStyle = 'border-radius: 50%;';
+                        dimensions = 'width: 50px; height: 35px;';
+                        break;
+                    case 'rectangle':
+                    case '長方形':
+                        dimensions = 'width: 50px; height: 35px;';
+                        break;
+                    case 'rounded-square':
+                    case '圓角方形':
+                        shapeStyle = 'border-radius: 8px;';
+                        break;
+                }
+                
+                item.innerHTML = `
+                    <div class="scfw-shape-preview" style="${shapeStyle} ${dimensions}"></div>
+                    <span class="scfw-shape-label">${shape.name}</span>
+                `;
+                
+                item.addEventListener('click', () => {
+                    shapesGrid.querySelectorAll('.scfw-shape-item').forEach(el => el.classList.remove('selected'));
+                    item.classList.add('selected');
+                    this.currentSelection.shape = shape.id;
+                    this.updateMainPreview();
+                    this.syncToBVShop('shape', shape.class);
+                });
+                
+                shapesGrid.appendChild(item);
+            });
+        },
+
+        // 初始化邊框樣式
+        initializeBorderStyles: function() {
+            const container = this.elements.borderStyles;
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            this.borderStyles.forEach((style, index) => {
+                const item = document.createElement('div');
+                item.className = 'scfw-border-style';
+                if (index === 0) item.classList.add('selected');
+                item.dataset.style = style.id;
+                
+                const strokeDasharray = style.id === 'dashed' ? '6,3' : 
+                                       style.id === 'dotted' ? '2,2' : '0';
+                
+                item.innerHTML = `
+                    <svg viewBox="0 0 32 32">
+                        <circle cx="16" cy="16" r="13" fill="none" 
+                                stroke="${this.currentSelection.color}" 
+                                stroke-width="2" 
+                                stroke-dasharray="${strokeDasharray}"/>
+                    </svg>
+                `;
+                
+                item.addEventListener('click', () => {
+                    container.querySelectorAll('.scfw-border-style').forEach(el => el.classList.remove('selected'));
+                    item.classList.add('selected');
+                    this.currentSelection.borderStyle = style.style;
+                    this.updateMainPreview();
+                });
+                
+                container.appendChild(item);
+            });
+        },
+
+        // 初始化顏色
+        initializeColors: function() {
+            const colorsGrid = this.elements.colorsGrid;
+            if (!colorsGrid || this.colorGroups.length === 0) return;
+            
+            colorsGrid.innerHTML = '';
+            
+            this.colorGroups.forEach((group, index) => {
+                const colorGroup = document.createElement('div');
+                colorGroup.className = 'scfw-color-group';
+                
+                const mainColor = document.createElement('div');
+                mainColor.className = 'scfw-color-main';
+                
+                if (index === 0) {
+                    mainColor.classList.add('selected');
+                    this.currentSelection.color = group.shades[0] || group.main;
+                }
+                
+                mainColor.style.backgroundColor = group.main;
+                mainColor.dataset.color = group.main;
+                
+                mainColor.addEventListener('click', () => {
+                    colorsGrid.querySelectorAll('.scfw-color-main').forEach(el => el.classList.remove('selected'));
+                    mainColor.classList.add('selected');
+                    this.currentSelection.color = group.main;
+                    this.updateMainPreview();
+                    this.updateBorderStyleColors();
+                    this.syncToBVShop('color', group.main);
+                });
+                
+                const shades = document.createElement('div');
+                shades.className = 'scfw-color-shades';
+                
+                group.shades.forEach((shade) => {
+                    const shadeDiv = document.createElement('div');
+                    shadeDiv.className = 'scfw-color-shade';
+                    shadeDiv.style.backgroundColor = shade;
+                    shadeDiv.dataset.color = shade;
+                    
+                    shadeDiv.addEventListener('click', () => {
+                        colorsGrid.querySelectorAll('.scfw-color-main').forEach(el => el.classList.remove('selected'));
+                        mainColor.classList.add('selected');
+                        this.currentSelection.color = shade;
+                        this.updateMainPreview();
+                        this.updateBorderStyleColors();
+                        this.syncToBVShop('color', shade);
+                    });
+                    
+                    shades.appendChild(shadeDiv);
+                });
+                
+                colorGroup.appendChild(mainColor);
+                colorGroup.appendChild(shades);
+                colorsGrid.appendChild(colorGroup);
+            });
+        },
+
+        // 初始化圖案
+        initializePatterns: function() {
+            const patternsGrid = this.elements.patternsGrid;
+            if (!patternsGrid) return;
+            
+            patternsGrid.innerHTML = '';
+            
+            // 加入「無圖案」選項
+            const noneItem = document.createElement('div');
+            noneItem.className = 'scfw-pattern-item selected';
+            noneItem.dataset.pattern = 'none';
+            noneItem.innerHTML = '<span class="scfw-pattern-none">無</span>';
+            
+            noneItem.addEventListener('click', () => {
+                patternsGrid.querySelectorAll('.scfw-pattern-item').forEach(el => el.classList.remove('selected'));
+                noneItem.classList.add('selected');
+                this.currentSelection.pattern = 'none';
+                this.updateMainPreview();
+                this.syncToBVShop('pattern', '');
+            });
+            
+            patternsGrid.appendChild(noneItem);
+            
+            // 加入其他圖案
+            this.patterns.forEach((pattern) => {
+                const item = document.createElement('div');
+                item.className = 'scfw-pattern-item';
+                item.dataset.pattern = pattern.id;
+                
+                if (pattern.githubPath) {
+                    const imgUrl = `${this.GITHUB_RAW_URL}${pattern.githubPath}`;
+                    item.innerHTML = `<img src="${imgUrl}" alt="${pattern.name}" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\\'scfw-pattern-none\\'>?</span>'">`;
+                } else {
+                    item.innerHTML = `<span class="scfw-pattern-none">${pattern.name}</span>`;
+                }
+                
+                item.addEventListener('click', () => {
+                    patternsGrid.querySelectorAll('.scfw-pattern-item').forEach(el => el.classList.remove('selected'));
+                    item.classList.add('selected');
+                    this.currentSelection.pattern = pattern.id;
+                    this.updateMainPreview();
+                    this.syncToBVShop('pattern', pattern.name);
+                });
+                
+                patternsGrid.appendChild(item);
+            });
+        },
+
+        // 設定預設值
+        setDefaultValues: function() {
+            // 設定預設字體
+            if (this.availableFonts.length > 0 && !this.currentSelection.font) {
+                this.currentSelection.font = this.availableFonts[0].name;
+                this.currentSelection.fontId = this.availableFonts[0].id;
+            }
+            
+            // 設定預設形狀
+            if (this.shapes.length > 0 && !this.currentSelection.shape) {
+                this.currentSelection.shape = this.shapes[0].id;
+            }
+            
+            // 設定預設顏色
+            if (this.colorGroups.length > 0) {
+                const firstGroup = this.colorGroups[0];
+                this.currentSelection.color = firstGroup.shades[0] || firstGroup.main;
+            }
+            
+            console.log('預設值設定完成:', this.currentSelection);
+        },
+
+        // 更新邊框樣式顏色
+        updateBorderStyleColors: function() {
+            const borderStyles = this.elements.borderStyles.querySelectorAll('svg circle');
+            borderStyles.forEach(circle => {
+                circle.setAttribute('stroke', this.currentSelection.color);
+            });
+        },
+
+        // 更新主預覽
+        updateMainPreview: function() {
+            const preview = this.elements.mainPreview;
+            if (!preview) return;
+            
+            const font = this.availableFonts.find(f => f.id === this.currentSelection.fontId);
+            const pattern = this.patterns.find(p => p.id === this.currentSelection.pattern);
+            
+            let shapeStyle = '';
+            let dimensions = 'width: 150px; height: 150px;';
+            
+            switch(this.currentSelection.shape) {
+                case 'circle':
+                case '圓形':
+                    shapeStyle = 'border-radius: 50%;';
+                    break;
+                case 'ellipse':
+                case '橢圓形':
+                    shapeStyle = 'border-radius: 50%;';
+                    dimensions = 'width: 180px; height: 130px;';
+                    break;
+                case 'rectangle':
+                case '長方形':
+                    dimensions = 'width: 180px; height: 120px;';
+                    break;
+                case 'rounded-square':
+                case '圓角方形':
+                    shapeStyle = 'border-radius: 16px;';
+                    break;
+            }
+            
+            const fontFamily = font ? `CustomFont${font.id}, serif` : 'serif';
+            
+            let patternHtml = '';
+            if (pattern && pattern.id !== 'none' && pattern.githubPath) {
+                const patternUrl = `${this.GITHUB_RAW_URL}${pattern.githubPath}`;
+                patternHtml = `
+                    <img style="
+                        position: absolute;
+                        bottom: 10px;
+                        right: 10px;
+                        width: 24px;
+                        height: 24px;
+                        opacity: 0.3;
+                        object-fit: contain;
+                    " src="${patternUrl}" alt="">
+                `;
+            }
+            
+            preview.innerHTML = `
+                <div style="
+                    ${dimensions}
+                    border: 4px ${this.currentSelection.borderStyle} ${this.currentSelection.color};
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    position: relative;
+                    background: white;
+                    ${shapeStyle}
+                ">
+                    <span style="
+                        font-family: ${fontFamily};
+                        font-size: 36px;
+                        color: ${this.currentSelection.color};
+                        font-weight: ${font?.weight || 'normal'};
+                        text-align: center;
+                        padding: 0 10px;
+                    ">${this.currentSelection.text}</span>
+                    ${patternHtml}
+                </div>
+            `;
+            
+            // 更新所有外部預覽
+            this.updateAllExternalPreviews();
+        },
+
+        // 載入字體
+        loadFont: async function(fontData) {
+            if (!fontData || this.loadedFonts[fontData.id]) {
+                return this.loadedFonts[fontData.id];
+            }
+            
+            try {
+                let fontUrl;
+                
+                if (fontData.githubPath) {
+                    fontUrl = `${this.GITHUB_RAW_URL}${fontData.githubPath}`;
+                } else if (fontData.filename) {
+                    fontUrl = `${this.GITHUB_RAW_URL}assets/fonts/${fontData.filename}`;
+                } else {
+                    console.error('字體沒有有效的路徑:', fontData);
+                    return null;
+                }
+                
+                // 加入時間戳避免快取
+                fontUrl += '?t=' + Date.now();
+                
+                console.log(`載入字體: ${fontData.displayName} from ${fontUrl}`);
+                
+                // 使用 Blob URL 隱藏真實路徑
+                const response = await fetch(fontUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const blob = await response.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                
+                const fontFace = new FontFace(
+                    `CustomFont${fontData.id}`, 
+                    `url(${blobUrl})`,
+                    {
+                        weight: fontData.weight || 'normal',
+                        style: 'normal',
+                        display: 'swap'
+                    }
+                );
+                
+                await fontFace.load();
+                document.fonts.add(fontFace);
+                this.loadedFonts[fontData.id] = fontFace;
+                
+                // 延遲撤銷 Blob URL（確保字體已載入）
+                setTimeout(() => {
+                    URL.revokeObjectURL(blobUrl);
+                }, 10000);
+                
+                console.log(`✓ 字體載入成功: ${fontData.displayName}`);
+                return fontFace;
+                
+            } catch (error) {
+                console.error(`載入字體失敗 ${fontData.displayName}:`, error);
+                return null;
+            }
+        },
+
+        // 創建字體卡片
+        createFontCard: function(fontData) {
+            const item = document.createElement('div');
+            item.className = 'scfw-font-item';
+            item.dataset.fontId = fontData.id;
+            item.dataset.fontName = fontData.name;
+            item.dataset.category = fontData.category;
+            
+            if (fontData.id === this.currentSelection.fontId) {
+                item.classList.add('selected');
+            }
+            
+            item.innerHTML = `
+                <div class="scfw-font-preview">
+                    <span style="opacity: 0.3;">載入中...</span>
+                </div>
+                <div class="scfw-font-label">${fontData.displayName}</div>
+            `;
+            
+            // 載入字體後更新
+            this.loadFont(fontData).then((loaded) => {
+                if (loaded) {
+                    const preview = item.querySelector('.scfw-font-preview');
+                    preview.innerHTML = `
+                        <span style="font-family: CustomFont${fontData.id}; font-weight: ${fontData.weight || 'normal'};">
+                            ${this.currentSelection.text}
+                        </span>
+                    `;
+                } else {
+                    const preview = item.querySelector('.scfw-font-preview');
+                    preview.innerHTML = `<span style="color: #ef5350;">載入失敗</span>`;
+                }
+            });
+            
+            item.addEventListener('click', () => {
+                const widget = document.getElementById('stamp-custom-font-widget');
+                widget.querySelectorAll('.scfw-font-item').forEach(el => el.classList.remove('selected'));
+                item.classList.add('selected');
+                
+                this.currentSelection.font = fontData.name;
+                this.currentSelection.fontId = fontData.id;
+                
+                this.updateMainPreview();
+                this.syncToBVShop('font', fontData.name);
+            });
+            
+            return item;
+        },
+
+        // 載入所有字體
+        loadAllFonts: async function() {
+            if (this.isLoading || this.availableFonts.length === 0) return;
+            
+            this.isLoading = true;
+            
+            // 清空字體網格
+            this.elements.fontsGrid.innerHTML = '';
+            
+            // 顯示所有字體卡片（先顯示再載入）
+            for (const fontData of this.availableFonts) {
+                const card = this.createFontCard(fontData);
+                this.elements.fontsGrid.appendChild(card);
+            }
+            
+            this.isLoading = false;
+            
+            // 延遲檢查 BVShop
+            setTimeout(() => {
+                const fontSelect = this.findBVSelect('字體');
+                if (fontSelect && fontSelect.value) {
+                    this.selectFontByName(fontSelect.value);
+                }
+            }, 100);
+        },
+
+        // 更新所有字體預覽
+        updateAllFontPreviews: function() {
+            const widget = document.getElementById('stamp-custom-font-widget');
+            widget.querySelectorAll('.scfw-font-preview span').forEach(span => {
+                if (!span.style.opacity) { // 跳過載入中的
+                    span.textContent = this.currentSelection.text || '印章範例';
+                }
+            });
+        },
+
+        // 篩選字體
+        filterFonts: function(category) {
+            const items = this.elements.fontsGrid.querySelectorAll('.scfw-font-item');
+            items.forEach(item => {
+                if (category === 'all' || item.dataset.category === category) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        },
+
+        // 搜尋字體
+        searchFonts: function(keyword) {
+            const items = this.elements.fontsGrid.querySelectorAll('.scfw-font-item');
+            const lowerKeyword = keyword.toLowerCase();
+            
+            items.forEach(item => {
+                const fontName = item.querySelector('.scfw-font-label').textContent.toLowerCase();
+                if (fontName.includes(lowerKeyword)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        },
+
+        // 根據字體名稱選中
+        selectFontByName: function(fontName) {
+            const widget = document.getElementById('stamp-custom-font-widget');
+            
+            widget.querySelectorAll('.scfw-font-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            const fontData = this.availableFonts.find(f => f.name === fontName || f.displayName === fontName);
+            if (fontData) {
+                const targetItem = widget.querySelector(`[data-font-id="${fontData.id}"]`);
+                if (targetItem) {
+                    targetItem.classList.add('selected');
+                    this.currentSelection.font = fontData.name;
+                    this.currentSelection.fontId = fontData.id;
+                    
+                    this.updateMainPreview();
+                }
+            }
+        },
+
+        // 設定 BV SHOP 監聽器
+        setupBVShopListeners: function() {
+            // 清除舊的監聽器
+            this.bvShopListeners.forEach(listener => {
+                listener.element.removeEventListener(listener.event, listener.handler);
+            });
+            this.bvShopListeners = [];
+
+            // 字體選擇
+            const fontSelect = this.findBVSelect('字體');
+            if (fontSelect) {
+                const fontHandler = (e) => {
+                    this.selectFontByName(e.target.value);
+                };
+                fontSelect.addEventListener('change', fontHandler);
+                this.bvShopListeners.push({ element: fontSelect, event: 'change', handler: fontHandler });
+            }
+            
+            // 文字輸入
+            const textInput = document.querySelector('input[placeholder="輸入六字內"]');
+            if (textInput) {
+                const textHandler = (e) => {
+                    this.elements.textInput.value = e.target.value;
+                    this.currentSelection.text = e.target.value;
+                    this.updateMainPreview();
+                    this.updateAllFontPreviews();
+                };
+                textInput.addEventListener('input', textHandler);
+                this.bvShopListeners.push({ element: textInput, event: 'input', handler: textHandler });
+            }
+            
+            // 形狀選擇
+            const shapeSelect = this.findBVSelect('形狀');
+            if (shapeSelect) {
+                const shapeHandler = (e) => {
+                    const shape = this.shapes.find(s => s.class === e.target.value || s.name === e.target.value);
+                    if (shape) {
+                        this.elements.shapesGrid.querySelectorAll('.scfw-shape-item').forEach(item => {
+                            item.classList.remove('selected');
+                            if (item.dataset.shape === shape.id) {
+                                item.classList.add('selected');
+                            }
+                        });
+                        this.currentSelection.shape = shape.id;
+                        this.updateMainPreview();
+                    }
+                };
+                shapeSelect.addEventListener('change', shapeHandler);
+                this.bvShopListeners.push({ element: shapeSelect, event: 'change', handler: shapeHandler });
+            }
+            
+            // 圖案選擇
+            const patternSelect = this.findBVSelect('圖案');
+            if (patternSelect) {
+                const patternHandler = (e) => {
+                    const patternName = e.target.value;
+                    const pattern = this.patterns.find(p => p.name === patternName);
+                    const patternId = pattern ? pattern.id : 'none';
+                    
+                    this.elements.patternsGrid.querySelectorAll('.scfw-pattern-item').forEach(item => {
+                        item.classList.remove('selected');
+                        if (item.dataset.pattern === patternId) {
+                            item.classList.add('selected');
+                        }
+                    });
+                    this.currentSelection.pattern = patternId;
+                    this.updateMainPreview();
+                };
+                patternSelect.addEventListener('change', patternHandler);
+                this.bvShopListeners.push({ element: patternSelect, event: 'change', handler: patternHandler });
+            }
+            
+            // 顏色選擇
+            const colorSelect = this.findBVSelect('顏色');
+            if (colorSelect) {
+                const colorHandler = (e) => {
+                    const selectedColorName = e.target.value;
+                    
+                    // 尋找對應的顏色組
+                    const colorGroup = this.colorGroups.find(g => g.name === selectedColorName);
+                    if (colorGroup) {
+                        const actualColor = colorGroup.main;
+                        
+                        this.elements.colorsGrid.querySelectorAll('.scfw-color-main').forEach(c => {
+                            c.classList.remove('selected');
+                            if (c.dataset.color === actualColor) {
+                                c.classList.add('selected');
+                            }
+                        });
+                        
+                        this.currentSelection.color = actualColor;
+                        this.updateMainPreview();
+                        this.updateBorderStyleColors();
+                    }
+                };
+                colorSelect.addEventListener('change', colorHandler);
+                this.bvShopListeners.push({ element: colorSelect, event: 'change', handler: colorHandler });
+            }
+        },
+
+        // 同步到 BV SHOP
+        syncToBVShop: function(field, value) {
+            try {
+                switch(field) {
+                    case 'text':
+                        const textInput = document.querySelector('input[placeholder="輸入六字內"]');
+                        if (textInput) {
+                            textInput.value = value;
+                            textInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            textInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        break;
+                        
+                    case 'font':
+                        const fontSelect = this.findBVSelect('字體');
+                        if (fontSelect) {
+                            // 嘗試用名稱和顯示名稱匹配
+                            const font = this.availableFonts.find(f => f.name === value);
+                            const matchValue = font ? (font.displayName || font.name) : value;
+                            
+                            let foundOption = false;
+                            for (let i = 0; i < fontSelect.options.length; i++) {
+                                if (fontSelect.options[i].text === matchValue || 
+                                    fontSelect.options[i].value === matchValue ||
+                                    fontSelect.options[i].text === value || 
+                                    fontSelect.options[i].value === value) {
+                                    fontSelect.selectedIndex = i;
+                                    foundOption = true;
+                                    break;
+                                }
+                            }
+                            
+                            if (foundOption) {
+                                fontSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                        }
+                        break;
+                        
+                    case 'shape':
+                        const shapeSelect = this.findBVSelect('形狀');
+                        if (shapeSelect) {
+                            // 嘗試匹配形狀的 class 或 name
+                            let foundOption = false;
+                            for (let i = 0; i < shapeSelect.options.length; i++) {
+                                if (shapeSelect.options[i].value === value ||
+                                    shapeSelect.options[i].text === value) {
+                                    shapeSelect.selectedIndex = i;
+                                    foundOption = true;
+                                    break;
+                                }
+                            }
+                            
+                            if (foundOption) {
+                                shapeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                        }
+                        break;
+                        
+                    case 'pattern':
+                        const patternSelect = this.findBVSelect('圖案');
+                        if (patternSelect) {
+                            patternSelect.value = value || '';
+                            patternSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        break;
+                        
+                    case 'color':
+                        const colorSelect = this.findBVSelect('顏色');
+                        if (colorSelect) {
+                            // 根據顏色值找到對應的顏色名稱
+                            const colorGroup = this.colorGroups.find(g => 
+                                g.main === value || g.shades.includes(value)
+                            );
+                            
+                            if (colorGroup) {
+                                colorSelect.value = colorGroup.name;
+                                colorSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                        }
+                        break;
+                }
+            } catch (error) {
+                console.error('同步錯誤:', error);
+            }
+        },
+
+        // 尋找 BV SHOP 選擇器
+        findBVSelect: function(labelText) {
+            const labels = document.querySelectorAll('label');
+            for (let label of labels) {
+                if (label.textContent.trim() === labelText) {
+                    const select = label.parentElement.querySelector('select');
+                    if (select) return select;
+                }
+            }
+            return null;
+        },
+
+        // 綁定事件
+        bindEvents: function() {
+            // 文字輸入
+            if (this.elements.textInput) {
+                this.elements.textInput.addEventListener('input', (e) => {
+                    this.currentSelection.text = e.target.value || '印章範例';
+                    this.updateMainPreview();
+                    this.updateAllFontPreviews();
+                    this.syncToBVShop('text', e.target.value);
+                });
+            }
+            
+            // 字體搜尋
+            if (this.elements.fontSearch) {
+                this.elements.fontSearch.addEventListener('input', (e) => {
+                    this.searchFonts(e.target.value);
+                });
+            }
+            
+            // 標籤頁切換
+            const tabBtns = document.querySelectorAll('.scfw-tab-btn');
+            const tabContents = document.querySelectorAll('.scfw-tab-content');
+            
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetTab = btn.dataset.tab;
+                    
+                    // 切換按鈕狀態
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    
+                    // 切換內容顯示
+                    tabContents.forEach(content => {
+                        if (content.dataset.tab === targetTab) {
+                            content.classList.add('active');
+                        } else {
+                            content.classList.remove('active');
+                        }
+                    });
+                });
+            });
+        },
+
+        // 從 BV SHOP 載入初始值
+        loadFromBVShop: function() {
+            // 文字
+            const textInput = document.querySelector('input[placeholder="輸入六字內"]');
+            if (textInput && textInput.value) {
+                this.elements.textInput.value = textInput.value;
+                this.currentSelection.text = textInput.value;
+            }
+            
+            // 形狀
+            const shapeSelect = this.findBVSelect('形狀');
+            if (shapeSelect && shapeSelect.value) {
+                const shape = this.shapes.find(s => s.class === shapeSelect.value || s.name === shapeSelect.value);
+                if (shape) {
+                    this.currentSelection.shape = shape.id;
+                    this.elements.shapesGrid.querySelectorAll('.scfw-shape-item').forEach(item => {
+                        item.classList.remove('selected');
+                        if (item.dataset.shape === shape.id) {
+                            item.classList.add('selected');
+                        }
+                    });
+                }
+            }
+            
+            // 圖案
+            const patternSelect = this.findBVSelect('圖案');
+            if (patternSelect && patternSelect.value) {
+                const pattern = this.patterns.find(p => p.name === patternSelect.value);
+                if (pattern) {
+                    this.currentSelection.pattern = pattern.id;
+                    this.elements.patternsGrid.querySelectorAll('.scfw-pattern-item').forEach(item => {
+                        item.classList.remove('selected');
+                        if (item.dataset.pattern === pattern.id) {
+                            item.classList.add('selected');
+                        }
+                    });
+                }
+            }
+            
+            // 顏色
+            const colorSelect = this.findBVSelect('顏色');
+            if (colorSelect && colorSelect.value) {
+                const colorGroup = this.colorGroups.find(g => g.name === colorSelect.value);
+                if (colorGroup) {
+                    this.currentSelection.color = colorGroup.main;
+                    this.elements.colorsGrid.querySelectorAll('.scfw-color-main').forEach(c => {
+                        c.classList.remove('selected');
+                        if (c.dataset.color === colorGroup.main) {
+                            c.classList.add('selected');
+                        }
+                    });
+                }
+            }
+            
+            // 字體
+            const fontSelect = this.findBVSelect('字體');
+            if (fontSelect && fontSelect.value) {
+                this.selectFontByName(fontSelect.value);
+            }
+            
+            this.updateMainPreview();
+            this.updateBorderStyleColors();
+        },
+
+        // 創建外部預覽
+        createExternalPreview: function(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) {
+                console.error('External preview container not found:', containerId);
+                return;
+            }
+            
+            // 創建預覽 HTML
+            const previewHTML = `
+                <div class="scfw-external-preview" style="
+                    background: linear-gradient(135deg, var(--accent-color, #9fb28e) 0%, rgba(159, 178, 142, 0.8) 100%);
+                    border-radius: 12px;
+                    padding: 24px;
+                    text-align: center;
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+                ">
+                    <h3 style="
+                        color: white;
+                        font-size: 16px;
+                        font-weight: 600;
+                        margin-bottom: 16px;
+                    ">印章預覽</h3>
+                    <div style="
+                        display: inline-block;
+                        padding: 20px;
+                        background: rgba(255, 255, 255, 0.95);
+                        border-radius: 12px;
+                    ">
+                        <div class="scfw-external-stamp-display" id="scfw-external-preview-${containerId}">
+                            <!-- 動態生成預覽 -->
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = previewHTML;
+            
+            // 初始更新
+            this.updateExternalPreview(containerId);
+            
+            // 儲存容器 ID 以便後續更新
+            if (!this.externalPreviews) {
+                this.externalPreviews = [];
+            }
+            this.externalPreviews.push(containerId);
+        },
+
+        // 更新外部預覽
+        updateExternalPreview: function(containerId) {
+            const preview = document.querySelector(`#scfw-external-preview-${containerId}`);
+            if (!preview) return;
+            
+            const font = this.availableFonts.find(f => f.id === this.currentSelection.fontId);
+            const pattern = this.patterns.find(p => p.id === this.currentSelection.pattern);
+            
+            let shapeStyle = '';
+            let dimensions = 'width: 150px; height: 150px;';
+            
+            switch(this.currentSelection.shape) {
+                case 'circle':
+                case '圓形':
+                    shapeStyle = 'border-radius: 50%;';
+                    break;
+                case 'ellipse':
+                case '橢圓形':
+                    shapeStyle = 'border-radius: 50%;';
+                    dimensions = 'width: 180px; height: 130px;';
+                    break;
+                case 'rectangle':
+                case '長方形':
+                    dimensions = 'width: 180px; height: 120px;';
+                    break;
+                case 'rounded-square':
+                case '圓角方形':
+                    shapeStyle = 'border-radius: 16px;';
+                    break;
+            }
+            
+            const fontFamily = font ? `CustomFont${font.id}, serif` : 'serif';
+            
+            let patternHtml = '';
+            if (pattern && pattern.id !== 'none' && pattern.githubPath) {
+                const patternUrl = `${this.GITHUB_RAW_URL}${pattern.githubPath}`;
+                patternHtml = `
+                    <img style="
+                        position: absolute;
+                        bottom: 10px;
+                        right: 10px;
+                        width: 24px;
+                        height: 24px;
+                        opacity: 0.3;
+                        object-fit: contain;
+                        -webkit-user-select: none;
+                        -moz-user-select: none;
+                        -ms-user-select: none;
+                        user-select: none;
+                    " src="${patternUrl}" alt="">
+                `;
+            }
+            
+            preview.innerHTML = `
+                <div style="
+                    ${dimensions}
+                    border: 4px ${this.currentSelection.borderStyle} ${this.currentSelection.color};
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    position: relative;
+                    background: white;
+                    ${shapeStyle}
+                ">
+                    <span style="
+                        font-family: ${fontFamily};
+                        font-size: 36px;
+                        color: ${this.currentSelection.color};
+                        font-weight: ${font?.weight || 'normal'};
+                        text-align: center;
+                        padding: 0 10px;
+                        -webkit-user-select: none;
+                        -moz-user-select: none;
+                        -ms-user-select: none;
+                        user-select: none;
+                    ">${this.currentSelection.text}</span>
+                    ${patternHtml}
+                </div>
+            `;
+        },
+
+        // 更新所有外部預覽
+        updateAllExternalPreviews: function() {
+            if (this.externalPreviews) {
+                this.externalPreviews.forEach(containerId => {
+                    this.updateExternalPreview(containerId);
+                });
+            }
+        }
     };
 
     // 初始化 Widget
