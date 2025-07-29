@@ -1,0 +1,220 @@
+<!-- 印章預覽嵌入元件 - 可直接複製到開店平台的 HTML 區塊 -->
+<div id="stamp-widget-wrapper" style="
+    position: relative;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+    box-sizing: border-box;
+    isolation: isolate;
+    z-index: 1;
+">
+    <!-- 印章預覽容器 -->
+    <div id="stamp-preview-widget"></div>
+    
+    <!-- 載入指示器 -->
+    <div id="stamp-loading" style="
+        text-align: center;
+        padding: 40px;
+        color: #84736a;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    ">
+        <div style="
+            width: 40px;
+            height: 40px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #9fb28e;
+            border-radius: 50%;
+            margin: 0 auto 16px;
+            animation: stamp-spin 1s linear infinite;
+        "></div>
+        載入印章系統中...
+    </div>
+    
+    <!-- 內聯樣式 - 使用特定前綴避免衝突 -->
+    <style>
+        @keyframes stamp-spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* 限制樣式只影響這個元件內部 */
+        #stamp-widget-wrapper {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+        }
+        
+        #stamp-widget-wrapper * {
+            box-sizing: border-box;
+        }
+        
+        /* 確保不影響外部樣式 */
+        #stamp-widget-wrapper img,
+        #stamp-widget-wrapper canvas {
+            max-width: 100%;
+            height: auto;
+            vertical-align: middle;
+        }
+        
+        #stamp-widget-wrapper button {
+            font-family: inherit;
+            cursor: pointer;
+        }
+        
+        #stamp-widget-wrapper input,
+        #stamp-widget-wrapper select {
+            font-family: inherit;
+        }
+        
+        /* 防止外部 CSS 影響 */
+        #stamp-preview-widget {
+            all: initial;
+            display: block;
+            width: 100%;
+        }
+    </style>
+</div>
+
+<!-- 載入印章系統 -->
+<script>
+(function() {
+    'use strict';
+    
+    // 設定載入配置
+    const STAMP_CONFIG = {
+        // GitHub 配置
+        github: {
+            owner: 'DK0124',
+            repo: 'stamp-font-preview',
+            branch: 'main'
+        },
+        
+        // 小工具配置
+        widget: {
+            defaultText: '範例印章',
+            defaultFont: 0,
+            defaultShape: 0,
+            defaultColor: '#dc3545',
+            canvasSize: 300,
+            enableDownload: true,
+            enableCustomText: true,
+            enableFontSelector: true,
+            enableShapeSelector: true,
+            enableColorSelector: true
+        },
+        
+        // CDN 備用地址（如果 GitHub 載入失敗）
+        cdnFallback: null
+    };
+    
+    // 動態載入 stamp-widget.js
+    function loadStampWidget() {
+        // 先檢查是否已載入
+        if (window.stampWidgetLoaded) {
+            initializeWidget();
+            return;
+        }
+        
+        const script = document.createElement('script');
+        script.src = `https://raw.githubusercontent.com/${STAMP_CONFIG.github.owner}/${STAMP_CONFIG.github.repo}/${STAMP_CONFIG.github.branch}/stamp-widget.js`;
+        
+        // 處理跨域問題 - 使用 jsdelivr CDN
+        script.onerror = function() {
+            console.warn('從 GitHub 載入失敗，嘗試使用 CDN...');
+            script.src = `https://cdn.jsdelivr.net/gh/${STAMP_CONFIG.github.owner}/${STAMP_CONFIG.github.repo}@${STAMP_CONFIG.github.branch}/stamp-widget.js`;
+            
+            script.onerror = function() {
+                console.error('印章系統載入失敗');
+                document.getElementById('stamp-loading').innerHTML = `
+                    <p style="color: #e74c3c;">印章系統載入失敗</p>
+                    <p style="font-size: 14px; color: #7f8c8d;">請檢查網路連線或聯繫管理員</p>
+                `;
+            };
+        };
+        
+        script.onload = function() {
+            console.log('印章系統載入成功');
+            window.stampWidgetLoaded = true;
+            
+            // 等待 createStampWidget 函數可用
+            waitForWidget();
+        };
+        
+        document.head.appendChild(script);
+    }
+    
+    // 等待小工具函數載入完成
+    function waitForWidget(attempts = 0) {
+        if (typeof window.createStampWidget === 'function') {
+            initializeWidget();
+        } else if (attempts < 20) { // 最多等待 10 秒
+            setTimeout(() => waitForWidget(attempts + 1), 500);
+        } else {
+            console.error('印章小工具函數未找到');
+            document.getElementById('stamp-loading').innerHTML = `
+                <p style="color: #e74c3c;">印章系統初始化失敗</p>
+            `;
+        }
+    }
+    
+    // 初始化小工具
+    function initializeWidget() {
+        // 隱藏載入指示器
+        document.getElementById('stamp-loading').style.display = 'none';
+        
+        // 創建印章預覽小工具
+        window.createStampWidget('stamp-preview-widget', STAMP_CONFIG.widget);
+    }
+    
+    // 防止樣式污染的安全措施
+    function isolateStyles() {
+        // 創建 Shadow DOM（如果支援）
+        const wrapper = document.getElementById('stamp-widget-wrapper');
+        if (wrapper.attachShadow && false) { // 暫時停用 Shadow DOM
+            const shadow = wrapper.attachShadow({ mode: 'open' });
+            const content = wrapper.innerHTML;
+            wrapper.innerHTML = '';
+            shadow.innerHTML = content;
+        }
+    }
+    
+    // 確保 DOM 載入完成
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            isolateStyles();
+            loadStampWidget();
+        });
+    } else {
+        isolateStyles();
+        loadStampWidget();
+    }
+    
+    // 防止全域變數污染
+    window.stampWidgetInstance = {
+        reload: function() {
+            document.getElementById('stamp-preview-widget').innerHTML = '';
+            document.getElementById('stamp-loading').style.display = 'block';
+            initializeWidget();
+        },
+        
+        updateConfig: function(newConfig) {
+            Object.assign(STAMP_CONFIG.widget, newConfig);
+            this.reload();
+        }
+    };
+})();
+</script>
+
+<!-- 錯誤處理和備用方案 -->
+<noscript>
+    <div style="
+        text-align: center;
+        padding: 40px;
+        background: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeeba;
+        border-radius: 8px;
+    ">
+        <strong>請啟用 JavaScript</strong>
+        <p>印章預覽系統需要 JavaScript 才能運作</p>
+    </div>
+</noscript>
