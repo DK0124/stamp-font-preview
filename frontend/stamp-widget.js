@@ -1,9 +1,9 @@
 /**
- * 印章預覽系統 - 後台資料整合版
+ * 印章預覽系統 - 後台資料整合版 (修正版)
  * @author DK0124
- * @version 10.0.0
+ * @version 10.1.0
  * @date 2025-01-29
- * @description 完整整合後台 admin 系統的印章預覽小工具
+ * @description 修復 shapes 為空造成的錯誤
  */
 
 (function() {
@@ -33,6 +33,22 @@
             return `${this.BASE_URL}/config/stamp-config.json`;
         }
     };
+    
+    // 預設形狀（當後台沒有形狀時使用）
+    const DEFAULT_SHAPES = [
+        { id: 'circle', name: '圓形', class: '圓形' },
+        { id: 'square', name: '方形', class: '方形' },
+        { id: 'ellipse', name: '橢圓形', class: '橢圓形' },
+        { id: 'rectangle', name: '長方形', class: '長方形' }
+    ];
+    
+    // 預設顏色（當後台沒有顏色時使用）
+    const DEFAULT_COLORS = [
+        { name: '朱紅', main: '#e57373' },
+        { name: '墨綠', main: '#9fb28e' },
+        { name: '寶藍', main: '#64b5f6' },
+        { name: '琥珀', main: '#ffb74d' }
+    ];
     
     // 建立樣式 - 基於成功版本
     const styles = `
@@ -561,6 +577,9 @@
                 // 綁定事件
                 this.bindEvents();
                 
+                // 套用安全設定
+                this.applyFrontendSecurity();
+                
                 // 設定 BV Shop 監聽
                 setTimeout(() => {
                     this.setupBVShopListeners();
@@ -617,6 +636,17 @@
             
             this.config = await response.json();
             console.log('配置載入成功:', this.config);
+            
+            // 處理空陣列的情況
+            if (!this.config.shapes || this.config.shapes.length === 0) {
+                console.warn('配置中沒有形狀，使用預設形狀');
+                this.config.shapes = DEFAULT_SHAPES;
+            }
+            
+            if (!this.config.colors || this.config.colors.length === 0) {
+                console.warn('配置中沒有顏色，使用預設顏色');
+                this.config.colors = DEFAULT_COLORS;
+            }
             
             // 設定預設值
             if (this.config.fonts?.length > 0) {
@@ -922,8 +952,9 @@
         }
         
         updateFontPreview(preview, fontData, index) {
-            const shape = this.currentSelection.shape || this.config.shapes[0];
-            const color = this.currentSelection.color || this.config.colors[0];
+            // 確保 shape 和 color 有預設值
+            const shape = this.currentSelection.shape || this.config.shapes?.[0] || DEFAULT_SHAPES[0];
+            const color = this.currentSelection.color || this.config.colors?.[0] || DEFAULT_COLORS[0];
             const pattern = this.currentSelection.pattern;
             
             let stampClass = '方形';
@@ -1108,8 +1139,12 @@
             // 清空畫布
             ctx.clearRect(0, 0, width, height);
             
+            // 確保有形狀和顏色
+            const shape = this.currentSelection.shape || this.config.shapes?.[0] || DEFAULT_SHAPES[0];
+            const color = this.currentSelection.color || this.config.colors?.[0] || DEFAULT_COLORS[0];
+            
             // 檢查是否有完整選擇
-            if (!this.currentSelection.font || !this.currentSelection.shape || !this.currentSelection.color) {
+            if (!this.currentSelection.font || !shape || !color) {
                 ctx.save();
                 ctx.fillStyle = '#999';
                 ctx.font = '14px sans-serif';
@@ -1121,8 +1156,6 @@
             }
             
             // 繪製印章
-            const color = this.currentSelection.color.main || '#dc3545';
-            const shape = this.currentSelection.shape;
             const centerX = width / 2;
             const centerY = height / 2;
             const size = Math.min(width, height) * 0.7;
@@ -1130,8 +1163,8 @@
             ctx.save();
             
             // 設定樣式
-            ctx.strokeStyle = color;
-            ctx.fillStyle = color;
+            ctx.strokeStyle = color.main || '#dc3545';
+            ctx.fillStyle = color.main || '#dc3545';
             ctx.lineWidth = 5;
             
             // 繪製形狀
@@ -1212,7 +1245,7 @@
         drawText(ctx, centerX, centerY, size) {
             const font = this.currentSelection.font;
             const text = this.currentSelection.text;
-            const color = this.currentSelection.color.main || '#dc3545';
+            const color = this.currentSelection.color || this.config.colors?.[0] || DEFAULT_COLORS[0];
             
             if (!text) return;
             
@@ -1221,7 +1254,7 @@
             // 設定文字樣式
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillStyle = color;
+            ctx.fillStyle = color.main || '#dc3545';
             
             // 計算字體大小
             let fontSize = size * 0.25;
@@ -1248,8 +1281,9 @@
             }
             
             // 繪製文字
-            if (text.length > 2 && this.currentSelection.shape && 
-                (this.currentSelection.shape.name === '圓形' || this.currentSelection.shape.name === '方形')) {
+            const shape = this.currentSelection.shape || this.config.shapes?.[0] || DEFAULT_SHAPES[0];
+            if (text.length > 2 && shape && 
+                (shape.name === '圓形' || shape.name === '方形')) {
                 // 分行顯示
                 const half = Math.ceil(text.length / 2);
                 const line1 = text.substring(0, half);
@@ -1398,7 +1432,7 @@
             });
         }
         
-        // BV Shop 整合功能
+        // BV Shop 整合功能（續）
         setupBVShopListeners() {
             // 清除舊的監聽器
             this.bvShopListeners.forEach(listener => {
@@ -1468,14 +1502,16 @@
         }
         
         selectShapeByName(shapeName) {
-            const index = this.config.shapes.findIndex(s => s.name === shapeName);
+            const shapes = this.config.shapes?.length > 0 ? this.config.shapes : DEFAULT_SHAPES;
+            const index = shapes.findIndex(s => s.name === shapeName || s.class === shapeName);
             if (index !== -1) {
                 this.selectShape(index);
             }
         }
         
         selectColorByName(colorName) {
-            const index = this.config.colors.findIndex(c => c.name === colorName);
+            const colors = this.config.colors?.length > 0 ? this.config.colors : DEFAULT_COLORS;
+            const index = colors.findIndex(c => c.name === colorName);
             if (index !== -1) {
                 this.selectColor(index);
             }
@@ -1876,9 +1912,10 @@
     }
     
     // 版本資訊
-    console.log('%c🎯 印章預覽系統 v10.0.0', 'font-size: 16px; font-weight: bold; color: #9fb28e;');
+    console.log('%c🎯 印章預覽系統 v10.1.0', 'font-size: 16px; font-weight: bold; color: #9fb28e;');
     console.log('%c📅 最後更新: 2025-01-29', 'color: #666;');
     console.log('%c👤 作者: DK0124', 'color: #666;');
     console.log('%c🔧 GitHub: https://github.com/DK0124/stamp-font-preview', 'color: #0066cc;');
+    console.log('%c✅ 修復: shapes 和 colors 為空的問題', 'color: #28a745;');
     
 })();
