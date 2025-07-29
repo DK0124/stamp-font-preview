@@ -17,7 +17,7 @@ let uploadedData = {
 // 登入設定
 const AdminAuth = {
     defaultUsername: 'admin',
-    defaultPassword: '1234',
+    defaultPassword: '337088',
     sessionKey: 'admin_session',
     
     // 檢查是否已登入
@@ -761,7 +761,7 @@ function getAccountContent() {
                 <p><strong>目前使用者：</strong> ${JSON.parse(sessionStorage.getItem('admin_session')).username}</p>
                 <p><strong>登入時間：</strong> ${new Date(JSON.parse(sessionStorage.getItem('admin_session')).loginTime).toLocaleString('zh-TW')}</p>
                 <p><strong>預設帳號：</strong> admin</p>
-                <p><strong>預設密碼：</strong> 1234</p>
+                <p><strong>預設密碼：</strong> 337088</p>
             </div>
         </div>
     `;
@@ -2350,4 +2350,4 @@ window.addEventListener('beforeunload', (e) => {
 console.log('印章系統後台管理 v2.2.0 已載入');
 console.log('作者: DK0124');
 console.log('最後更新: 2025-01-29');
-console.log('預設帳號: admin / 密碼: 1234');
+console.log('預設帳號: admin / 密碼: 337088');
