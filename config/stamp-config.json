@@ -152,7 +152,7 @@
       ]
     }
   ],
-  "lastUpdate": "2025-07-29T11:54:57.694Z",
+  "lastUpdate": "2025-07-29T12:01:45.203Z",
   "version": "2.2.0",
   "frontendSecurity": {
     "preventScreenshot": true,
@@ -169,6 +169,6 @@
     "watermarkFontSize": "10",
     "screenshotWarning": "禁止截圖 - 版權所有",
     "devToolsWarning": "警告：偵測到開發者工具！\n本系統內容受版權保護，禁止任何形式的複製或下載。",
-    "lastUpdate": "2025-07-29T11:54:56.381Z"
+    "lastUpdate": "2025-07-29T12:00:05.449Z"
   }
 }
