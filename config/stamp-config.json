@@ -91,14 +91,7 @@
       "githubPath": "assets/fonts/胖西手寫體 全繁體.ttf"
     }
   ],
-  "shapes": [
-    {
-      "id": 1753760045437.0618,
-      "name": "481122212_17901439857121225_4919457384379597434_n",
-      "class": "481122212_17901439857121225_4919457384379597434_n",
-      "githubPath": "assets/shapes/481122212_17901439857121225_4919457384379597434_n.jpg"
-    }
-  ],
+  "shapes": [],
   "patterns": [
     {
       "id": 1753758427378.0596,
@@ -152,8 +145,8 @@
       ]
     }
   ],
-  "lastUpdate": "2025-07-29T12:01:45.203Z",
-  "version": "2.2.0",
+  "lastUpdate": "2025-07-29T12:24:41.363Z",
+  "version": "3.0.0",
   "frontendSecurity": {
     "preventScreenshot": true,
     "enableWatermark": true,
