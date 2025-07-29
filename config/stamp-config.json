@@ -93,19 +93,13 @@
   ],
   "shapes": [
     {
-      "id": 1753794082117.3955,
-      "name": "來喝咖啡logo",
-      "class": "來喝咖啡logo",
+      "id": 1753794160860.4717,
+      "name": "伯爵",
+      "class": "伯爵",
       "githubPath": null
     }
   ],
-  "patterns": [
-    {
-      "id": 1753794089419.7822,
-      "name": "黑貓",
-      "githubPath": null
-    }
-  ],
+  "patterns": [],
   "colors": [
     {
       "id": 1753758334164,
@@ -218,23 +212,23 @@
       ]
     }
   ],
-  "lastUpdate": "2025-07-29T13:01:42.768Z",
+  "lastUpdate": "2025-07-29T13:02:53.413Z",
   "version": "3.0.0",
   "frontendSecurity": {
-    "preventScreenshot": false,
-    "enableWatermark": false,
-    "disableRightClick": false,
-    "disableTextSelect": false,
-    "disableDevTools": false,
-    "disablePrint": false,
-    "disableDrag": false,
-    "blurOnLoseFocus": false,
+    "preventScreenshot": true,
+    "enableWatermark": true,
+    "disableRightClick": true,
+    "disableTextSelect": true,
+    "disableDevTools": true,
+    "disablePrint": true,
+    "disableDrag": true,
+    "blurOnLoseFocus": true,
     "watermarkText": "© 2025 ctmtw 版權所有",
     "watermarkInterval": "60",
     "watermarkOpacity": "0.03",
     "watermarkFontSize": "10",
     "screenshotWarning": "禁止截圖 - 版權所有",
     "devToolsWarning": "警告：偵測到開發者工具！\n本系統內容受版權保護，禁止任何形式的複製或下載。",
-    "lastUpdate": "2025-07-29T13:00:35.181Z"
+    "lastUpdate": "2025-07-29T12:25:32.988Z"
   }
 }
