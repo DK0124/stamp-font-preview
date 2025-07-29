@@ -91,14 +91,7 @@
       "githubPath": "assets/fonts/胖西手寫體 全繁體.ttf"
     }
   ],
-  "shapes": [
-    {
-      "id": 1753794160860.4717,
-      "name": "伯爵",
-      "class": "伯爵",
-      "githubPath": null
-    }
-  ],
+  "shapes": [],
   "patterns": [],
   "colors": [
     {
@@ -212,7 +205,7 @@
       ]
     }
   ],
-  "lastUpdate": "2025-07-29T13:03:58.411Z",
+  "lastUpdate": "2025-07-29T13:09:56.320Z",
   "version": "3.0.0",
   "frontendSecurity": {
     "preventScreenshot": false,
