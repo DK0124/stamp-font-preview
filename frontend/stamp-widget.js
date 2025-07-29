@@ -1,1091 +1,2245 @@
 /**
- * 印章小工具前台 - 完全依賴後台設定版本
+ * 印章字體預覽系統 Widget - 後台資料版
  * @author DK0124
- * @version 2.1.0
+ * @version 5.0.0
  * @date 2025-01-29
+ * @description 完全依賴後台資料的印章預覽系統，含安全防護機制
  */
 
-const StampWidget = {
-    // GitHub 設定
-    GITHUB_RAW_URL: 'https://raw.githubusercontent.com/DK0124/stamp-font-preview/main/',
-    CONFIG_URL: 'https://raw.githubusercontent.com/DK0124/stamp-font-preview/main/config/stamp-config.json',
-    
-    // 狀態
-    elements: {},
-    currentSettings: {
-        text: '印章文字',
-        font: '',
-        shape: '',
-        borderStyle: 'solid',
-        borderWidth: 3,
-        color: '#DC143C',
-        pattern: 'none',
-        effects: []
-    },
-    loadedFonts: {},
-    configLoaded: false,
-    
-    // 從後台載入的資料（初始為空）
-    availableFonts: [],
-    shapes: [],
-    borderStyles: [],
-    colorGroups: [],
-    patterns: [],
-    
-    // 預設邊框樣式（保留這個因為是基本CSS樣式）
-    defaultBorderStyles: [
-        { id: 'solid', name: '實線', class: 'solid' },
-        { id: 'double', name: '雙線', class: 'double' },
-        { id: 'dotted', name: '點線', class: 'dotted' },
-        { id: 'dashed', name: '虛線', class: 'dashed' },
-        { id: 'groove', name: '凹線', class: 'groove' },
-        { id: 'ridge', name: '凸線', class: 'ridge' }
-    ],
-    
-    // 初始化
-    init: async function() {
-        const widget = document.getElementById('stamp-custom-font-widget');
-        if (!widget) {
-            console.error('找不到印章小工具容器');
-            return;
+// ============= 安全防護層 =============
+(function() {
+    // 防止檢查元素
+    let devtools = { open: false };
+    const threshold = 160;
+    const emitEvent = (state) => {
+        if (state.open) {
+            document.body.style.display = 'none';
+            alert('請勿嘗試檢查本系統');
+            window.location.href = 'about:blank';
         }
-
-        console.log('初始化印章小工具...');
-        
-        // 顯示載入中狀態
-        this.showLoadingState();
-
-        try {
-            // 先載入設定檔
-            const configSuccess = await this.loadCustomConfig();
-            
-            if (!configSuccess) {
-                throw new Error('無法載入設定檔');
+    };
+    
+    setInterval(() => {
+        if (window.outerHeight - window.innerHeight > threshold || 
+            window.outerWidth - window.innerWidth > threshold) {
+            if (!devtools.open) {
+                devtools.open = true;
+                emitEvent(devtools);
             }
+        } else {
+            devtools.open = false;
+            document.body.style.display = 'block';
+        }
+    }, 500);
+
+    // 防止右鍵
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    
+    // 防止拖曳
+    document.addEventListener('dragstart', e => e.preventDefault());
+    
+    // 防止選取
+    document.addEventListener('selectstart', e => e.preventDefault());
+    
+    // 防止複製
+    document.addEventListener('copy', e => e.preventDefault());
+    
+    // 防止截圖（使用 Page Visibility API）
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            // 顯示防護層
+            const protection = document.createElement('div');
+            protection.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: black;
+                z-index: 999999;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-size: 24px;
+            `;
+            protection.textContent = '系統已暫停顯示';
+            protection.id = 'screenshot-protection';
+            document.body.appendChild(protection);
             
-            // 取得 DOM 元素
-            this.elements = {
-                stampText: widget.querySelector('#stampText'),
-                fontSelect: widget.querySelector('#fontSelect'),
-                shapeContainer: widget.querySelector('.shapes-container'),
-                borderStyleContainer: widget.querySelector('.border-styles-container'),
-                colorContainer: widget.querySelector('.color-groups-container'),
-                patternContainer: widget.querySelector('.patterns-container'),
-                mainPreview: widget.querySelector('#mainPreview'),
-                effectButtons: widget.querySelectorAll('.effect-button'),
-                borderWidthSlider: widget.querySelector('#borderWidth'),
-                borderWidthValue: widget.querySelector('#borderWidthValue'),
-                fontLoading: widget.querySelector('#fontLoading')
-            };
-            
-            // 檢查是否有資料
-            if (this.availableFonts.length === 0 && 
-                this.shapes.length === 0 && 
-                this.colorGroups.length === 0) {
-                this.showEmptyState();
-                return;
-            }
-            
-            // 初始化所有元件
-            await this.initializeAll();
-            
-            // 載入字體
-            await this.loadAllFonts();
-            
-            // 設定預設值
-            this.setDefaultValues();
-            
-            // 綁定事件
-            this.bindEvents();
-            
-            // 更新預覽
-            this.updateMainPreview();
-            
-            // 設定 BVShop 整合
             setTimeout(() => {
-                this.setupBVShopListeners();
-                this.loadFromBVShop();
-            }, 500);
-            
-            console.log('印章小工具初始化完成');
-            
-        } catch (error) {
-            console.error('初始化失敗:', error);
-            this.showErrorState(error.message);
+                const p = document.getElementById('screenshot-protection');
+                if (p) p.remove();
+            }, 3000);
         }
-    },
+    });
     
-    // 顯示載入中狀態
-    showLoadingState: function() {
-        const widget = document.getElementById('stamp-custom-font-widget');
-        if (!widget) return;
+    // 定期檢查並移除可疑元素
+    setInterval(() => {
+        // 移除任何嘗試複製的元素
+        document.querySelectorAll('[data-copy], [data-download]').forEach(el => el.remove());
         
-        const loadingDiv = document.createElement('div');
-        loadingDiv.id = 'widgetLoading';
-        loadingDiv.style.cssText = `
+        // 檢查浮水印是否被移除
+        if (!document.querySelector('.stamp-watermark')) {
+            addWatermark();
+        }
+    }, 1000);
+    
+    // 添加動態浮水印
+    function addWatermark() {
+        const watermark = document.createElement('div');
+        watermark.className = 'stamp-watermark';
+        watermark.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 60px;
+            color: rgba(0,0,0,0.05);
+            pointer-events: none;
+            z-index: 9999;
+            user-select: none;
+            white-space: nowrap;
+        `;
+        watermark.textContent = '© DK0124 印章系統 ' + new Date().toISOString().split('T')[0];
+        document.body.appendChild(watermark);
+    }
+    
+    addWatermark();
+    
+    // 禁用快捷鍵
+    document.addEventListener('keydown', (e) => {
+        // F12
+        if (e.keyCode === 123) {
+            e.preventDefault();
+            return false;
+        }
+        // Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C
+        if (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) {
+            e.preventDefault();
+            return false;
+        }
+        // Ctrl+U (查看源碼)
+        if (e.ctrlKey && e.keyCode === 85) {
+            e.preventDefault();
+            return false;
+        }
+        // Ctrl+S (儲存)
+        if (e.ctrlKey && e.keyCode === 83) {
+            e.preventDefault();
+            return false;
+        }
+        // PrintScreen
+        if (e.keyCode === 44) {
+            e.preventDefault();
+            document.body.style.display = 'none';
+            setTimeout(() => {
+                document.body.style.display = 'block';
+            }, 3000);
+            return false;
+        }
+    });
+})();
+
+// ============= 原始印章系統 =============
+(function() {
+    // 防止重複載入
+    if (window._STAMP_FONT_WIDGET_LOADED) return;
+    window._STAMP_FONT_WIDGET_LOADED = true;
+
+    // Material Icons 載入
+    if (!document.querySelector('link[href*="Material+Icons"]')) {
+        const iconLink = document.createElement('link');
+        iconLink.rel = 'stylesheet';
+        iconLink.href = 'https://fonts.googleapis.com/icon?family=Material+Icons';
+        document.head.appendChild(iconLink);
+    }
+
+    // 建立樣式
+    const styles = `
+        /* 防止選取和複製 */
+        #stamp-custom-font-widget {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+        
+        #stamp-custom-font-widget * {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        /* 基礎樣式與顏色變數 */
+        :root {
+            --primary-bg: #dde5d6;
+            --accent-color: #9fb28e;
+            --secondary-bg: #f7ecd5;
+            --dark-color: #84736a;
+            --glass-bg: rgba(221, 229, 214, 0.6);
+            --glass-border: rgba(159, 178, 142, 0.2);
+            --shadow-color: rgba(132, 115, 106, 0.1);
+            --text-primary: #84736a;
+            --text-secondary: rgba(132, 115, 106, 0.7);
+            --hover-bg: rgba(159, 178, 142, 0.1);
+            --selected-bg: rgba(159, 178, 142, 0.2);
+        }
+        
+        /* 主容器 - 適應商品頁面 */
+        #stamp-custom-font-widget {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", "Microsoft JhengHei", sans-serif;
+            background: var(--primary-bg);
+            border-radius: 16px;
+            padding: 16px;
+            position: relative;
+            overflow: hidden;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        
+        #stamp-custom-font-widget::before {
+            content: '';
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(255, 255, 255, 0.9);
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(159, 178, 142, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(247, 236, 213, 0.15) 0%, transparent 50%);
+            pointer-events: none;
+        }
+        
+        #stamp-custom-font-widget * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        /* 玻璃效果通用樣式 */
+        .glass-effect {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 
+                0 8px 32px var(--shadow-color),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+        
+        /* 頂部預覽區 - 簡化版 */
+        #stamp-custom-font-widget .scfw-preview-section {
+            position: relative;
+            z-index: 1;
+            margin-bottom: 20px;
+        }
+        
+        #stamp-custom-font-widget .scfw-preview-container {
+            background: linear-gradient(135deg, var(--accent-color) 0%, rgba(159, 178, 142, 0.8) 100%);
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #stamp-custom-font-widget .scfw-preview-title {
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 1000;
+            gap: 8px;
+        }
+        
+        #stamp-custom-font-widget .scfw-preview-title .material-icons {
+            font-size: 20px;
+        }
+        
+        #stamp-custom-font-widget .scfw-stamp-preview-wrapper {
+            display: inline-block;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        #stamp-custom-font-widget .scfw-stamp-display {
+            position: relative;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* 主內容區 - 單欄式佈局 */
+        #stamp-custom-font-widget .scfw-content {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* 字體選擇區 */
+        #stamp-custom-font-widget .scfw-fonts-section {
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #stamp-custom-font-widget .scfw-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        
+        #stamp-custom-font-widget .scfw-section-title {
             font-size: 18px;
-            color: #666;
-        `;
-        loadingDiv.innerHTML = `
-            <div style="text-align: center;">
-                <div class="spinner" style="
-                    border: 4px solid #f3f3f3;
-                    border-top: 4px solid #3498db;
-                    border-radius: 50%;
-                    width: 40px;
-                    height: 40px;
-                    animation: spin 1s linear infinite;
-                    margin: 0 auto 10px;
-                "></div>
-                <div>正在載入設定...</div>
-            </div>
-        `;
-        
-        widget.appendChild(loadingDiv);
-        
-        // 加入旋轉動畫
-        if (!document.getElementById('spinnerStyle')) {
-            const style = document.createElement('style');
-            style.id = 'spinnerStyle';
-            style.textContent = `
-                @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-            `;
-            document.head.appendChild(style);
-        }
-    },
-    
-    // 移除載入狀態
-    removeLoadingState: function() {
-        const loadingDiv = document.getElementById('widgetLoading');
-        if (loadingDiv) {
-            loadingDiv.remove();
-        }
-    },
-    
-    // 顯示空白狀態
-    showEmptyState: function() {
-        this.removeLoadingState();
-        
-        const widget = document.getElementById('stamp-custom-font-widget');
-        if (!widget) return;
-        
-        widget.innerHTML = `
-            <div style="
-                text-align: center;
-                padding: 40px;
-                color: #999;
-                font-size: 16px;
-                background: #f5f5f5;
-                border-radius: 8px;
-                margin: 20px;
-            ">
-                <div style="font-size: 48px; margin-bottom: 20px;">📭</div>
-                <div style="margin-bottom: 10px;">尚未設定任何內容</div>
-                <div style="font-size: 14px;">請先到後台上傳字體、形狀、顏色等資源</div>
-            </div>
-        `;
-    },
-    
-    // 顯示錯誤狀態
-    showErrorState: function(message) {
-        this.removeLoadingState();
-        
-        const widget = document.getElementById('stamp-custom-font-widget');
-        if (!widget) return;
-        
-        widget.innerHTML = `
-            <div style="
-                text-align: center;
-                padding: 40px;
-                color: #d32f2f;
-                font-size: 16px;
-                background: #ffebee;
-                border-radius: 8px;
-                margin: 20px;
-            ">
-                <div style="font-size: 48px; margin-bottom: 20px;">❌</div>
-                <div style="margin-bottom: 10px;">載入失敗</div>
-                <div style="font-size: 14px;">${message}</div>
-                <button onclick="location.reload()" style="
-                    margin-top: 20px;
-                    padding: 8px 20px;
-                    background: #d32f2f;
-                    color: white;
-                    border: none;
-                    border-radius: 4px;
-                    cursor: pointer;
-                ">重新載入</button>
-            </div>
-        `;
-    },
-    
-    // 載入自訂設定
-    loadCustomConfig: async function() {
-        try {
-            console.log('開始載入設定檔...');
-            
-            // 加入時間戳避免快取
-            const url = this.CONFIG_URL + '?t=' + Date.now();
-            const response = await fetch(url);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const config = await response.json();
-            console.log('成功載入設定:', config);
-            
-            // 載入字體
-            if (config.fonts && Array.isArray(config.fonts)) {
-                this.availableFonts = config.fonts.map(font => ({
-                    id: font.id || Date.now() + Math.random(),
-                    name: font.name,
-                    displayName: font.displayName || font.name,
-                    category: font.category || 'custom',
-                    weight: font.weight || 'normal',
-                    filename: font.filename,
-                    githubPath: font.githubPath,
-                    systemFont: false
-                }));
-                console.log(`載入了 ${this.availableFonts.length} 個字體`);
-            }
-            
-            // 載入形狀
-            if (config.shapes && Array.isArray(config.shapes)) {
-                this.shapes = config.shapes.map(shape => ({
-                    id: shape.id || shape.name,
-                    name: shape.name,
-                    class: shape.class || shape.name,
-                    githubPath: shape.githubPath
-                }));
-                console.log(`載入了 ${this.shapes.length} 個形狀`);
-            }
-            
-            // 載入顏色
-            if (config.colors && Array.isArray(config.colors)) {
-                this.colorGroups = config.colors.map(color => ({
-                    id: color.id || Date.now() + Math.random(),
-                    name: color.name,
-                    main: color.main,
-                    shades: color.shades || [color.main]
-                }));
-                console.log(`載入了 ${this.colorGroups.length} 個顏色組`);
-            }
-            
-            // 載入圖案
-            if (config.patterns && Array.isArray(config.patterns)) {
-                this.patterns = config.patterns.map(pattern => ({
-                    id: pattern.id || pattern.name,
-                    name: pattern.name,
-                    githubPath: pattern.githubPath
-                }));
-                console.log(`載入了 ${this.patterns.length} 個圖案`);
-            }
-            
-            // 使用預設邊框樣式
-            this.borderStyles = this.defaultBorderStyles;
-            
-            this.configLoaded = true;
-            console.log('設定載入完成');
-            return true;
-            
-        } catch (error) {
-            console.error('載入設定失敗:', error);
-            this.configLoaded = false;
-            return false;
-        }
-    },
-    
-    // 初始化所有元件
-    initializeAll: async function() {
-        console.log('初始化所有元件...');
-        
-        this.removeLoadingState();
-        
-        // 初始化各個部分
-        this.initializeFonts();
-        this.initializeShapes();
-        this.initializeBorderStyles();
-        this.initializeColors();
-        this.initializePatterns();
-        
-        console.log('元件初始化完成');
-    },
-    
-    // 初始化字體選擇
-    initializeFonts: function() {
-        if (!this.elements.fontSelect || this.availableFonts.length === 0) {
-            console.log('沒有字體選擇器或沒有可用字體');
-            return;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         
-        // 清空並重新填充選項
-        this.elements.fontSelect.innerHTML = '';
-        
-        // 加入預設選項
-        const defaultOption = document.createElement('option');
-        defaultOption.value = '';
-        defaultOption.textContent = '請選擇字體';
-        this.elements.fontSelect.appendChild(defaultOption);
-        
-        // 加入所有字體選項
-        this.availableFonts.forEach(font => {
-            const option = document.createElement('option');
-            option.value = font.id;
-            option.textContent = font.displayName;
-            option.dataset.weight = font.weight;
-            this.elements.fontSelect.appendChild(option);
-        });
-        
-        console.log(`已初始化 ${this.availableFonts.length} 個字體選項`);
-    },
-    
-    // 初始化形狀
-    initializeShapes: function() {
-        if (!this.elements.shapeContainer || this.shapes.length === 0) {
-            console.log('沒有形狀容器或沒有可用形狀');
-            return;
+        #stamp-custom-font-widget .scfw-section-title .material-icons {
+            font-size: 24px;
+            color: var(--accent-color);
         }
         
-        this.elements.shapeContainer.innerHTML = this.shapes.map(shape => `
-            <button class="shape-option" data-shape="${shape.id}" title="${shape.name}">
-                <div class="stamp-preview shape-${shape.class}">
-                    <span>印</span>
-                </div>
-            </button>
-        `).join('');
-        
-        // 更新按鈕參考
-        this.elements.shapeButtons = this.elements.shapeContainer.querySelectorAll('.shape-option');
-        
-        console.log(`已初始化 ${this.shapes.length} 個形狀`);
-    },
-    
-    // 初始化邊框樣式
-    initializeBorderStyles: function() {
-        if (!this.elements.borderStyleContainer) {
-            console.log('沒有邊框樣式容器');
-            return;
+        /* 搜尋框 */
+        #stamp-custom-font-widget .scfw-search-container {
+            position: relative;
+            margin-bottom: 16px;
         }
         
-        this.elements.borderStyleContainer.innerHTML = this.borderStyles.map(style => `
-            <button class="border-style-option" data-style="${style.id}" title="${style.name}">
-                <div class="border-preview ${style.class}"></div>
-            </button>
-        `).join('');
-        
-        // 更新按鈕參考
-        this.elements.borderStyleButtons = this.elements.borderStyleContainer.querySelectorAll('.border-style-option');
-        
-        console.log(`已初始化 ${this.borderStyles.length} 個邊框樣式`);
-    },
-    
-    // 初始化顏色
-    initializeColors: function() {
-        if (!this.elements.colorContainer || this.colorGroups.length === 0) {
-            console.log('沒有顏色容器或沒有可用顏色');
-            return;
+        #stamp-custom-font-widget .scfw-search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            font-size: 18px;
         }
         
-        this.elements.colorContainer.innerHTML = this.colorGroups.map(group => `
-            <div class="color-group">
-                <h4>${group.name}</h4>
-                <div class="color-shades">
-                    ${group.shades.map((shade, index) => `
-                        <button class="color-option" 
-                                data-color="${shade}" 
-                                data-group-id="${group.id}"
-                                style="background-color: ${shade};"
-                                title="${group.name} - ${index + 1}">
-                        </button>
-                    `).join('')}
-                </div>
-            </div>
-        `).join('');
-        
-        // 更新按鈕參考
-        this.elements.colorButtons = this.elements.colorContainer.querySelectorAll('.color-option');
-        
-        console.log(`已初始化 ${this.colorGroups.length} 個顏色組`);
-    },
-    
-    // 初始化圖案
-    initializePatterns: function() {
-        if (!this.elements.patternContainer || this.patterns.length === 0) {
-            console.log('沒有圖案容器或沒有可用圖案');
-            return;
-        }
-        
-        // 加入「無圖案」選項
-        const allPatterns = [
-            { id: 'none', name: '無', githubPath: null },
-            ...this.patterns
-        ];
-        
-        this.elements.patternContainer.innerHTML = allPatterns.map(pattern => {
-            if (pattern.id === 'none') {
-                return `
-                    <button class="pattern-option" data-pattern="${pattern.id}" title="${pattern.name}">
-                        <span>無</span>
-                    </button>
-                `;
-            } else {
-                const imageUrl = pattern.githubPath ? 
-                    `${this.GITHUB_RAW_URL}${pattern.githubPath}` : 
-                    `${this.GITHUB_RAW_URL}assets/patterns/${pattern.name}.png`;
-                
-                return `
-                    <button class="pattern-option" data-pattern="${pattern.id}" title="${pattern.name}">
-                        <img src="${imageUrl}" alt="${pattern.name}" onerror="this.parentElement.innerHTML='<span>?</span>'">
-                    </button>
-                `;
-            }
-        }).join('');
-        
-        // 更新按鈕參考
-        this.elements.patternButtons = this.elements.patternContainer.querySelectorAll('.pattern-option');
-        
-        console.log(`已初始化 ${this.patterns.length} 個圖案`);
-    },
-    
-    // 設定預設值
-    setDefaultValues: function() {
-        // 設定預設字體
-        if (this.availableFonts.length > 0 && !this.currentSettings.font) {
-            this.currentSettings.font = this.availableFonts[0].id;
-            if (this.elements.fontSelect) {
-                this.elements.fontSelect.value = this.currentSettings.font;
-            }
-        }
-        
-        // 設定預設形狀
-        if (this.shapes.length > 0 && !this.currentSettings.shape) {
-            this.currentSettings.shape = this.shapes[0].id;
-            const firstShapeButton = this.elements.shapeButtons?.[0];
-            if (firstShapeButton) {
-                firstShapeButton.classList.add('active');
-            }
-        }
-        
-        // 設定預設邊框樣式
-        if (this.borderStyles.length > 0) {
-            const solidButton = Array.from(this.elements.borderStyleButtons || [])
-                .find(btn => btn.dataset.style === 'solid');
-            if (solidButton) {
-                solidButton.classList.add('active');
-            }
-        }
-        
-        // 設定預設顏色
-        if (this.colorGroups.length > 0 && this.colorGroups[0].shades.length > 0) {
-            this.currentSettings.color = this.colorGroups[0].shades[0];
-            const firstColorButton = this.elements.colorButtons?.[0];
-            if (firstColorButton) {
-                firstColorButton.classList.add('active');
-            }
-        }
-        
-        // 設定預設圖案
-        const nonePatternButton = Array.from(this.elements.patternButtons || [])
-            .find(btn => btn.dataset.pattern === 'none');
-        if (nonePatternButton) {
-            nonePatternButton.classList.add('active');
-        }
-        
-        console.log('預設值設定完成:', this.currentSettings);
-    },
-    
-    // 載入所有字體
-    loadAllFonts: async function() {
-        if (this.availableFonts.length === 0) {
-            console.log('沒有需要載入的字體');
-            return;
-        }
-        
-        console.log(`開始載入 ${this.availableFonts.length} 個字體...`);
-        
-        const fontLoadingDiv = this.elements.fontLoading;
-        if (fontLoadingDiv) {
-            fontLoadingDiv.style.display = 'block';
-            fontLoadingDiv.textContent = '正在載入字體...';
-        }
-        
-        let loadedCount = 0;
-        let failedCount = 0;
-        
-        for (let i = 0; i < this.availableFonts.length; i++) {
-            const font = this.availableFonts[i];
-            
-            if (fontLoadingDiv) {
-                fontLoadingDiv.textContent = `正在載入字體 ${i + 1}/${this.availableFonts.length}: ${font.displayName}`;
-            }
-            
-            try {
-                const result = await this.loadFont(font);
-                if (result) {
-                    loadedCount++;
-                    console.log(`✓ 成功載入字體: ${font.displayName}`);
-                } else {
-                    failedCount++;
-                    console.error(`✗ 載入字體失敗: ${font.displayName}`);
-                }
-            } catch (error) {
-                failedCount++;
-                console.error(`✗ 載入字體出錯: ${font.displayName}`, error);
-            }
-            
-            // 避免同時載入太多，加入小延遲
-            if (i < this.availableFonts.length - 1) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-        }
-        
-        if (fontLoadingDiv) {
-            if (failedCount > 0) {
-                fontLoadingDiv.textContent = `字體載入完成 (成功: ${loadedCount}, 失敗: ${failedCount})`;
-                fontLoadingDiv.style.color = '#ff9800';
-            } else {
-                fontLoadingDiv.textContent = `成功載入 ${loadedCount} 個字體`;
-                fontLoadingDiv.style.color = '#4caf50';
-            }
-            
-            setTimeout(() => {
-                fontLoadingDiv.style.display = 'none';
-            }, 3000);
-        }
-        
-        console.log(`字體載入完成: 成功 ${loadedCount}, 失敗 ${failedCount}`);
-    },
-    
-    // 載入單一字體
-    loadFont: async function(fontData) {
-        if (!fontData) {
-            console.error('無效的字體資料');
-            return null;
-        }
-        
-        // 檢查是否已載入
-        if (this.loadedFonts[fontData.id]) {
-            console.log(`字體已載入: ${fontData.displayName}`);
-            return this.loadedFonts[fontData.id];
-        }
-        
-        try {
-            let fontUrl;
-            
-            // 決定字體 URL
-            if (fontData.githubPath) {
-                fontUrl = `${this.GITHUB_RAW_URL}${fontData.githubPath}`;
-            } else if (fontData.filename) {
-                fontUrl = `${this.GITHUB_RAW_URL}assets/fonts/${fontData.filename}`;
-            } else {
-                // 嘗試使用字體名稱
-                fontUrl = `${this.GITHUB_RAW_URL}assets/fonts/${fontData.name}.ttf`;
-            }
-            
-            // 加入時間戳避免快取
-            fontUrl += '?t=' + Date.now();
-            
-            console.log(`載入字體: ${fontData.displayName} from ${fontUrl}`);
-            
-            // 下載字體檔案
-            const response = await fetch(fontUrl);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const blob = await response.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            
-            // 建立字體
-            const fontFace = new FontFace(
-                `CustomFont${fontData.id}`,
-                `url(${blobUrl})`,
-                {
-                    weight: fontData.weight || 'normal',
-                    style: 'normal',
-                    display: 'swap'
-                }
-            );
-            
-            // 載入字體
-            await fontFace.load();
-            
-            // 加入到文件
-            document.fonts.add(fontFace);
-            
-            // 儲存參考
-            this.loadedFonts[fontData.id] = fontFace;
-            
-            // 延遲釋放 blob URL
-            setTimeout(() => {
-                URL.revokeObjectURL(blobUrl);
-            }, 10000);
-            
-            return fontFace;
-            
-        } catch (error) {
-            console.error(`載入字體失敗: ${fontData.displayName}`, error);
-            this.showFontLoadError(fontData.displayName);
-            return null;
-        }
-    },
-    
-    // 顯示字體載入錯誤
-    showFontLoadError: function(fontName) {
-        const errorMsg = document.createElement('div');
-        errorMsg.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: #f44336;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 4px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            z-index: 10000;
+        #stamp-custom-font-widget .scfw-search-input {
+            width: 100%;
+            padding: 10px 12px 10px 40px;
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
             font-size: 14px;
-            animation: slideIn 0.3s ease;
-        `;
-        errorMsg.textContent = `字體載入失敗: ${fontName}`;
-        document.body.appendChild(errorMsg);
-        
-        // 加入動畫
-        if (!document.getElementById('errorAnimStyle')) {
-            const style = document.createElement('style');
-            style.id = 'errorAnimStyle';
-            style.textContent = `
-                @keyframes slideIn {
-                    from { transform: translateX(100%); opacity: 0; }
-                    to { transform: translateX(0); opacity: 1; }
-                }
-                @keyframes slideOut {
-                    from { transform: translateX(0); opacity: 1; }
-                    to { transform: translateX(100%); opacity: 0; }
-                }
-            `;
-            document.head.appendChild(style);
+            color: var(--text-primary);
+            transition: all 0.3s;
         }
         
-        // 3秒後移除
-        setTimeout(() => {
-            errorMsg.style.animation = 'slideOut 0.3s ease';
-            setTimeout(() => errorMsg.remove(), 300);
-        }, 3000);
-    },
-    
-    // 綁定事件
-    bindEvents: function() {
-        console.log('綁定事件處理器...');
-        
-        // 文字輸入
-        if (this.elements.stampText) {
-            this.elements.stampText.addEventListener('input', (e) => {
-                this.currentSettings.text = e.target.value || '印章文字';
-                this.updateMainPreview();
-            });
+        #stamp-custom-font-widget .scfw-search-input:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.8);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(159, 178, 142, 0.1);
         }
         
-        // 字體選擇
-        if (this.elements.fontSelect) {
-            this.elements.fontSelect.addEventListener('change', async (e) => {
-                const selectedFontId = e.target.value;
-                if (!selectedFontId) return;
+        /* 分類標籤 */
+        #stamp-custom-font-widget .scfw-categories {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        
+        #stamp-custom-font-widget .scfw-categories::-webkit-scrollbar {
+            display: none;
+        }
+        
+        #stamp-custom-font-widget .scfw-category {
+            padding: 6px 12px;
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid transparent;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        
+        #stamp-custom-font-widget .scfw-category:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px var(--shadow-color);
+        }
+        
+        #stamp-custom-font-widget .scfw-category.active {
+            background: var(--accent-color);
+            color: white;
+        }
+        
+        /* 字體網格 - 優化空間 */
+        #stamp-custom-font-widget .scfw-fonts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+            overflow-y: auto;
+            max-height: 400px;
+            padding-right: 4px;
+        }
+        
+        #stamp-custom-font-widget .scfw-font-item {
+            background: rgba(255, 255, 255, 0.6);
+            border: 2px solid transparent;
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            text-align: center;
+        }
+        
+        #stamp-custom-font-widget .scfw-font-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px var(--shadow-color);
+            border-color: var(--glass-border);
+        }
+        
+        #stamp-custom-font-widget .scfw-font-item.selected {
+            background: rgba(159, 178, 142, 0.15);
+            border-color: var(--accent-color);
+        }
+        
+        #stamp-custom-font-widget .scfw-font-item.selected::after {
+            content: '✓';
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 20px;
+            height: 20px;
+            background: var(--accent-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        #stamp-custom-font-widget .scfw-font-preview {
+            font-size: 24px;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: normal;
+        }
+        
+        #stamp-custom-font-widget .scfw-font-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+        
+        /* 標籤頁樣式 */
+        #stamp-custom-font-widget .scfw-options-tabs {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 20px;
+        }
+        
+        #stamp-custom-font-widget .scfw-tabs-header {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        
+        #stamp-custom-font-widget .scfw-tabs-header::-webkit-scrollbar {
+            display: none;
+        }
+        
+        #stamp-custom-font-widget .scfw-tab-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid transparent;
+            border-radius: 8px;
+            font-size: 14px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        
+        #stamp-custom-font-widget .scfw-tab-btn .material-icons {
+            font-size: 18px;
+        }
+        
+        #stamp-custom-font-widget .scfw-tab-btn:hover {
+            background: rgba(255, 255, 255, 0.8);
+            transform: translateY(-1px);
+        }
+        
+        #stamp-custom-font-widget .scfw-tab-btn.active {
+            background: var(--accent-color);
+            color: white;
+        }
+        
+        #stamp-custom-font-widget .scfw-tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        #stamp-custom-font-widget .scfw-tab-content.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* 文字輸入 */
+        #stamp-custom-font-widget .scfw-text-input {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            font-size: 16px;
+            color: var(--text-primary);
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        #stamp-custom-font-widget .scfw-text-input:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.8);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(159, 178, 142, 0.1);
+        }
+        
+        /* 形狀選擇 */
+        #stamp-custom-font-widget .scfw-shapes-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        
+        #stamp-custom-font-widget .scfw-shape-item {
+            aspect-ratio: 1;
+            background: rgba(255, 255, 255, 0.5);
+            border: 2px solid transparent;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        #stamp-custom-font-widget .scfw-shape-item:hover {
+            transform: scale(1.05);
+            background: rgba(255, 255, 255, 0.8);
+        }
+        
+        #stamp-custom-font-widget .scfw-shape-item.selected {
+            background: rgba(159, 178, 142, 0.15);
+            border-color: var(--accent-color);
+        }
+        
+        #stamp-custom-font-widget .scfw-shape-preview {
+            width: 40px;
+            height: 40px;
+            border: 2px solid var(--accent-color);
+        }
+        
+        #stamp-custom-font-widget .scfw-shape-label {
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+        
+        /* 邊框樣式 */
+        #stamp-custom-font-widget .scfw-border-styles {
+            display: flex;
+            gap: 8px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        
+        #stamp-custom-font-widget .scfw-border-style {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.6);
+            border: 2px solid transparent;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex-shrink: 0;
+        }
+        
+        #stamp-custom-font-widget .scfw-border-style:hover {
+            transform: scale(1.1);
+            background: rgba(255, 255, 255, 0.8);
+        }
+        
+        #stamp-custom-font-widget .scfw-border-style.selected {
+            background: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+        
+        #stamp-custom-font-widget .scfw-border-style svg {
+            width: 28px;
+            height: 28px;
+        }
+        
+        /* 顏色選擇 */
+        #stamp-custom-font-widget .scfw-colors-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+        
+        #stamp-custom-font-widget .scfw-color-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        #stamp-custom-font-widget .scfw-color-main {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        #stamp-custom-font-widget .scfw-color-main:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        #stamp-custom-font-widget .scfw-color-main.selected {
+            transform: scale(1.1);
+            box-shadow: 
+                0 6px 16px rgba(0, 0, 0, 0.2),
+                inset 0 0 0 3px rgba(255, 255, 255, 0.5);
+        }
+        
+        #stamp-custom-font-widget .scfw-color-main.selected::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        
+        #stamp-custom-font-widget .scfw-color-shades {
+            display: flex;
+            gap: 3px;
+        }
+        
+        #stamp-custom-font-widget .scfw-color-shade {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        #stamp-custom-font-widget .scfw-color-shade:hover {
+            transform: scale(1.3);
+        }
+        
+        /* 圖案選擇 */
+        #stamp-custom-font-widget .scfw-patterns-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+        
+        #stamp-custom-font-widget .scfw-pattern-item {
+            aspect-ratio: 1;
+            background: rgba(255, 255, 255, 0.5);
+            border: 2px solid transparent;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            overflow: hidden;
+        }
+        
+        #stamp-custom-font-widget .scfw-pattern-item:hover {
+            transform: scale(1.05);
+            background: rgba(255, 255, 255, 0.7);
+        }
+        
+        #stamp-custom-font-widget .scfw-pattern-item.selected {
+            background: rgba(159, 178, 142, 0.15);
+            border-color: var(--accent-color);
+        }
+        
+        #stamp-custom-font-widget .scfw-pattern-item img {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+        }
+        
+        #stamp-custom-font-widget .scfw-pattern-svg {
+            width: 28px;
+            height: 28px;
+            opacity: 0.7;
+            color: var(--text-primary);
+        }
+        
+        #stamp-custom-font-widget .scfw-pattern-none {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+        
+        /* 載入動畫 */
+        #stamp-custom-font-widget .scfw-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            gap: 12px;
+        }
+        
+        #stamp-custom-font-widget .scfw-loading-spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid var(--glass-border);
+            border-top-color: var(--accent-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* 空白狀態 */
+        #stamp-custom-font-widget .scfw-empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+        
+        #stamp-custom-font-widget .scfw-empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        #stamp-custom-font-widget .scfw-empty-message {
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+        
+        #stamp-custom-font-widget .scfw-empty-hint {
+            font-size: 14px;
+            opacity: 0.7;
+        }
+        
+        /* 錯誤狀態 */
+        #stamp-custom-font-widget .scfw-error-state {
+            text-align: center;
+            padding: 40px;
+            background: rgba(239, 83, 80, 0.1);
+            border-radius: 12px;
+            color: #ef5350;
+        }
+        
+        #stamp-custom-font-widget .scfw-error-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        
+        #stamp-custom-font-widget .scfw-error-message {
+            font-size: 16px;
+            margin-bottom: 16px;
+        }
+        
+        #stamp-custom-font-widget .scfw-retry-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: #ef5350;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        #stamp-custom-font-widget .scfw-retry-btn:hover {
+            background: #e53935;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(239, 83, 80, 0.3);
+        }
+        
+        /* 滾動條美化 */
+        #stamp-custom-font-widget ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        
+        #stamp-custom-font-widget ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        
+        #stamp-custom-font-widget ::-webkit-scrollbar-thumb {
+            background: var(--glass-border);
+            border-radius: 10px;
+        }
+        
+        #stamp-custom-font-widget ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-color);
+        }
+        
+        /* 手機版優化 */
+        @media (max-width: 640px) {
+            #stamp-custom-font-widget {
+                padding: 12px;
+                border-radius: 12px;
+            }
+            
+            #stamp-custom-font-widget .scfw-preview-container {
+                padding: 16px;
+            }
+            
+            #stamp-custom-font-widget .scfw-stamp-display > div {
+                transform: scale(0.8);
+            }
+            
+            #stamp-custom-font-widget .scfw-fonts-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+                max-height: 300px;
+            }
+            
+            #stamp-custom-font-widget .scfw-font-item {
+                padding: 12px;
+            }
+            
+            #stamp-custom-font-widget .scfw-font-preview {
+                font-size: 20px;
+                height: 32px;
+            }
+            
+            #stamp-custom-font-widget .scfw-shapes-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            #stamp-custom-font-widget .scfw-colors-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 10px;
+            }
+            
+            #stamp-custom-font-widget .scfw-patterns-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            
+            #stamp-custom-font-widget .scfw-tab-btn {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+            
+            #stamp-custom-font-widget .scfw-tab-btn .material-icons {
+                font-size: 16px;
+            }
+        }
+        
+        /* 極小螢幕優化 */
+        @media (max-width: 375px) {
+            #stamp-custom-font-widget .scfw-fonts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            #stamp-custom-font-widget .scfw-stamp-display > div {
+                transform: scale(0.7);
+            }
+            
+            #stamp-custom-font-widget .scfw-shapes-grid,
+            #stamp-custom-font-widget .scfw-colors-grid,
+            #stamp-custom-font-widget .scfw-patterns-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    `;
+
+    // 建立 HTML 結構
+    const html = `
+        <div id="stamp-custom-font-widget">
+            <!-- 預覽區 -->
+            <div class="scfw-preview-section">
+                <div class="scfw-preview-container">
+                    <h2 class="scfw-preview-title">
+                        <span class="material-icons">verified</span>
+                        印章即時預覽
+                    </h2>
+                    <div class="scfw-stamp-preview-wrapper">
+                        <div class="scfw-stamp-display" id="scfw-main-preview">
+                            <!-- 動態生成預覽 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 主內容 -->
+            <div class="scfw-content">
+                <!-- 字體選擇區 -->
+                <div class="scfw-fonts-section glass-effect">
+                    <div class="scfw-section-header">
+                        <h3 class="scfw-section-title">
+                            <span class="material-icons">text_fields</span>
+                            選擇字體
+                        </h3>
+                    </div>
+                    
+                    <div class="scfw-search-container">
+                        <span class="material-icons scfw-search-icon">search</span>
+                        <input type="text" 
+                               class="scfw-search-input" 
+                               id="scfw-font-search"
+                               placeholder="搜尋字體...">
+                    </div>
+                    
+                    <div class="scfw-categories" id="scfw-categories">
+                        <!-- 動態生成分類 -->
+                    </div>
+                    
+                    <div class="scfw-fonts-grid" id="scfw-fonts-grid">
+                        <div class="scfw-loading">
+                            <div class="scfw-loading-spinner"></div>
+                            <div class="scfw-loading-text">正在載入設定...</div>
+                        </div>
+                    </div>
+                </div>
                 
-                const fontData = this.availableFonts.find(f => f.id == selectedFontId);
-                if (fontData) {
-                    // 確保字體已載入
-                    await this.loadFont(fontData);
-                    this.currentSettings.font = selectedFontId;
-                    this.updateMainPreview();
-                }
-            });
-        }
-        
-        // 形狀選擇
-        if (this.elements.shapeButtons) {
-            this.elements.shapeButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    this.elements.shapeButtons.forEach(b => b.classList.remove('active'));
-                    button.classList.add('active');
-                    this.currentSettings.shape = button.dataset.shape;
-                    this.updateMainPreview();
-                });
-            });
-        }
-        
-        // 邊框樣式選擇
-        if (this.elements.borderStyleButtons) {
-            this.elements.borderStyleButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    this.elements.borderStyleButtons.forEach(b => b.classList.remove('active'));
-                    button.classList.add('active');
-                    this.currentSettings.borderStyle = button.dataset.style;
-                    this.updateMainPreview();
-                });
-            });
-        }
-        
-        // 邊框寬度
-        if (this.elements.borderWidthSlider) {
-            this.elements.borderWidthSlider.addEventListener('input', (e) => {
-                const width = e.target.value;
-                this.currentSettings.borderWidth = parseInt(width);
-                if (this.elements.borderWidthValue) {
-                    this.elements.borderWidthValue.textContent = width;
-                }
-                this.updateMainPreview();
-            });
-        }
-        
-        // 顏色選擇
-        if (this.elements.colorButtons) {
-            this.elements.colorButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    this.elements.colorButtons.forEach(b => b.classList.remove('active'));
-                    button.classList.add('active');
-                    this.currentSettings.color = button.dataset.color;
-                    this.updateMainPreview();
-                });
-            });
-        }
-        
-        // 圖案選擇
-        if (this.elements.patternButtons) {
-            this.elements.patternButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    this.elements.patternButtons.forEach(b => b.classList.remove('active'));
-                    button.classList.add('active');
-                    this.currentSettings.pattern = button.dataset.pattern;
-                    this.updateMainPreview();
-                });
-            });
-        }
-        
-        // 特效按鈕
-        if (this.elements.effectButtons) {
-            this.elements.effectButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    const effect = button.dataset.effect;
-                    button.classList.toggle('active');
+                <!-- 選項標籤頁 -->
+                <div class="scfw-options-tabs glass-effect">
+                    <div class="scfw-tabs-header">
+                        <button class="scfw-tab-btn active" data-tab="text">
+                            <span class="material-icons">edit</span>
+                            <span>文字</span>
+                        </button>
+                        <button class="scfw-tab-btn" data-tab="shape">
+                            <span class="material-icons">category</span>
+                            <span>形狀</span>
+                        </button>
+                        <button class="scfw-tab-btn" data-tab="color">
+                            <span class="material-icons">palette</span>
+                            <span>顏色</span>
+                        </button>
+                        <button class="scfw-tab-btn" data-tab="pattern">
+                            <span class="material-icons">stars</span>
+                            <span>圖案</span>
+                        </button>
+                    </div>
                     
-                    if (button.classList.contains('active')) {
-                        if (!this.currentSettings.effects.includes(effect)) {
-                            this.currentSettings.effects.push(effect);
-                        }
-                    } else {
-                        this.currentSettings.effects = this.currentSettings.effects.filter(e => e !== effect);
-                    }
-                    
-                    this.updateMainPreview();
-                });
-            });
-        }
-        
-        console.log('事件綁定完成');
-    },
+                    <div class="scfw-tabs-content">
+                        <!-- 文字標籤頁 -->
+                        <div class="scfw-tab-content active" data-tab="text">
+                            <input type="text" 
+                                   class="scfw-text-input" 
+                                   id="scfw-text"
+                                   placeholder="輸入印章文字（最多6字）"
+                                   maxlength="6"
+                                   value="印章範例">
+                        </div>
+                        
+                        <!-- 形狀標籤頁 -->
+                        <div class="scfw-tab-content" data-tab="shape">
+                            <div class="scfw-shapes-grid" id="scfw-shapes-grid">
+                                <!-- 動態生成 -->
+                            </div>
+                            <div style="margin-top: 12px; font-size: 12px; color: var(--text-secondary); font-weight: 500;">邊框樣式</div>
+                            <div class="scfw-border-styles" id="scfw-border-styles">
+                                <!-- 動態生成 -->
+                            </div>
+                        </div>
+                        
+                        <!-- 顏色標籤頁 -->
+                        <div class="scfw-tab-content" data-tab="color">
+                            <div class="scfw-colors-grid" id="scfw-colors-grid">
+                                <!-- 動態生成 -->
+                            </div>
+                        </div>
+                        
+                        <!-- 圖案標籤頁 -->
+                        <div class="scfw-tab-content" data-tab="pattern">
+                            <div class="scfw-patterns-grid" id="scfw-patterns-grid">
+                                <!-- 動態生成 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // 注入樣式
+    const styleSheet = document.createElement('style');
+    styleSheet.textContent = styles;
+    document.head.appendChild(styleSheet);
+
+    // 尋找容器並注入 HTML
+    const container = document.getElementById('stamp-font-widget-container') || 
+                     document.getElementById('stamp-preview-root') ||
+                     document.body;
     
-    // 更新主預覽
-    updateMainPreview: function() {
-        if (!this.elements.mainPreview) {
-            console.log('沒有主預覽元素');
-            return;
-        }
+    const widgetDiv = document.createElement('div');
+    widgetDiv.innerHTML = html;
+    container.appendChild(widgetDiv);
+
+    // Widget 主要邏輯
+    const StampFontWidget = {
+        // 配置
+        CONFIG_URL: 'https://raw.githubusercontent.com/DK0124/stamp-font-preview/main/config/stamp-config.json',
+        GITHUB_RAW_URL: 'https://raw.githubusercontent.com/DK0124/stamp-font-preview/main/',
         
-        const preview = this.elements.mainPreview;
-        const text = this.currentSettings.text || '印章文字';
+        // 從後台載入的資料（初始為空）
+        availableFonts: [],
+        shapes: [],
+        borderStyles: [
+            { id: 'solid', name: '實線', style: 'solid' },
+            { id: 'double', name: '雙線', style: 'double' },
+            { id: 'dashed', name: '虛線', style: 'dashed' },
+            { id: 'dotted', name: '點線', style: 'dotted' }
+        ],
+        colorGroups: [],
+        patterns: [],
+        categories: [],
+
+        currentSelection: {
+            text: '印章範例',
+            font: '',
+            fontId: null,
+            shape: '',
+            borderStyle: 'solid',
+            pattern: 'none',
+            color: '#DC143C',
+            category: 'all'
+        },
+
+        loadedFonts: {},
+        isLoading: false,
+        configLoaded: false,
+        bvShopListeners: [],
+
+        // 初始化       
+        init: async function() {
+            const widget = document.getElementById('stamp-custom-font-widget');
+            if (!widget) return;
         
-        // 重置類別
-        preview.className = 'stamp-large';
-        
-        // 設定形狀
-        const shapeData = this.shapes.find(s => s.id === this.currentSettings.shape);
-        if (shapeData) {
-            preview.classList.add(`shape-${shapeData.class}`);
-        }
-        
-        // 設定邊框
-        preview.style.borderStyle = this.currentSettings.borderStyle || 'solid';
-        preview.style.borderWidth = `${this.currentSettings.borderWidth}px`;
-        preview.style.borderColor = this.currentSettings.color;
-        preview.style.color = this.currentSettings.color;
-        
-        // 設定字體
-        const fontData = this.availableFonts.find(f => f.id == this.currentSettings.font);
-        if (fontData) {
-            preview.style.fontFamily = `CustomFont${fontData.id}, serif`;
-            preview.style.fontWeight = fontData.weight || 'normal';
-        }
-        
-        // 設定圖案背景
-        if (this.currentSettings.pattern && this.currentSettings.pattern !== 'none') {
-            const pattern = this.patterns.find(p => p.id === this.currentSettings.pattern);
-            if (pattern) {
-                const patternUrl = pattern.githubPath ? 
-                    `${this.GITHUB_RAW_URL}${pattern.githubPath}` : 
-                    `${this.GITHUB_RAW_URL}assets/patterns/${pattern.name}.png`;
-                preview.style.backgroundImage = `url(${patternUrl})`;
-                preview.style.backgroundSize = 'cover';
-                preview.style.backgroundPosition = 'center';
-            }
-        } else {
-            preview.style.backgroundImage = 'none';
-            preview.style.backgroundColor = 'transparent';
-        }
-        
-        // 應用特效
-        let transform = '';
-        let filter = '';
-        let boxShadow = 'none';
-        
-        this.currentSettings.effects.forEach(effect => {
-            switch(effect) {
-                case 'rotate':
-                    transform += 'rotate(-15deg) ';
-                    break;
-                case 'shadow':
-                    boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
-                    break;
-                case 'blur':
-                    filter += 'blur(1px) ';
-                    break;
-                case 'vintage':
-                    filter += 'sepia(0.5) ';
-                    break;
-            }
-        });
-        
-        preview.style.transform = transform || 'none';
-        preview.style.filter = filter || 'none';
-        preview.style.boxShadow = boxShadow;
-        
-        // 設定文字
-        preview.textContent = text;
-        
-        // 通知 BVShop 更新
-        if (window.BVShop && window.BVShop.updateAllPreviews) {
-            window.BVShop.updateAllPreviews();
-        }
-        
-        console.log('預覽已更新');
-    },
-    
-    // 設定 BVShop 監聽器
-    setupBVShopListeners: function() {
-        if (!window.BVShop) {
-            console.log('BVShop 未載入');
-            return;
-        }
-        
-        // 監聽產品加入事件
-        window.addEventListener('bvshop:productAdded', (event) => {
-            console.log('產品已加入:', event.detail);
-            this.applyToProduct(event.detail.productId);
-        });
-        
-        // 監聽 BVShop 就緒事件
-        window.addEventListener('bvshop:ready', () => {
-            console.log('BVShop 已就緒');
-            this.loadFromBVShop();
-        });
-        
-        console.log('BVShop 監聽器已設定');
-    },
-    
-    // 從 BVShop 載入設定
-    loadFromBVShop: function() {
-        if (!window.BVShop || !window.BVShop.products) {
-            console.log('沒有 BVShop 產品');
-            return;
-        }
-        
-        window.BVShop.products.forEach(product => {
-            if (product.settings && product.settings.stampSettings) {
-                const settings = product.settings.stampSettings;
-                if (settings.font || settings.shape || settings.color) {
-                    this.currentSettings = { ...this.currentSettings, ...settings };
-                    this.updateUI();
-                    this.updateMainPreview();
-                    console.log('從 BVShop 載入設定:', settings);
-                }
-            }
-        });
-    },
-    
-    // 應用到產品
-    applyToProduct: function(productId) {
-        if (!window.BVShop || !window.BVShop.updateProductSettings) {
-            console.log('BVShop 更新功能不可用');
-            return;
-        }
-        
-        const settings = {
-            stampSettings: { ...this.currentSettings }
-        };
-        
-        window.BVShop.updateProductSettings(productId, settings);
-        console.log('已應用設定到產品:', productId);
-    },
-    
-    // 更新 UI 以反映當前設定
-    updateUI: function() {
-        // 更新文字輸入
-        if (this.elements.stampText) {
-            this.elements.stampText.value = this.currentSettings.text;
-        }
-        
-        // 更新字體選擇
-        if (this.elements.fontSelect) {
-            this.elements.fontSelect.value = this.currentSettings.font;
-        }
-        
-        // 更新形狀選擇
-        if (this.elements.shapeButtons) {
-            this.elements.shapeButtons.forEach(button => {
-                if (button.dataset.shape === this.currentSettings.shape) {
-                    button.classList.add('active');
-                } else {
-                    button.classList.remove('active');
-                }
-            });
-        }
-        
-        // 更新邊框樣式
-        if (this.elements.borderStyleButtons) {
-            this.elements.borderStyleButtons.forEach(button => {
-                if (button.dataset.style === this.currentSettings.borderStyle) {
-                    button.classList.add('active');
-                } else {
-                    button.classList.remove('active');
-                }
-            });
-        }
-        
-        // 更新邊框寬度
-        if (this.elements.borderWidthSlider) {
-            this.elements.borderWidthSlider.value = this.currentSettings.borderWidth;
-            if (this.elements.borderWidthValue) {
-                this.elements.borderWidthValue.textContent = this.currentSettings.borderWidth;
-            }
-        }
-        
-        // 更新顏色
-        if (this.elements.colorButtons) {
-            this.elements.colorButtons.forEach(button => {
-                if (button.dataset.color === this.currentSettings.color) {
-                    button.classList.add('active');
-                } else {
-                    button.classList.remove('active');
-                }
-            });
-        }
-        
-        // 更新圖案
-        if (this.elements.patternButtons) {
-            this.elements.patternButtons.forEach(button => {
-                if (button.dataset.pattern === this.currentSettings.pattern) {
-                    button.classList.add('active');
-                } else {
-                    button.classList.remove('active');
-                }
-            });
-        }
-        
-        // 更新特效
-        if (this.elements.effectButtons) {
-            this.elements.effectButtons.forEach(button => {
-                const effect = button.dataset.effect;
-                if (this.currentSettings.effects.includes(effect)) {
-                    button.classList.add('active');
-                } else {
-                    button.classList.remove('active');
-                }
-            });
-        }
-    },
-    
-    // 取得當前設定
-    getCurrentSettings: function() {
-        return { ...this.currentSettings };
-    },
-    
-    // 設定當前設定
-    setCurrentSettings: function(settings) {
-        this.currentSettings = { ...this.currentSettings, ...settings };
-        this.updateUI();
-        this.updateMainPreview();
-    },
-    
-    // 重新載入設定
-    reloadConfig: async function() {
-        console.log('重新載入設定...');
-        
-        // 顯示載入狀態
-        this.showLoadingState();
-        
-        // 清空現有資料
-        this.availableFonts = [];
-        this.shapes = [];
-        this.colorGroups = [];
-        this.patterns = [];
-        this.loadedFonts = {};
-        
-        // 重新載入
-        const success = await this.loadCustomConfig();
-        
-        if (success) {
-            await this.initializeAll();
-            await this.loadAllFonts();
-            this.setDefaultValues();
-            this.updateMainPreview();
-            console.log('設定重新載入完成');
-        } else {
-            this.showErrorState('無法重新載入設定');
-        }
-    },
-    
-    // 清理資源
-    cleanup: function() {
-        // 移除載入的字體
-        Object.values(this.loadedFonts).forEach(fontFace => {
+            this.elements = {
+                textInput: widget.querySelector('#scfw-text'),
+                fontSearch: widget.querySelector('#scfw-font-search'),
+                fontsGrid: widget.querySelector('#scfw-fonts-grid'),
+                shapesGrid: widget.querySelector('#scfw-shapes-grid'),
+                borderStyles: widget.querySelector('#scfw-border-styles'),
+                colorsGrid: widget.querySelector('#scfw-colors-grid'),
+                patternsGrid: widget.querySelector('#scfw-patterns-grid'),
+                mainPreview: widget.querySelector('#scfw-main-preview'),
+                categoriesContainer: widget.querySelector('#scfw-categories')
+            };
+
+            // 顯示載入狀態
+            this.showLoadingState();
+
             try {
-                document.fonts.delete(fontFace);
+                // 載入設定
+                const configSuccess = await this.loadCustomConfig();
+                
+                if (!configSuccess) {
+                    throw new Error('無法載入設定檔');
+                }
+                
+                // 檢查是否有資料
+                if (this.availableFonts.length === 0 && 
+                    this.shapes.length === 0 && 
+                    this.colorGroups.length === 0) {
+                    this.showEmptyState();
+                    return;
+                }
+                
+                // 初始化所有元件
+                this.initializeCategories();
+                this.initializeShapes();
+                this.initializeBorderStyles();
+                this.initializeColors();
+                this.initializePatterns();
+                this.bindEvents();
+                
+                // 設定預設值
+                this.setDefaultValues();
+                
+                // 更新預覽
+                this.updateMainPreview();
+                
+                // 載入字體
+                await this.loadAllFonts();
+                
+                // 設定 BVShop 整合
+                setTimeout(() => {
+                    this.setupBVShopListeners();
+                    this.loadFromBVShop();
+                }, 500);
+                
             } catch (error) {
-                console.error('移除字體失敗:', error);
+                console.error('初始化失敗:', error);
+                this.showErrorState(error.message);
             }
+        },
+
+        // 顯示載入狀態
+        showLoadingState: function() {
+            if (this.elements.fontsGrid) {
+                this.elements.fontsGrid.innerHTML = `
+                    <div class="scfw-loading">
+                        <div class="scfw-loading-spinner"></div>
+                        <div class="scfw-loading-text">正在載入設定...</div>
+                    </div>
+                `;
+            }
+        },
+
+        // 顯示空白狀態
+        showEmptyState: function() {
+            const widget = document.getElementById('stamp-custom-font-widget');
+            if (!widget) return;
+            
+            widget.innerHTML = `
+                <div class="scfw-empty-state">
+                    <div class="scfw-empty-icon material-icons">inbox</div>
+                    <div class="scfw-empty-message">尚未設定任何內容</div>
+                    <div class="scfw-empty-hint">請先到後台上傳字體、形狀、顏色等資源</div>
+                </div>
+            `;
+        },
+
+        // 顯示錯誤狀態
+        showErrorState: function(message) {
+            const widget = document.getElementById('stamp-custom-font-widget');
+            if (!widget) return;
+            
+            widget.innerHTML = `
+                <div class="scfw-error-state">
+                    <div class="scfw-error-icon material-icons">error_outline</div>
+                    <div class="scfw-error-message">載入失敗：${message}</div>
+                    <button class="scfw-retry-btn" onclick="location.reload()">
+                        <span class="material-icons">refresh</span>
+                        重新載入
+                    </button>
+                </div>
+            `;
+        },
+
+        // 從 GitHub 載入自訂設定
+        loadCustomConfig: async function() {
+            try {
+                console.log('開始載入設定檔...');
+                const response = await fetch(this.CONFIG_URL + '?t=' + Date.now());
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const config = await response.json();
+                console.log('成功載入設定:', config);
+                
+                // 載入字體
+                if (config.fonts && Array.isArray(config.fonts)) {
+                    this.availableFonts = config.fonts.map(font => ({
+                        id: font.id || Date.now() + Math.random(),
+                        name: font.name,
+                        displayName: font.displayName || font.name,
+                        category: font.category || 'custom',
+                        filename: font.filename,
+                        githubPath: font.githubPath,
+                        weight: font.weight || 'normal',
+                        systemFont: false
+                    }));
+                    console.log(`載入了 ${this.availableFonts.length} 個字體`);
+                }
+                
+                // 載入形狀
+                if (config.shapes && Array.isArray(config.shapes)) {
+                    this.shapes = config.shapes.map(shape => ({
+                        id: shape.id || shape.name,
+                        name: shape.name,
+                        class: shape.class || shape.name,
+                        githubPath: shape.githubPath
+                    }));
+                    console.log(`載入了 ${this.shapes.length} 個形狀`);
+                }
+                
+                // 載入顏色
+                if (config.colors && Array.isArray(config.colors)) {
+                    this.colorGroups = config.colors.map(color => ({
+                        id: color.id || Date.now() + Math.random(),
+                        name: color.name,
+                        main: color.main,
+                        shades: color.shades || [color.main]
+                    }));
+                    console.log(`載入了 ${this.colorGroups.length} 個顏色組`);
+                }
+                
+                // 載入圖案
+                if (config.patterns && Array.isArray(config.patterns)) {
+                    this.patterns = config.patterns.map(pattern => ({
+                        id: pattern.id || pattern.name,
+                        name: pattern.name,
+                        githubPath: pattern.githubPath
+                    }));
+                    console.log(`載入了 ${this.patterns.length} 個圖案`);
+                }
+                
+                // 提取所有分類
+                const categoriesSet = new Set(['all']);
+                this.availableFonts.forEach(font => {
+                    if (font.category) {
+                        categoriesSet.add(font.category);
+                    }
+                });
+                this.categories = Array.from(categoriesSet);
+                
+                this.configLoaded = true;
+                console.log('設定載入完成');
+                return true;
+                
+            } catch (error) {
+                console.error('載入設定失敗:', error);
+                this.configLoaded = false;
+                return false;
+            }
+        },
+
+        // 初始化分類
+        initializeCategories: function() {
+            if (!this.elements.categoriesContainer) return;
+            
+            this.elements.categoriesContainer.innerHTML = this.categories.map((cat, index) => `
+                <button class="scfw-category ${index === 0 ? 'active' : ''}" data-category="${cat}">
+                    ${cat === 'all' ? '全部' : 
+                      cat === 'traditional' ? '傳統' :
+                      cat === 'handwrite' ? '手寫' :
+                      cat === 'modern' ? '現代' :
+                      cat === 'custom' ? '自訂' : cat}
+                </button>
+            `).join('');
+            
+            // 綁定點擊事件
+            this.elements.categoriesContainer.querySelectorAll('.scfw-category').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    this.elements.categoriesContainer.querySelectorAll('.scfw-category').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    this.currentSelection.category = btn.dataset.category;
+                    this.filterFonts(btn.dataset.category);
+                });
+            });
+        },
+
+        // 初始化形狀
+        initializeShapes: function() {
+            const shapesGrid = this.elements.shapesGrid;
+            if (!shapesGrid || this.shapes.length === 0) return;
+            
+            shapesGrid.innerHTML = '';
+            
+            this.shapes.forEach((shape, index) => {
+                const item = document.createElement('div');
+                item.className = 'scfw-shape-item';
+                if (index === 0) {
+                    item.classList.add('selected');
+                    this.currentSelection.shape = shape.id;
+                }
+                item.dataset.shape = shape.id;
+                
+                let shapeStyle = '';
+                let dimensions = '';
+                
+                switch(shape.id) {
+                    case 'circle':
+                    case '圓形':
+                        shapeStyle = 'border-radius: 50%;';
+                        break;
+                    case 'ellipse':
+                    case '橢圓形':
+                        shapeStyle = 'border-radius: 50%;';
+                        dimensions = 'width: 50px; height: 35px;';
+                        break;
+                    case 'rectangle':
+                    case '長方形':
+                        dimensions = 'width: 50px; height: 35px;';
+                        break;
+                    case 'rounded-square':
+                    case '圓角方形':
+                        shapeStyle = 'border-radius: 8px;';
+                        break;
+                }
+                
+                item.innerHTML = `
+                    <div class="scfw-shape-preview" style="${shapeStyle} ${dimensions}"></div>
+                    <span class="scfw-shape-label">${shape.name}</span>
+                `;
+                
+                item.addEventListener('click', () => {
+                    shapesGrid.querySelectorAll('.scfw-shape-item').forEach(el => el.classList.remove('selected'));
+                    item.classList.add('selected');
+                    this.currentSelection.shape = shape.id;
+                    this.updateMainPreview();
+                    this.syncToBVShop('shape', shape.class);
+                });
+                
+                shapesGrid.appendChild(item);
+            });
+        },
+
+        // 初始化邊框樣式
+        initializeBorderStyles: function() {
+            const container = this.elements.borderStyles;
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            this.borderStyles.forEach((style, index) => {
+                const item = document.createElement('div');
+                item.className = 'scfw-border-style';
+                if (index === 0) item.classList.add('selected');
+                item.dataset.style = style.id;
+                
+                const strokeDasharray = style.id === 'dashed' ? '6,3' : 
+                                       style.id === 'dotted' ? '2,2' : '0';
+                
+                item.innerHTML = `
+                    <svg viewBox="0 0 32 32">
+                        <circle cx="16" cy="16" r="13" fill="none" 
+                                stroke="${this.currentSelection.color}" 
+                                stroke-width="2" 
+                                stroke-dasharray="${strokeDasharray}"/>
+                    </svg>
+                `;
+                
+                item.addEventListener('click', () => {
+                    container.querySelectorAll('.scfw-border-style').forEach(el => el.classList.remove('selected'));
+                    item.classList.add('selected');
+                    this.currentSelection.borderStyle = style.style;
+                    this.updateMainPreview();
+                });
+                
+                container.appendChild(item);
+            });
+        },
+
+        // 初始化顏色
+        initializeColors: function() {
+            const colorsGrid = this.elements.colorsGrid;
+            if (!colorsGrid || this.colorGroups.length === 0) return;
+            
+            colorsGrid.innerHTML = '';
+            
+            this.colorGroups.forEach((group, index) => {
+                const colorGroup = document.createElement('div');
+                colorGroup.className = 'scfw-color-group';
+                
+                const mainColor = document.createElement('div');
+                mainColor.className = 'scfw-color-main';
+                
+                if (index === 0) {
+                    mainColor.classList.add('selected');
+                    this.currentSelection.color = group.shades[0] || group.main;
+                }
+                
+                mainColor.style.backgroundColor = group.main;
+                mainColor.dataset.color = group.main;
+                
+                mainColor.addEventListener('click', () => {
+                    colorsGrid.querySelectorAll('.scfw-color-main').forEach(el => el.classList.remove('selected'));
+                    mainColor.classList.add('selected');
+                    this.currentSelection.color = group.main;
+                    this.updateMainPreview();
+                    this.updateBorderStyleColors();
+                    this.syncToBVShop('color', group.main);
+                });
+                
+                const shades = document.createElement('div');
+                shades.className = 'scfw-color-shades';
+                
+                group.shades.forEach((shade) => {
+                    const shadeDiv = document.createElement('div');
+                    shadeDiv.className = 'scfw-color-shade';
+                    shadeDiv.style.backgroundColor = shade;
+                    shadeDiv.dataset.color = shade;
+                    
+                    shadeDiv.addEventListener('click', () => {
+                        colorsGrid.querySelectorAll('.scfw-color-main').forEach(el => el.classList.remove('selected'));
+                        mainColor.classList.add('selected');
+                        this.currentSelection.color = shade;
+                        this.updateMainPreview();
+                        this.updateBorderStyleColors();
+                        this.syncToBVShop('color', shade);
+                    });
+                    
+                    shades.appendChild(shadeDiv);
+                });
+                
+                colorGroup.appendChild(mainColor);
+                colorGroup.appendChild(shades);
+                colorsGrid.appendChild(colorGroup);
+            });
+        },
+
+        // 初始化圖案
+        initializePatterns: function() {
+            const patternsGrid = this.elements.patternsGrid;
+            if (!patternsGrid) return;
+            
+            patternsGrid.innerHTML = '';
+            
+            // 加入「無圖案」選項
+            const noneItem = document.createElement('div');
+            noneItem.className = 'scfw-pattern-item selected';
+            noneItem.dataset.pattern = 'none';
+            noneItem.innerHTML = '<span class="scfw-pattern-none">無</span>';
+            
+            noneItem.addEventListener('click', () => {
+                patternsGrid.querySelectorAll('.scfw-pattern-item').forEach(el => el.classList.remove('selected'));
+                noneItem.classList.add('selected');
+                this.currentSelection.pattern = 'none';
+                this.updateMainPreview();
+                this.syncToBVShop('pattern', '');
+            });
+            
+            patternsGrid.appendChild(noneItem);
+            
+            // 加入其他圖案
+            this.patterns.forEach((pattern) => {
+                const item = document.createElement('div');
+                item.className = 'scfw-pattern-item';
+                item.dataset.pattern = pattern.id;
+                
+                if (pattern.githubPath) {
+                    const imgUrl = `${this.GITHUB_RAW_URL}${pattern.githubPath}`;
+                    item.innerHTML = `<img src="${imgUrl}" alt="${pattern.name}" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\\'scfw-pattern-none\\'>?</span>'">`;
+                } else {
+                    item.innerHTML = `<span class="scfw-pattern-none">${pattern.name}</span>`;
+                }
+                
+                item.addEventListener('click', () => {
+                    patternsGrid.querySelectorAll('.scfw-pattern-item').forEach(el => el.classList.remove('selected'));
+                    item.classList.add('selected');
+                    this.currentSelection.pattern = pattern.id;
+                    this.updateMainPreview();
+                    this.syncToBVShop('pattern', pattern.name);
+                });
+                
+                patternsGrid.appendChild(item);
+            });
+        },
+
+        // 設定預設值
+        setDefaultValues: function() {
+            // 設定預設字體
+            if (this.availableFonts.length > 0 && !this.currentSelection.font) {
+                this.currentSelection.font = this.availableFonts[0].name;
+                this.currentSelection.fontId = this.availableFonts[0].id;
+            }
+            
+            // 設定預設形狀
+            if (this.shapes.length > 0 && !this.currentSelection.shape) {
+                this.currentSelection.shape = this.shapes[0].id;
+            }
+            
+            // 設定預設顏色
+            if (this.colorGroups.length > 0) {
+                const firstGroup = this.colorGroups[0];
+                this.currentSelection.color = firstGroup.shades[0] || firstGroup.main;
+            }
+            
+            console.log('預設值設定完成:', this.currentSelection);
+        },
+
+        // 更新邊框樣式顏色
+        updateBorderStyleColors: function() {
+            const borderStyles = this.elements.borderStyles.querySelectorAll('svg circle');
+            borderStyles.forEach(circle => {
+                circle.setAttribute('stroke', this.currentSelection.color);
+            });
+        },
+
+        // 更新主預覽
+        updateMainPreview: function() {
+            const preview = this.elements.mainPreview;
+            if (!preview) return;
+            
+            const font = this.availableFonts.find(f => f.id === this.currentSelection.fontId);
+            const pattern = this.patterns.find(p => p.id === this.currentSelection.pattern);
+            
+            let shapeStyle = '';
+            let dimensions = 'width: 150px; height: 150px;';
+            
+            switch(this.currentSelection.shape) {
+                case 'circle':
+                case '圓形':
+                    shapeStyle = 'border-radius: 50%;';
+                    break;
+                case 'ellipse':
+                case '橢圓形':
+                    shapeStyle = 'border-radius: 50%;';
+                    dimensions = 'width: 180px; height: 130px;';
+                    break;
+                case 'rectangle':
+                case '長方形':
+                    dimensions = 'width: 180px; height: 120px;';
+                    break;
+                case 'rounded-square':
+                case '圓角方形':
+                    shapeStyle = 'border-radius: 16px;';
+                    break;
+            }
+            
+            const fontFamily = font ? `CustomFont${font.id}, serif` : 'serif';
+            
+            let patternHtml = '';
+            if (pattern && pattern.id !== 'none' && pattern.githubPath) {
+                const patternUrl = `${this.GITHUB_RAW_URL}${pattern.githubPath}`;
+                patternHtml = `
+                    <img style="
+                        position: absolute;
+                        bottom: 10px;
+                        right: 10px;
+                        width: 24px;
+                        height: 24px;
+                        opacity: 0.3;
+                        object-fit: contain;
+                    " src="${patternUrl}" alt="">
+                `;
+            }
+            
+            preview.innerHTML = `
+                <div style="
+                    ${dimensions}
+                    border: 4px ${this.currentSelection.borderStyle} ${this.currentSelection.color};
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    position: relative;
+                    background: white;
+                    ${shapeStyle}
+                ">
+                    <span style="
+                        font-family: ${fontFamily};
+                        font-size: 36px;
+                        color: ${this.currentSelection.color};
+                        font-weight: ${font?.weight || 'normal'};
+                        text-align: center;
+                        padding: 0 10px;
+                    ">${this.currentSelection.text}</span>
+                    ${patternHtml}
+                </div>
+            `;
+            
+            // 更新所有外部預覽
+            this.updateAllExternalPreviews();
+        },
+
+        // 載入字體
+        loadFont: async function(fontData) {
+            if (!fontData || this.loadedFonts[fontData.id]) {
+                return this.loadedFonts[fontData.id];
+            }
+            
+            try {
+                let fontUrl;
+                
+                if (fontData.githubPath) {
+                    fontUrl = `${this.GITHUB_RAW_URL}${fontData.githubPath}`;
+                } else if (fontData.filename) {
+                    fontUrl = `${this.GITHUB_RAW_URL}assets/fonts/${fontData.filename}`;
+                } else {
+                    console.error('字體沒有有效的路徑:', fontData);
+                    return null;
+                }
+                
+                // 加入時間戳避免快取
+                fontUrl += '?t=' + Date.now();
+                
+                console.log(`載入字體: ${fontData.displayName} from ${fontUrl}`);
+                
+                // 使用 Blob URL 隱藏真實路徑
+                const response = await fetch(fontUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const blob = await response.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                
+                const fontFace = new FontFace(
+                    `CustomFont${fontData.id}`, 
+                    `url(${blobUrl})`,
+                    {
+                        weight: fontData.weight || 'normal',
+                        style: 'normal',
+                        display: 'swap'
+                    }
+                );
+                
+                await fontFace.load();
+                document.fonts.add(fontFace);
+                this.loadedFonts[fontData.id] = fontFace;
+                
+                // 延遲撤銷 Blob URL（確保字體已載入）
+                setTimeout(() => {
+                    URL.revokeObjectURL(blobUrl);
+                }, 10000);
+                
+                console.log(`✓ 字體載入成功: ${fontData.displayName}`);
+                return fontFace;
+                
+            } catch (error) {
+                console.error(`載入字體失敗 ${fontData.displayName}:`, error);
+                return null;
+            }
+        },
+
+        // 創建字體卡片
+        createFontCard: function(fontData) {
+            const item = document.createElement('div');
+            item.className = 'scfw-font-item';
+            item.dataset.fontId = fontData.id;
+            item.dataset.fontName = fontData.name;
+            item.dataset.category = fontData.category;
+            
+            if (fontData.id === this.currentSelection.fontId) {
+                item.classList.add('selected');
+            }
+            
+            item.innerHTML = `
+                <div class="scfw-font-preview">
+                    <span style="opacity: 0.3;">載入中...</span>
+                </div>
+                <div class="scfw-font-label">${fontData.displayName}</div>
+            `;
+            
+            // 載入字體後更新
+            this.loadFont(fontData).then((loaded) => {
+                if (loaded) {
+                    const preview = item.querySelector('.scfw-font-preview');
+                    preview.innerHTML = `
+                        <span style="font-family: CustomFont${fontData.id}; font-weight: ${fontData.weight || 'normal'};">
+                            ${this.currentSelection.text}
+                        </span>
+                    `;
+                } else {
+                    const preview = item.querySelector('.scfw-font-preview');
+                    preview.innerHTML = `<span style="color: #ef5350;">載入失敗</span>`;
+                }
+            });
+            
+            item.addEventListener('click', () => {
+                const widget = document.getElementById('stamp-custom-font-widget');
+                widget.querySelectorAll('.scfw-font-item').forEach(el => el.classList.remove('selected'));
+                item.classList.add('selected');
+                
+                this.currentSelection.font = fontData.name;
+                this.currentSelection.fontId = fontData.id;
+                
+                this.updateMainPreview();
+                this.syncToBVShop('font', fontData.name);
+            });
+            
+            return item;
+        },
+
+        // 載入所有字體
+        loadAllFonts: async function() {
+            if (this.isLoading || this.availableFonts.length === 0) return;
+            
+            this.isLoading = true;
+            
+            // 清空字體網格
+            this.elements.fontsGrid.innerHTML = '';
+            
+            // 顯示所有字體卡片（先顯示再載入）
+            for (const fontData of this.availableFonts) {
+                const card = this.createFontCard(fontData);
+                this.elements.fontsGrid.appendChild(card);
+            }
+            
+            this.isLoading = false;
+            
+            // 延遲檢查 BVShop
+            setTimeout(() => {
+                const fontSelect = this.findBVSelect('字體');
+                if (fontSelect && fontSelect.value) {
+                    this.selectFontByName(fontSelect.value);
+                }
+            }, 100);
+        },
+
+        // 更新所有字體預覽
+        updateAllFontPreviews: function() {
+            const widget = document.getElementById('stamp-custom-font-widget');
+            widget.querySelectorAll('.scfw-font-preview span').forEach(span => {
+                if (!span.style.opacity) { // 跳過載入中的
+                    span.textContent = this.currentSelection.text || '印章範例';
+                }
+            });
+        },
+
+        // 篩選字體
+        filterFonts: function(category) {
+            const items = this.elements.fontsGrid.querySelectorAll('.scfw-font-item');
+            items.forEach(item => {
+                if (category === 'all' || item.dataset.category === category) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        },
+
+        // 搜尋字體
+        searchFonts: function(keyword) {
+            const items = this.elements.fontsGrid.querySelectorAll('.scfw-font-item');
+            const lowerKeyword = keyword.toLowerCase();
+            
+            items.forEach(item => {
+                const fontName = item.querySelector('.scfw-font-label').textContent.toLowerCase();
+                if (fontName.includes(lowerKeyword)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        },
+
+        // 根據字體名稱選中
+        selectFontByName: function(fontName) {
+            const widget = document.getElementById('stamp-custom-font-widget');
+            
+            widget.querySelectorAll('.scfw-font-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            const fontData = this.availableFonts.find(f => f.name === fontName || f.displayName === fontName);
+            if (fontData) {
+                const targetItem = widget.querySelector(`[data-font-id="${fontData.id}"]`);
+                if (targetItem) {
+                    targetItem.classList.add('selected');
+                    this.currentSelection.font = fontData.name;
+                    this.currentSelection.fontId = fontData.id;
+                    
+                    this.updateMainPreview();
+                }
+            }
+        },
+
+        // 設定 BV SHOP 監聽器
+        setupBVShopListeners: function() {
+            // 清除舊的監聽器
+            this.bvShopListeners.forEach(listener => {
+                listener.element.removeEventListener(listener.event, listener.handler);
+            });
+            this.bvShopListeners = [];
+
+            // 字體選擇
+            const fontSelect = this.findBVSelect('字體');
+            if (fontSelect) {
+                const fontHandler = (e) => {
+                    this.selectFontByName(e.target.value);
+                };
+                fontSelect.addEventListener('change', fontHandler);
+                this.bvShopListeners.push({ element: fontSelect, event: 'change', handler: fontHandler });
+            }
+            
+            // 文字輸入
+            const textInput = document.querySelector('input[placeholder="輸入六字內"]');
+            if (textInput) {
+                const textHandler = (e) => {
+                    this.elements.textInput.value = e.target.value;
+                    this.currentSelection.text = e.target.value;
+                    this.updateMainPreview();
+                    this.updateAllFontPreviews();
+                };
+                textInput.addEventListener('input', textHandler);
+                this.bvShopListeners.push({ element: textInput, event: 'input', handler: textHandler });
+            }
+            
+            // 形狀選擇
+            const shapeSelect = this.findBVSelect('形狀');
+            if (shapeSelect) {
+                const shapeHandler = (e) => {
+                    const shape = this.shapes.find(s => s.class === e.target.value || s.name === e.target.value);
+                    if (shape) {
+                        this.elements.shapesGrid.querySelectorAll('.scfw-shape-item').forEach(item => {
+                            item.classList.remove('selected');
+                            if (item.dataset.shape === shape.id) {
+                                item.classList.add('selected');
+                            }
+                        });
+                        this.currentSelection.shape = shape.id;
+                        this.updateMainPreview();
+                    }
+                };
+                shapeSelect.addEventListener('change', shapeHandler);
+                this.bvShopListeners.push({ element: shapeSelect, event: 'change', handler: shapeHandler });
+            }
+            
+            // 圖案選擇
+            const patternSelect = this.findBVSelect('圖案');
+            if (patternSelect) {
+                const patternHandler = (e) => {
+                    const patternName = e.target.value;
+                    const pattern = this.patterns.find(p => p.name === patternName);
+                    const patternId = pattern ? pattern.id : 'none';
+                    
+                    this.elements.patternsGrid.querySelectorAll('.scfw-pattern-item').forEach(item => {
+                        item.classList.remove('selected');
+                        if (item.dataset.pattern === patternId) {
+                            item.classList.add('selected');
+                        }
+                    });
+                    this.currentSelection.pattern = patternId;
+                    this.updateMainPreview();
+                };
+                patternSelect.addEventListener('change', patternHandler);
+                this.bvShopListeners.push({ element: patternSelect, event: 'change', handler: patternHandler });
+            }
+            
+            // 顏色選擇
+            const colorSelect = this.findBVSelect('顏色');
+            if (colorSelect) {
+                const colorHandler = (e) => {
+                    const selectedColorName = e.target.value;
+                    
+                    // 尋找對應的顏色組
+                    const colorGroup = this.colorGroups.find(g => g.name === selectedColorName);
+                    if (colorGroup) {
+                        const actualColor = colorGroup.main;
+                        
+                        this.elements.colorsGrid.querySelectorAll('.scfw-color-main').forEach(c => {
+                            c.classList.remove('selected');
+                            if (c.dataset.color === actualColor) {
+                                c.classList.add('selected');
+                            }
+                        });
+                        
+                        this.currentSelection.color = actualColor;
+                        this.updateMainPreview();
+                        this.updateBorderStyleColors();
+                    }
+                };
+                colorSelect.addEventListener('change', colorHandler);
+                this.bvShopListeners.push({ element: colorSelect, event: 'change', handler: colorHandler });
+            }
+        },
+
+        // 同步到 BV SHOP
+        syncToBVShop: function(field, value) {
+            try {
+                switch(field) {
+                    case 'text':
+                        const textInput = document.querySelector('input[placeholder="輸入六字內"]');
+                        if (textInput) {
+                            textInput.value = value;
+                            textInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            textInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        break;
+                        
+                    case 'font':
+                        const fontSelect = this.findBVSelect('字體');
+                        if (fontSelect) {
+                            // 嘗試用名稱和顯示名稱匹配
+                            const font = this.availableFonts.find(f => f.name === value);
+                            const matchValue = font ? (font.displayName || font.name) : value;
+                            
+                            let foundOption = false;
+                            for (let i = 0; i < fontSelect.options.length; i++) {
+                                if (fontSelect.options[i].text === matchValue || 
+                                    fontSelect.options[i].value === matchValue ||
+                                    fontSelect.options[i].text === value || 
+                                    fontSelect.options[i].value === value) {
+                                    fontSelect.selectedIndex = i;
+                                    foundOption = true;
+                                    break;
+                                }
+                            }
+                            
+                            if (foundOption) {
+                                fontSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                        }
+                        break;
+                        
+                    case 'shape':
+                        const shapeSelect = this.findBVSelect('形狀');
+                        if (shapeSelect) {
+                            // 嘗試匹配形狀的 class 或 name
+                            let foundOption = false;
+                            for (let i = 0; i < shapeSelect.options.length; i++) {
+                                if (shapeSelect.options[i].value === value ||
+                                    shapeSelect.options[i].text === value) {
+                                    shapeSelect.selectedIndex = i;
+                                    foundOption = true;
+                                    break;
+                                }
+                            }
+                            
+                            if (foundOption) {
+                                shapeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                        }
+                        break;
+                        
+                    case 'pattern':
+                        const patternSelect = this.findBVSelect('圖案');
+                        if (patternSelect) {
+                            patternSelect.value = value || '';
+                            patternSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        break;
+                        
+                    case 'color':
+                        const colorSelect = this.findBVSelect('顏色');
+                        if (colorSelect) {
+                            // 根據顏色值找到對應的顏色名稱
+                            const colorGroup = this.colorGroups.find(g => 
+                                g.main === value || g.shades.includes(value)
+                            );
+                            
+                            if (colorGroup) {
+                                colorSelect.value = colorGroup.name;
+                                colorSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                        }
+                        break;
+                }
+            } catch (error) {
+                console.error('同步錯誤:', error);
+            }
+        },
+
+        // 尋找 BV SHOP 選擇器
+        findBVSelect: function(labelText) {
+            const labels = document.querySelectorAll('label');
+            for (let label of labels) {
+                if (label.textContent.trim() === labelText) {
+                    const select = label.parentElement.querySelector('select');
+                    if (select) return select;
+                }
+            }
+            return null;
+        },
+
+        // 綁定事件
+        bindEvents: function() {
+            // 文字輸入
+            if (this.elements.textInput) {
+                this.elements.textInput.addEventListener('input', (e) => {
+                    this.currentSelection.text = e.target.value || '印章範例';
+                    this.updateMainPreview();
+                    this.updateAllFontPreviews();
+                    this.syncToBVShop('text', e.target.value);
+                });
+            }
+            
+            // 字體搜尋
+            if (this.elements.fontSearch) {
+                this.elements.fontSearch.addEventListener('input', (e) => {
+                    this.searchFonts(e.target.value);
+                });
+            }
+            
+            // 標籤頁切換
+            const tabBtns = document.querySelectorAll('.scfw-tab-btn');
+            const tabContents = document.querySelectorAll('.scfw-tab-content');
+            
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetTab = btn.dataset.tab;
+                    
+                    // 切換按鈕狀態
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    
+                    // 切換內容顯示
+                    tabContents.forEach(content => {
+                        if (content.dataset.tab === targetTab) {
+                            content.classList.add('active');
+                        } else {
+                            content.classList.remove('active');
+                        }
+                    });
+                });
+            });
+        },
+
+        // 從 BV SHOP 載入初始值
+        loadFromBVShop: function() {
+            // 文字
+            const textInput = document.querySelector('input[placeholder="輸入六字內"]');
+            if (textInput && textInput.value) {
+                this.elements.textInput.value = textInput.value;
+                this.currentSelection.text = textInput.value;
+            }
+            
+            // 形狀
+            const shapeSelect = this.findBVSelect('形狀');
+            if (shapeSelect && shapeSelect.value) {
+                const shape = this.shapes.find(s => s.class === shapeSelect.value || s.name === shapeSelect.value);
+                if (shape) {
+                    this.currentSelection.shape = shape.id;
+                    this.elements.shapesGrid.querySelectorAll('.scfw-shape-item').forEach(item => {
+                        item.classList.remove('selected');
+                        if (item.dataset.shape === shape.id) {
+                            item.classList.add('selected');
+                        }
+                    });
+                }
+            }
+            
+            // 圖案
+            const patternSelect = this.findBVSelect('圖案');
+            if (patternSelect && patternSelect.value) {
+                const pattern = this.patterns.find(p => p.name === patternSelect.value);
+                if (pattern) {
+                    this.currentSelection.pattern = pattern.id;
+                    this.elements.patternsGrid.querySelectorAll('.scfw-pattern-item').forEach(item => {
+                        item.classList.remove('selected');
+                        if (item.dataset.pattern === pattern.id) {
+                            item.classList.add('selected');
+                        }
+                    });
+                }
+            }
+            
+            // 顏色
+            const colorSelect = this.findBVSelect('顏色');
+            if (colorSelect && colorSelect.value) {
+                const colorGroup = this.colorGroups.find(g => g.name === colorSelect.value);
+                if (colorGroup) {
+                    this.currentSelection.color = colorGroup.main;
+                    this.elements.colorsGrid.querySelectorAll('.scfw-color-main').forEach(c => {
+                        c.classList.remove('selected');
+                        if (c.dataset.color === colorGroup.main) {
+                            c.classList.add('selected');
+                        }
+                    });
+                }
+            }
+            
+            // 字體
+            const fontSelect = this.findBVSelect('字體');
+            if (fontSelect && fontSelect.value) {
+                this.selectFontByName(fontSelect.value);
+            }
+            
+            this.updateMainPreview();
+            this.updateBorderStyleColors();
+        },
+
+        // 創建外部預覽
+        createExternalPreview: function(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) {
+                console.error('External preview container not found:', containerId);
+                return;
+            }
+            
+            // 創建預覽 HTML
+            const previewHTML = `
+                <div class="scfw-external-preview" style="
+                    background: linear-gradient(135deg, var(--accent-color, #9fb28e) 0%, rgba(159, 178, 142, 0.8) 100%);
+                    border-radius: 12px;
+                    padding: 24px;
+                    text-align: center;
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+                ">
+                    <h3 style="
+                        color: white;
+                        font-size: 16px;
+                        font-weight: 600;
+                        margin-bottom: 16px;
+                    ">印章預覽</h3>
+                    <div style="
+                        display: inline-block;
+                        padding: 20px;
+                        background: rgba(255, 255, 255, 0.95);
+                        border-radius: 12px;
+                    ">
+                        <div class="scfw-external-stamp-display" id="scfw-external-preview-${containerId}">
+                            <!-- 動態生成預覽 -->
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = previewHTML;
+            
+            // 初始更新
+            this.updateExternalPreview(containerId);
+            
+            // 儲存容器 ID 以便後續更新
+            if (!this.externalPreviews) {
+                this.externalPreviews = [];
+            }
+            this.externalPreviews.push(containerId);
+        },
+
+        // 更新外部預覽
+        updateExternalPreview: function(containerId) {
+            const preview = document.querySelector(`#scfw-external-preview-${containerId}`);
+            if (!preview) return;
+            
+            const font = this.availableFonts.find(f => f.id === this.currentSelection.fontId);
+            const pattern = this.patterns.find(p => p.id === this.currentSelection.pattern);
+            
+            let shapeStyle = '';
+            let dimensions = 'width: 150px; height: 150px;';
+            
+            switch(this.currentSelection.shape) {
+                case 'circle':
+                case '圓形':
+                    shapeStyle = 'border-radius: 50%;';
+                    break;
+                case 'ellipse':
+                case '橢圓形':
+                    shapeStyle = 'border-radius: 50%;';
+                    dimensions = 'width: 180px; height: 130px;';
+                    break;
+                case 'rectangle':
+                case '長方形':
+                    dimensions = 'width: 180px; height: 120px;';
+                    break;
+                case 'rounded-square':
+                case '圓角方形':
+                    shapeStyle = 'border-radius: 16px;';
+                    break;
+            }
+            
+            const fontFamily = font ? `CustomFont${font.id}, serif` : 'serif';
+            
+            let patternHtml = '';
+            if (pattern && pattern.id !== 'none' && pattern.githubPath) {
+                const patternUrl = `${this.GITHUB_RAW_URL}${pattern.githubPath}`;
+                patternHtml = `
+                    <img style="
+                        position: absolute;
+                        bottom: 10px;
+                        right: 10px;
+                        width: 24px;
+                        height: 24px;
+                        opacity: 0.3;
+                        object-fit: contain;
+                        -webkit-user-select: none;
+                        -moz-user-select: none;
+                        -ms-user-select: none;
+                        user-select: none;
+                    " src="${patternUrl}" alt="">
+                `;
+            }
+            
+            preview.innerHTML = `
+                <div style="
+                    ${dimensions}
+                    border: 4px ${this.currentSelection.borderStyle} ${this.currentSelection.color};
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    position: relative;
+                    background: white;
+                    ${shapeStyle}
+                ">
+                    <span style="
+                        font-family: ${fontFamily};
+                        font-size: 36px;
+                        color: ${this.currentSelection.color};
+                        font-weight: ${font?.weight || 'normal'};
+                        text-align: center;
+                        padding: 0 10px;
+                        -webkit-user-select: none;
+                        -moz-user-select: none;
+                        -ms-user-select: none;
+                        user-select: none;
+                    ">${this.currentSelection.text}</span>
+                    ${patternHtml}
+                </div>
+            `;
+        },
+
+        // 更新所有外部預覽
+        updateAllExternalPreviews: function() {
+            if (this.externalPreviews) {
+                this.externalPreviews.forEach(containerId => {
+                    this.updateExternalPreview(containerId);
+                });
+            }
+        }
+    };
+
+    // 初始化 Widget
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            StampFontWidget.init();
         });
-        
-        this.loadedFonts = {};
-        console.log('資源已清理');
+    } else {
+        StampFontWidget.init();
     }
-};
 
-// 當 DOM 載入完成時初始化
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-        StampWidget.init();
-    });
-} else {
-    // DOM 已經載入完成
-    StampWidget.init();
-}
+    // 暴露到全域以供除錯
+    window.StampFontWidget = StampFontWidget;
 
-// 匯出給全域使用
-window.StampWidget = StampWidget;
+})();
 
-console.log('印章小工具 v2.1.0 已載入 - 完全依賴後台設定版本');
+console.log('印章小工具 v5.0.0 已載入 - 完全依賴後台資料版本');
 console.log('作者: DK0124');
 console.log('更新時間: 2025-01-29');
