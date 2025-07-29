@@ -1,7 +1,7 @@
 /**
  * 印章系統後台管理
  * @author DK0124
- * @version 2.0.3
+ * @version 2.1.0
  * @date 2025-01-29
  */
 
@@ -56,6 +56,7 @@ const GitHubConfig = {
     repo: 'stamp-font-preview',
     branch: 'main',
     configPath: 'config/stamp-config.json',
+    securityConfigPath: 'config/security-config.json',
     
     getToken: function() {
         return localStorage.getItem('github_token') || '';
@@ -233,7 +234,7 @@ function getDashboardContent() {
                 </div>
                 <div>
                     <p>最後更新：${new Date().toLocaleString('zh-TW')}</p>
-                    <p>系統版本：2.0.3</p>
+                    <p>系統版本：2.1.0</p>
                     <p>授權狀態：<span style="color: var(--admin-success);">有效</span></p>
                 </div>
             </div>
@@ -1260,7 +1261,7 @@ async function saveToGitHub() {
             })),
             colors: uploadedData.colors,
             lastUpdate: new Date().toISOString(),
-            version: '2.0.3'
+            version: '2.1.0'
         };
         
         console.log('準備儲存的資料:', config);
@@ -1329,6 +1330,74 @@ async function saveToGitHub() {
     } catch (error) {
         console.error('儲存過程發生錯誤:', error);
         showNotification('儲存失敗：' + error.message, 'danger');
+    }
+}
+
+// 儲存安全設定到 GitHub
+async function saveSecuritySettingsToGitHub(settings) {
+    const token = GitHubConfig.getToken();
+    if (!token) {
+        console.log('沒有 GitHub Token，跳過儲存到 GitHub');
+        return;
+    }
+    
+    try {
+        const securityConfig = {
+            ...settings,
+            lastUpdate: new Date().toISOString(),
+            version: '1.0.0'
+        };
+        
+        const apiUrl = `https://api.github.com/repos/${GitHubConfig.owner}/${GitHubConfig.repo}/contents/${GitHubConfig.securityConfigPath}`;
+        
+        // 檢查檔案是否存在
+        let sha = null;
+        const getResponse = await fetch(apiUrl, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+        
+        if (getResponse.ok) {
+            const fileData = await getResponse.json();
+            sha = fileData.sha;
+        }
+        
+        const content = btoa(unescape(encodeURIComponent(JSON.stringify(securityConfig, null, 2))));
+        
+        const requestBody = {
+            message: `Update security config - ${new Date().toLocaleString('zh-TW')}`,
+            content: content,
+            branch: GitHubConfig.branch
+        };
+        
+        if (sha) {
+            requestBody.sha = sha;
+        }
+        
+        const updateResponse = await fetch(apiUrl, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+        
+        if (updateResponse.ok) {
+            console.log('安全設定已儲存到 GitHub');
+            showNotification('安全設定已同步到 GitHub', 'success');
+        } else {
+            const error = await updateResponse.json();
+            console.error('儲存安全設定到 GitHub 失敗:', error);
+            showNotification('安全設定同步失敗', 'warning');
+        }
+        
+    } catch (error) {
+        console.error('儲存安全設定錯誤:', error);
+        showNotification('安全設定同步錯誤', 'danger');
     }
 }
 
@@ -1943,7 +2012,7 @@ function saveFontSettings() {
 }
 
 // 更新安全設定
-function updateSecuritySettings() {
+async function updateSecuritySettings() {
     const settings = {
         preventScreenshot: document.getElementById('preventScreenshot').checked,
         enableWatermark: document.getElementById('enableWatermark').checked,
@@ -1956,6 +2025,10 @@ function updateSecuritySettings() {
     };
     
     SettingsManager.saveSettings('security', settings);
+    
+    // 同時儲存到 GitHub
+    await saveSecuritySettingsToGitHub(settings);
+    
     showNotification('安全設定已更新', 'success');
     applySecuritySettings(settings);
 }
@@ -2003,7 +2076,7 @@ function exportSettings() {
         patterns: uploadedData.patterns,
         colors: uploadedData.colors,
         exportDate: new Date().toISOString(),
-        version: '2.0.3'
+        version: '2.1.0'
     };
     
     const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
@@ -2220,7 +2293,7 @@ async function checkForUpdates() {
         
         if (response.ok) {
             const versionData = await response.json();
-            const currentVersion = '2.0.3';
+            const currentVersion = '2.1.0';
             
             if (versionData.version !== currentVersion) {
                 showNotification(`新版本可用: ${versionData.version}`, 'info');
@@ -2263,6 +2336,6 @@ window.addEventListener('beforeunload', (e) => {
     }
 });
 
-console.log('印章系統後台管理 v2.0.3 已載入');
+console.log('印章系統後台管理 v2.1.0 已載入');
 console.log('作者: DK0124');
 console.log('最後更新: 2025-07-29');
