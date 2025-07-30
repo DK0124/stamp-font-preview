@@ -109,10 +109,10 @@
       ]
     }
   ],
-  "lastUpdate": "2025-07-30T04:46:26.232Z",
+  "lastUpdate": "2025-07-30T04:47:06.494Z",
   "version": "3.0.0",
   "frontendSecurity": {
-    "preventScreenshot": false,
+    "preventScreenshot": true,
     "enableWatermark": false,
     "disableRightClick": false,
     "disableTextSelect": false,
@@ -126,6 +126,6 @@
     "watermarkFontSize": "10",
     "screenshotWarning": "禁止截圖 - 版權所有",
     "devToolsWarning": "警告：偵測到開發者工具！\n本系統內容受版權保護，禁止任何形式的複製或下載。",
-    "lastUpdate": "2025-07-29T15:01:49.434Z"
+    "lastUpdate": "2025-07-30T04:47:05.345Z"
   }
 }
