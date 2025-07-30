@@ -1,9 +1,9 @@
 /**
- * 印章預覽系統 - 配置檔優先版
+ * 印章預覽系統 - 修復字體渲染版
  * @author DK0124
- * @version 11.7.0
+ * @version 11.8.0
  * @date 2025-01-30
- * @description 先讀取 config/stamp-config.json 再載入字體
+ * @description 修復字體 ID 不一致導致的渲染問題
  */
 
 (function() {
@@ -606,6 +606,7 @@
             category: 'all'
         },
         loadedFonts: {},
+        fontNameMap: {}, // 新增：用於映射字體 ID 到字體名稱
         isLoading: false,
         elements: {},
         fontLoadErrors: {},
@@ -836,9 +837,12 @@
                 // 處理字體配置
                 if (configData.fonts && Array.isArray(configData.fonts)) {
                     this.fonts = configData.fonts.map((font, index) => {
+                        // 使用原始的 ID 或生成簡單的 ID
+                        const fontId = font.id || `font_${index + 1}`;
+                        
                         // 建構完整的字體資訊
                         const fontInfo = {
-                            id: font.id || index + 1,
+                            id: fontId,
                             name: font.name || font.displayName,
                             displayName: font.displayName || font.name,
                             category: font.category || 'custom',
@@ -1026,7 +1030,7 @@
             });
         },
         
-        // 載入字體（根據配置）
+        // 載入字體（修正版）
         async loadFont(fontData) {
             if (this.loadedFonts[fontData.id]) {
                 return this.loadedFonts[fontData.id];
@@ -1039,8 +1043,11 @@
                 console.log(`🔄 載入字體: ${fontData.displayName}`);
                 console.log(`📍 URL: ${fontUrl}`);
                 
+                // 建立唯一的字體名稱
+                const fontName = `StampFont_${fontData.id}`;
+                
                 const fontFace = new FontFace(
-                    `CustomFont${fontData.id}`, 
+                    fontName, 
                     `url("${fontUrl}")`,
                     {
                         weight: fontData.weight || 'normal',
@@ -1050,10 +1057,18 @@
                 
                 await fontFace.load();
                 document.fonts.add(fontFace);
-                this.loadedFonts[fontData.id] = fontFace;
                 
-                console.log(`✅ 字體載入成功: ${fontData.displayName}`);
-                return fontFace;
+                // 儲存字體資訊
+                this.loadedFonts[fontData.id] = {
+                    fontFace: fontFace,
+                    fontName: fontName
+                };
+                
+                // 建立字體名稱映射
+                this.fontNameMap[fontData.id] = fontName;
+                
+                console.log(`✅ 字體載入成功: ${fontData.displayName} (${fontName})`);
+                return this.loadedFonts[fontData.id];
                 
             } catch (error) {
                 console.error(`❌ 字體載入失敗 ${fontData.displayName}:`, error);
@@ -1062,7 +1077,7 @@
             }
         },
         
-        // 建立預覽 Canvas
+        // 建立預覽 Canvas（修正版）
         createPreviewCanvas(text, fontData, color) {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
@@ -1074,8 +1089,11 @@
             // Clear canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
+            // 取得正確的字體名稱
+            const fontName = this.fontNameMap[fontData.id] || `StampFont_${fontData.id}`;
+            
             // Set font and style
-            ctx.font = `40px CustomFont${fontData.id}`;
+            ctx.font = `40px ${fontName}`;
             ctx.fillStyle = color;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -1132,16 +1150,18 @@
                 this.elements.fontsGrid.appendChild(card);
                 
                 // Load font and create preview asynchronously
-                this.loadFont(font).then(() => {
-                    const previewDiv = card.querySelector('.scfw-font-preview');
-                    previewDiv.innerHTML = '';
-                    
-                    const canvas = this.createPreviewCanvas(
-                        text.substring(0, 2) || '印', 
-                        font, 
-                        this.currentSelection.color
-                    );
-                    previewDiv.appendChild(canvas);
+                this.loadFont(font).then((loaded) => {
+                    if (loaded) {
+                        const previewDiv = card.querySelector('.scfw-font-preview');
+                        previewDiv.innerHTML = '';
+                        
+                        const canvas = this.createPreviewCanvas(
+                            text.substring(0, 2) || '印', 
+                            font, 
+                            this.currentSelection.color
+                        );
+                        previewDiv.appendChild(canvas);
+                    }
                 }).catch(error => {
                     const previewDiv = card.querySelector('.scfw-font-preview');
                     previewDiv.innerHTML = '<div class="scfw-font-error">載入失敗</div>';
@@ -1152,11 +1172,11 @@
             
             // 初始更新主預覽
             if (this.currentSelection.font) {
-                this.updateMainPreview();
+                setTimeout(() => this.updateMainPreview(), 100);
             }
         },
         
-        // 更新主預覽
+        // 更新主預覽（修正版）
         updateMainPreview() {
             if (!this.currentSelection.font || !this.loadedFonts[this.currentSelection.fontId]) {
                 return;
@@ -1205,7 +1225,11 @@
             
             // Draw text
             ctx.save();
-            ctx.font = `bold 48px CustomFont${this.currentSelection.fontId}`;
+            
+            // 取得正確的字體名稱
+            const fontName = this.fontNameMap[this.currentSelection.fontId] || `StampFont_${this.currentSelection.fontId}`;
+            
+            ctx.font = `bold 48px ${fontName}`;
             ctx.fillStyle = this.currentSelection.color;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -1217,7 +1241,7 @@
                 const line1 = text.substring(0, half);
                 const line2 = text.substring(half);
                 
-                ctx.font = `bold 36px CustomFont${this.currentSelection.fontId}`;
+                ctx.font = `bold 36px ${fontName}`;
                 ctx.fillText(line1, centerX, centerY - 25);
                 ctx.fillText(line2, centerX, centerY + 25);
             } else {
@@ -1303,14 +1327,22 @@
             });
         },
         
-        // 除錯方法
+        // 除錯方法（增強版）
         debugInfo() {
             console.log('🔍 除錯資訊:');
             console.log('配置檔 URL:', CONFIG.CONFIG_URL);
             console.log('字體基礎 URL:', CONFIG.FONTS_BASE_URL);
             console.log('已載入字體:', this.fonts);
-            console.log('載入成功:', Object.keys(this.loadedFonts));
+            console.log('載入成功:', this.loadedFonts);
+            console.log('字體名稱映射:', this.fontNameMap);
             console.log('載入失敗:', this.fontLoadErrors);
+            console.log('當前選擇:', this.currentSelection);
+            
+            // 列出所有已註冊的字體
+            console.log('瀏覽器已註冊字體:');
+            document.fonts.forEach(font => {
+                console.log(`- ${font.family}: ${font.status}`);
+            });
         }
     };
     
@@ -1327,9 +1359,9 @@
     window.StampFontWidget = StampFontWidget;
     
     // 版本資訊
-    console.log('%c🎯 印章預覽系統 v11.7.0', 'font-size: 16px; font-weight: bold; color: #9fb28e;');
+    console.log('%c🎯 印章預覽系統 v11.8.0', 'font-size: 16px; font-weight: bold; color: #9fb28e;');
     console.log('%c📅 最後更新: 2025-01-30', 'color: #666;');
-    console.log('%c✅ 先讀取 config/stamp-config.json 再載入字體', 'color: #28a745;');
+    console.log('%c✅ 修復字體 ID 不一致導致的渲染問題', 'color: #28a745;');
     console.log('%c💡 除錯: StampFontWidget.debugInfo()', 'color: #ff9800;');
     
 })();
