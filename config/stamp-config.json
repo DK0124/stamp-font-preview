@@ -9,6 +9,16 @@
       "weight": "normal",
       "systemFont": null,
       "githubPath": "assets/fonts/華康pop1體w7.ttf"
+    },
+    {
+      "id": 1753849837213.2207,
+      "name": "辰宇落雁體 等寬版全繁體",
+      "filename": "辰宇落雁體 等寬版全繁體.ttf",
+      "displayName": "辰宇落雁體 等寬版全繁體",
+      "category": "custom",
+      "weight": "normal",
+      "systemFont": null,
+      "githubPath": "assets/fonts/辰宇落雁體 等寬版全繁體.ttf"
     }
   ],
   "shapes": [],
@@ -81,7 +91,7 @@
       ]
     }
   ],
-  "lastUpdate": "2025-07-30T04:03:58.983Z",
+  "lastUpdate": "2025-07-30T04:31:22.334Z",
   "version": "3.0.0",
   "frontendSecurity": {
     "preventScreenshot": false,
