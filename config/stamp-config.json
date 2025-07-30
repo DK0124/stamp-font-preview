@@ -22,7 +22,18 @@
     }
   ],
   "shapes": [],
-  "patterns": [],
+  "patterns": [
+    {
+      "id": 1753849898617.7578,
+      "name": "伯爵",
+      "githubPath": "assets/patterns/伯爵.png"
+    },
+    {
+      "id": 1753849909909.5032,
+      "name": "黑貓",
+      "githubPath": "assets/patterns/黑貓.png"
+    }
+  ],
   "colors": [
     {
       "id": 1753848171841.01,
@@ -91,7 +102,7 @@
       ]
     }
   ],
-  "lastUpdate": "2025-07-30T04:31:22.334Z",
+  "lastUpdate": "2025-07-30T04:32:01.645Z",
   "version": "3.0.0",
   "frontendSecurity": {
     "preventScreenshot": false,
