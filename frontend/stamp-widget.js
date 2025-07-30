@@ -1,9 +1,9 @@
 /**
- * 印章預覽系統 - 整合版
+ * 印章預覽系統 - 路徑修正版
  * @author DK0124
- * @version 11.0.0
+ * @version 11.1.0
  * @date 2025-01-30
- * @description 基於成功舊版的架構，整合新版 API 和介面設計
+ * @description 修正 assets 資料夾路徑
  */
 
 (function() {
@@ -21,7 +21,7 @@
         document.head.appendChild(iconLink);
     }
     
-    // 配置
+    // 配置 - 修正路徑
     const CONFIG = {
         GITHUB_OWNER: 'DK0124',
         GITHUB_REPO: 'stamp-font-preview',
@@ -32,13 +32,19 @@
         get CONFIG_URL() {
             return `${this.BASE_URL}/config/stamp-config.json`;
         },
-        // 舊版相容的字體路徑
-        get FONTS_URL() {
-            return `https://raw.githubusercontent.com/DK0124/font-preview-system/main/fonts/`;
+        // 修正資源路徑
+        get FONTS_BASE_URL() {
+            return `${this.BASE_URL}/assets/fonts`;
+        },
+        get PATTERNS_BASE_URL() {
+            return `${this.BASE_URL}/assets/patterns`;
+        },
+        get SHAPES_BASE_URL() {
+            return `${this.BASE_URL}/assets/shapes`;
         }
     };
     
-    // 建立樣式（基於舊版成功的樣式結構）
+    // 建立樣式（保持不變）
     const styles = `
         /* 基礎樣式 */
         #stamp-custom-font-widget {
@@ -353,6 +359,20 @@
         #stamp-custom-font-widget .scfw-shape-preview {
             width: 50px;
             height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #stamp-custom-font-widget .scfw-shape-preview img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        
+        #stamp-custom-font-widget .scfw-shape-preview-border {
+            width: 50px;
+            height: 50px;
             border: 3px solid #9fb28e;
         }
         
@@ -435,10 +455,19 @@
             border-color: #9fb28e;
         }
         
-        #stamp-custom-font-widget .scfw-pattern-svg {
-            width: 28px;
-            height: 28px;
-            opacity: 0.6;
+        #stamp-custom-font-widget .scfw-pattern-preview {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #stamp-custom-font-widget .scfw-pattern-preview img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            opacity: 0.7;
         }
         
         #stamp-custom-font-widget .scfw-pattern-none {
@@ -512,7 +541,7 @@
     
     // Widget 主類（基於舊版成功架構）
     const StampFontWidget = {
-        // 預設配置（舊版的成功配置）
+        // 預設配置
         defaultFonts: [
             { id: 'font_1', name: '粉圓體', filename: '粉圓體全繁體.ttf', displayName: '粉圓體', category: 'modern' },
             { id: 'font_2', name: '粒線體不等寬', filename: '粒線體不等寬全繁體.ttf', displayName: '粒線體(不等寬)', category: 'modern' },
@@ -527,10 +556,10 @@
         ],
         
         defaultShapes: [
-            { id: 'circle', name: '圓形', class: '圓形' },
-            { id: 'square', name: '方形', class: '方形' },
-            { id: 'ellipse', name: '橢圓形', class: '橢圓形' },
-            { id: 'rectangle', name: '長方形', class: '長方形' }
+            { id: 'circle', name: '圓形', filename: 'circle.svg' },
+            { id: 'square', name: '方形', filename: 'square.svg' },
+            { id: 'ellipse', name: '橢圓形', filename: 'ellipse.svg' },
+            { id: 'rectangle', name: '長方形', filename: 'rectangle.svg' }
         ],
         
         defaultColors: [
@@ -540,11 +569,11 @@
             { main: '#ffb74d', name: '琥珀黃' }
         ],
         
-        patterns: [
-            { id: 'none', name: '無' },
-            { id: 'flower', name: '花朵' },
-            { id: 'heart', name: '愛心' },
-            { id: 'star', name: '星星' }
+        defaultPatterns: [
+            { id: 'none', name: '無', filename: '' },
+            { id: 'flower', name: '花朵', filename: 'flower.svg' },
+            { id: 'heart', name: '愛心', filename: 'heart.svg' },
+            { id: 'star', name: '星星', filename: 'star.svg' }
         ],
         
         // 狀態
@@ -595,7 +624,7 @@
             }
         },
         
-        // 建立 HTML
+        // 建立 HTML（保持不變）
         createHTML() {
             const container = document.getElementById('stamp-font-widget-container') || 
                            document.getElementById('stamp-preview-root') ||
@@ -751,7 +780,7 @@
                     this.config = data;
                     console.log('配置載入成功:', data);
                     
-                    // 合併配置
+                    // 處理字體配置
                     if (data.fonts && data.fonts.length > 0) {
                         this.fonts = data.fonts.map((font, index) => ({
                             ...font,
@@ -763,16 +792,34 @@
                         this.fonts = this.defaultFonts;
                     }
                     
+                    // 處理形狀配置
                     if (data.shapes && data.shapes.length > 0) {
-                        this.shapes = data.shapes;
+                        this.shapes = data.shapes.map((shape, index) => ({
+                            ...shape,
+                            id: shape.id || `shape_${index}`
+                        }));
                     } else {
                         this.shapes = this.defaultShapes;
                     }
                     
+                    // 處理顏色配置
                     if (data.colors && data.colors.length > 0) {
                         this.colors = data.colors;
                     } else {
                         this.colors = this.defaultColors;
+                    }
+                    
+                    // 處理圖案配置
+                    if (data.patterns && data.patterns.length > 0) {
+                        this.patterns = [
+                            { id: 'none', name: '無', filename: '' },
+                            ...data.patterns.map((pattern, index) => ({
+                                ...pattern,
+                                id: pattern.id || `pattern_${index}`
+                            }))
+                        ];
+                    } else {
+                        this.patterns = this.defaultPatterns;
                     }
                     
                 } else {
@@ -783,6 +830,7 @@
                 this.fonts = this.defaultFonts;
                 this.shapes = this.defaultShapes;
                 this.colors = this.defaultColors;
+                this.patterns = this.defaultPatterns;
             }
             
             // 設定預設選擇
@@ -803,23 +851,35 @@
                 if (index === 0) item.classList.add('selected');
                 item.dataset.shape = shape.id;
                 
-                let shapeStyle = '';
-                let dimensions = '';
-                
-                switch(shape.id) {
-                    case 'circle':
-                        shapeStyle = 'border-radius: 50%;';
-                        break;
-                    case 'ellipse':
-                        shapeStyle = 'border-radius: 50%; width: 60px; height: 40px;';
-                        break;
-                    case 'rectangle':
-                        dimensions = 'width: 60px; height: 40px;';
-                        break;
+                // 判斷是使用圖片還是 CSS 繪製
+                let preview = '';
+                if (shape.filename || shape.githubPath) {
+                    // 使用圖片
+                    const imgUrl = shape.githubPath ? 
+                        `${CONFIG.BASE_URL}/${shape.githubPath}` : 
+                        `${CONFIG.SHAPES_BASE_URL}/${shape.filename}`;
+                    preview = `<img src="${imgUrl}" alt="${shape.name}">`;
+                } else {
+                    // 使用 CSS 繪製
+                    let shapeStyle = '';
+                    let dimensions = '';
+                    
+                    switch(shape.id) {
+                        case 'circle':
+                            shapeStyle = 'border-radius: 50%;';
+                            break;
+                        case 'ellipse':
+                            shapeStyle = 'border-radius: 50%; width: 60px; height: 40px;';
+                            break;
+                        case 'rectangle':
+                            dimensions = 'width: 60px; height: 40px;';
+                            break;
+                    }
+                    preview = `<div class="scfw-shape-preview-border" style="${shapeStyle} ${dimensions}"></div>`;
                 }
                 
                 item.innerHTML = `
-                    <div class="scfw-shape-preview" style="${shapeStyle} ${dimensions}"></div>
+                    <div class="scfw-shape-preview">${preview}</div>
                     <span class="scfw-shape-label">${shape.name}</span>
                 `;
                 
@@ -867,24 +927,6 @@
             const patternsGrid = this.elements.patternsGrid;
             patternsGrid.innerHTML = '';
             
-            const patternSVGs = {
-                flower: `<svg viewBox="0 0 32 32" fill="currentColor">
-                    <circle cx="16" cy="16" r="4"/>
-                    <circle cx="16" cy="8" r="3"/>
-                    <circle cx="23" cy="12" r="3"/>
-                    <circle cx="23" cy="20" r="3"/>
-                    <circle cx="16" cy="24" r="3"/>
-                    <circle cx="9" cy="20" r="3"/>
-                    <circle cx="9" cy="12" r="3"/>
-                </svg>`,
-                heart: `<svg viewBox="0 0 32 32" fill="currentColor">
-                    <path d="M16 28l-2-2C6 18 0 13 0 7c0-5 4-7 7-7 2 0 4 1 5 3 1-2 3-3 5-3 3 0 7 2 7 7 0 6-6 11-14 19l-2 2z"/>
-                </svg>`,
-                star: `<svg viewBox="0 0 32 32" fill="currentColor">
-                    <path d="M16 0l5 11 11 2-8 8 2 11-10-5-10 5 2-11-8-8 11-2z"/>
-                </svg>`
-            };
-            
             this.patterns.forEach((pattern, index) => {
                 const item = document.createElement('div');
                 item.className = 'scfw-pattern-item';
@@ -894,7 +936,16 @@
                 if (pattern.id === 'none') {
                     item.innerHTML = '<span class="scfw-pattern-none">無</span>';
                 } else {
-                    item.innerHTML = `<div class="scfw-pattern-svg" style="color: #999;">${patternSVGs[pattern.id] || ''}</div>`;
+                    // 使用圖片
+                    const imgUrl = pattern.githubPath ? 
+                        `${CONFIG.BASE_URL}/${pattern.githubPath}` : 
+                        pattern.filename ? `${CONFIG.PATTERNS_BASE_URL}/${pattern.filename}` : '';
+                    
+                    if (imgUrl) {
+                        item.innerHTML = `<div class="scfw-pattern-preview"><img src="${imgUrl}" alt="${pattern.name}"></div>`;
+                    } else {
+                        item.innerHTML = `<span class="scfw-pattern-none">${pattern.name}</span>`;
+                    }
                 }
                 
                 item.addEventListener('click', () => {
@@ -908,7 +959,7 @@
             });
         },
         
-        // 載入字體（使用舊版成功的方法）
+        // 載入字體（修正路徑）
         async loadFont(fontData) {
             if (fontData.systemFont) {
                 return true;
@@ -919,20 +970,28 @@
             }
             
             try {
-                // 優先使用舊版路徑
+                // 建構正確的字體 URL
                 let fontUrl = null;
-                if (fontData.filename) {
-                    fontUrl = CONFIG.FONTS_URL + encodeURIComponent(fontData.filename);
-                } else if (fontData.githubPath) {
+                
+                if (fontData.githubPath) {
+                    // 使用完整的 githubPath
                     fontUrl = `${CONFIG.BASE_URL}/${fontData.githubPath}`;
+                } else if (fontData.filename) {
+                    // 使用 assets/fonts 路徑
+                    fontUrl = `${CONFIG.FONTS_BASE_URL}/${encodeURIComponent(fontData.filename)}`;
                 }
                 
                 if (!fontUrl) throw new Error('無字體路徑');
                 
+                console.log(`載入字體: ${fontData.displayName} from ${fontUrl}`);
+                
                 const fontFace = new FontFace(
                     `CustomFont${fontData.id}`, 
                     `url("${fontUrl}")`,
-                    { weight: fontData.weight || 'normal' }
+                    { 
+                        weight: fontData.weight || 'normal',
+                        style: 'normal'
+                    }
                 );
                 
                 await fontFace.load();
@@ -1022,6 +1081,7 @@
         updateMainPreview() {
             const preview = this.elements.mainPreview;
             const font = this.currentSelection.font;
+            const shape = this.shapes.find(s => s.id === this.currentSelection.shape);
             const pattern = this.patterns.find(p => p.id === this.currentSelection.pattern);
             
             let shapeStyle = '';
@@ -1042,6 +1102,29 @@
             
             const fontFamily = font ? (font.systemFont || `CustomFont${font.id}`) : 'serif';
             
+            // 處理圖案
+            let patternHtml = '';
+            if (pattern && pattern.id !== 'none') {
+                const imgUrl = pattern.githubPath ? 
+                    `${CONFIG.BASE_URL}/${pattern.githubPath}` : 
+                    pattern.filename ? `${CONFIG.PATTERNS_BASE_URL}/${pattern.filename}` : '';
+                
+                if (imgUrl) {
+                    patternHtml = `
+                        <img src="${imgUrl}" 
+                             style="
+                                position: absolute;
+                                bottom: 12px;
+                                right: 12px;
+                                width: 32px;
+                                height: 32px;
+                                opacity: 0.2;
+                             " 
+                             alt="${pattern.name}">
+                    `;
+                }
+            }
+            
             preview.innerHTML = `
                 <div style="
                     ${dimensions}
@@ -1061,23 +1144,7 @@
                         text-align: center;
                         line-height: 1.2;
                     ">${this.currentSelection.text}</span>
-                    ${pattern && pattern.id !== 'none' ? `
-                        <div style="
-                            position: absolute;
-                            bottom: 12px;
-                            right: 12px;
-                            width: 32px;
-                            height: 32px;
-                            opacity: 0.2;
-                            color: ${this.currentSelection.color};
-                        ">
-                            <svg viewBox="0 0 32 32" fill="currentColor">
-                                ${pattern.id === 'flower' ? '<circle cx="16" cy="16" r="4"/><circle cx="16" cy="8" r="3"/><circle cx="23" cy="12" r="3"/><circle cx="23" cy="20" r="3"/><circle cx="16" cy="24" r="3"/><circle cx="9" cy="20" r="3"/><circle cx="9" cy="12" r="3"/>' : ''}
-                                ${pattern.id === 'heart' ? '<path d="M16 28l-2-2C6 18 0 13 0 7c0-5 4-7 7-7 2 0 4 1 5 3 1-2 3-3 5-3 3 0 7 2 7 7 0 6-6 11-14 19l-2 2z"/>' : ''}
-                                ${pattern.id === 'star' ? '<path d="M16 0l5 11 11 2-8 8 2 11-10-5-10 5 2-11-8-8 11-2z"/>' : ''}
-                            </svg>
-                        </div>
-                    ` : ''}
+                    ${patternHtml}
                 </div>
             `;
         },
@@ -1155,8 +1222,11 @@
     window.StampFontWidget = StampFontWidget;
     
     // 版本資訊
-    console.log('%c🎯 印章預覽系統 v11.0.0', 'font-size: 16px; font-weight: bold; color: #9fb28e;');
+    console.log('%c🎯 印章預覽系統 v11.1.0', 'font-size: 16px; font-weight: bold; color: #9fb28e;');
     console.log('%c📅 最後更新: 2025-01-30', 'color: #666;');
-    console.log('%c✅ 基於成功舊版架構重建', 'color: #28a745;');
+    console.log('%c✅ 修正資源路徑: assets/fonts, assets/patterns, assets/shapes', 'color: #28a745;');
+    console.log('%c📁 字體路徑: ' + CONFIG.FONTS_BASE_URL, 'color: #0066cc;');
+    console.log('%c📁 圖案路徑: ' + CONFIG.PATTERNS_BASE_URL, 'color: #0066cc;');
+    console.log('%c📁 形狀路徑: ' + CONFIG.SHAPES_BASE_URL, 'color: #0066cc;');
     
 })();
