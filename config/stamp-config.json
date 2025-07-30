@@ -1,5 +1,16 @@
 {
-  "fonts": [],
+  "fonts": [
+    {
+      "id": 1753848222722.9607,
+      "name": "華康pop1體w7",
+      "filename": "華康pop1體w7.ttf",
+      "displayName": "華康pop1體w7",
+      "category": "custom",
+      "weight": "normal",
+      "systemFont": null,
+      "githubPath": "assets/fonts/華康pop1體w7.ttf"
+    }
+  ],
   "shapes": [],
   "patterns": [],
   "colors": [
@@ -70,7 +81,7 @@
       ]
     }
   ],
-  "lastUpdate": "2025-07-30T04:02:54.661Z",
+  "lastUpdate": "2025-07-30T04:03:58.983Z",
   "version": "3.0.0",
   "frontendSecurity": {
     "preventScreenshot": false,
