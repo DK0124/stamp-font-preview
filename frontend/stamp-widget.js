@@ -1,9 +1,9 @@
 /**
- * 印章預覽系統 - 優化版
+ * 印章預覽系統 - 配置檔優先版
  * @author DK0124
- * @version 11.6.0
+ * @version 11.7.0
  * @date 2025-01-30
- * @description 修正 Canvas 警告並優化字體載入
+ * @description 先讀取 config/stamp-config.json 再載入字體
  */
 
 (function() {
@@ -44,7 +44,7 @@
         }
     };
     
-    // 建立樣式（保持原有，這裡只顯示關鍵部分）
+    // 建立樣式（保持原有）
     const styles = `
         /* 基礎樣式 */
         #stamp-custom-font-widget {
@@ -561,7 +561,7 @@
     
     // Widget 主類
     const StampFontWidget = {
-        // 預設配置
+        // 預設配置（備用）
         defaultFonts: [
             { id: 1, name: '粉圓體', filename: '粉圓體全繁體.ttf', displayName: '粉圓體', category: 'modern' },
             { id: 2, name: '粒線體不等寬', filename: '粒線體不等寬全繁體.ttf', displayName: '粒線體(不等寬)', category: 'modern' },
@@ -592,6 +592,10 @@
         
         // 狀態
         config: null,
+        fonts: [],
+        shapes: [],
+        colors: [],
+        patterns: [],
         currentSelection: {
             text: '印章範例',
             font: null,
@@ -621,10 +625,10 @@
                 // 初始化 Canvas
                 this.initMainCanvas();
                 
-                // 嘗試載入配置，失敗則使用預設值
+                // 載入配置檔（關鍵步驟）
                 await this.loadConfig();
                 
-                // 初始化各元件
+                // 初始化各元件（使用配置資料）
                 this.initializeShapes();
                 this.initializeColors();
                 this.initializePatterns();
@@ -632,7 +636,7 @@
                 // 綁定事件
                 this.bindEvents();
                 
-                // 載入字體
+                // 載入並顯示字體
                 setTimeout(() => {
                     this.generatePreviews();
                 }, 100);
@@ -814,10 +818,86 @@
             ctx.scale(dpr, dpr);
         },
         
-        // 載入配置
+        // 載入配置（關鍵方法 - 先讀取 config/stamp-config.json）
         async loadConfig() {
             try {
-                console.log('📋 載入預設配置...');
+                console.log('📋 開始讀取配置檔...');
+                console.log('📍 配置檔 URL:', CONFIG.CONFIG_URL);
+                
+                const response = await fetch(CONFIG.CONFIG_URL + '?t=' + Date.now());
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const configData = await response.json();
+                console.log('✅ 成功讀取配置檔:', configData);
+                
+                // 處理字體配置
+                if (configData.fonts && Array.isArray(configData.fonts)) {
+                    this.fonts = configData.fonts.map((font, index) => {
+                        // 建構完整的字體資訊
+                        const fontInfo = {
+                            id: font.id || index + 1,
+                            name: font.name || font.displayName,
+                            displayName: font.displayName || font.name,
+                            category: font.category || 'custom',
+                            filename: font.filename,
+                            githubPath: font.githubPath,
+                            weight: font.weight || 'normal'
+                        };
+                        
+                        // 如果有 githubPath，優先使用
+                        if (font.githubPath) {
+                            fontInfo.fontUrl = `${CONFIG.BASE_URL}/${font.githubPath}`;
+                        } else if (font.filename) {
+                            fontInfo.fontUrl = `${CONFIG.FONTS_BASE_URL}/${font.filename}`;
+                        }
+                        
+                        return fontInfo;
+                    });
+                    
+                    console.log('📦 字體配置:', this.fonts);
+                } else {
+                    console.warn('⚠️ 配置檔中沒有字體資料，使用預設值');
+                    this.fonts = this.defaultFonts;
+                }
+                
+                // 處理形狀配置
+                if (configData.shapes && Array.isArray(configData.shapes)) {
+                    this.shapes = configData.shapes;
+                } else {
+                    this.shapes = this.defaultShapes;
+                }
+                
+                // 處理顏色配置
+                if (configData.colors && Array.isArray(configData.colors)) {
+                    this.colors = configData.colors;
+                } else {
+                    this.colors = this.defaultColors;
+                }
+                
+                // 處理圖案配置
+                if (configData.patterns && Array.isArray(configData.patterns)) {
+                    this.patterns = [
+                        { id: 'none', name: '無', filename: '' },
+                        ...configData.patterns
+                    ];
+                } else {
+                    this.patterns = this.defaultPatterns;
+                }
+                
+                // 設定預設選擇
+                if (this.fonts.length > 0) {
+                    this.currentSelection.font = this.fonts[0];
+                    this.currentSelection.fontId = this.fonts[0].id;
+                }
+                
+            } catch (error) {
+                console.error('❌ 無法讀取配置檔:', error);
+                console.warn('⚠️ 使用預設配置');
+                
+                // 使用預設配置
                 this.fonts = this.defaultFonts;
                 this.shapes = this.defaultShapes;
                 this.colors = this.defaultColors;
@@ -828,8 +908,6 @@
                     this.currentSelection.font = this.fonts[0];
                     this.currentSelection.fontId = this.fonts[0].id;
                 }
-            } catch (error) {
-                console.error('配置載入錯誤:', error);
             }
         },
         
@@ -889,14 +967,14 @@
                 const mainColor = document.createElement('div');
                 mainColor.className = 'scfw-color-main';
                 if (index === 0) mainColor.classList.add('selected');
-                mainColor.style.backgroundColor = color.main;
+                mainColor.style.backgroundColor = color.main || color;
                 mainColor.style.position = 'relative';
-                mainColor.dataset.color = color.main;
+                mainColor.dataset.color = color.main || color;
                 
                 mainColor.addEventListener('click', () => {
                     colorsGrid.querySelectorAll('.scfw-color-main').forEach(el => el.classList.remove('selected'));
                     mainColor.classList.add('selected');
-                    this.currentSelection.color = color.main;
+                    this.currentSelection.color = color.main || color;
                     this.updateMainPreview();
                     
                     // 更新所有字體預覽的顏色
@@ -921,7 +999,21 @@
                 if (index === 0) item.classList.add('selected');
                 item.dataset.pattern = pattern.id;
                 
-                item.innerHTML = '<span class="scfw-pattern-none">無</span>';
+                if (pattern.id === 'none') {
+                    item.innerHTML = '<span class="scfw-pattern-none">無</span>';
+                } else if (pattern.filename || pattern.githubPath) {
+                    const imgUrl = pattern.githubPath ? 
+                        `${CONFIG.BASE_URL}/${pattern.githubPath}` : 
+                        `${CONFIG.PATTERNS_BASE_URL}/${pattern.filename}`;
+                    
+                    item.innerHTML = `
+                        <div class="scfw-pattern-preview">
+                            <img src="${imgUrl}" alt="${pattern.name}">
+                        </div>
+                    `;
+                } else {
+                    item.innerHTML = `<span class="scfw-pattern-none">${pattern.name}</span>`;
+                }
                 
                 item.addEventListener('click', () => {
                     patternsGrid.querySelectorAll('.scfw-pattern-item').forEach(el => el.classList.remove('selected'));
@@ -934,17 +1026,26 @@
             });
         },
         
-        // 載入字體（參考另一個 repo 的方式）
+        // 載入字體（根據配置）
         async loadFont(fontData) {
             if (this.loadedFonts[fontData.id]) {
                 return this.loadedFonts[fontData.id];
             }
             
             try {
-                const fontUrl = `${CONFIG.FONTS_BASE_URL}/${encodeURIComponent(fontData.filename)}`;
+                // 使用預先建構的 fontUrl
+                const fontUrl = fontData.fontUrl || `${CONFIG.FONTS_BASE_URL}/${encodeURIComponent(fontData.filename)}`;
+                
+                console.log(`🔄 載入字體: ${fontData.displayName}`);
+                console.log(`📍 URL: ${fontUrl}`);
+                
                 const fontFace = new FontFace(
                     `CustomFont${fontData.id}`, 
-                    `url(${fontUrl})`
+                    `url("${fontUrl}")`,
+                    {
+                        weight: fontData.weight || 'normal',
+                        style: 'normal'
+                    }
                 );
                 
                 await fontFace.load();
@@ -955,13 +1056,13 @@
                 return fontFace;
                 
             } catch (error) {
-                console.error(`Failed to load font ${fontData.name}:`, error);
+                console.error(`❌ 字體載入失敗 ${fontData.displayName}:`, error);
                 this.fontLoadErrors[fontData.id] = error.message;
                 return null;
             }
         },
         
-        // 建立預覽 Canvas（參考另一個 repo）
+        // 建立預覽 Canvas
         createPreviewCanvas(text, fontData, color) {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
@@ -985,12 +1086,16 @@
             return canvas;
         },
         
-        // 生成所有字體預覽（參考另一個 repo 的方式）
+        // 生成所有字體預覽
         async generatePreviews() {
             this.isLoading = true;
             
             const text = this.currentSelection.text || '印章範例';
             this.elements.fontsGrid.innerHTML = '';
+            
+            console.log('🎨 開始生成字體預覽...');
+            console.log(`📝 預覽文字: "${text}"`);
+            console.log(`🔢 字體數量: ${this.fonts.length}`);
             
             for (const font of this.fonts) {
                 const card = document.createElement('div');
@@ -1120,6 +1225,23 @@
             }
             
             ctx.restore();
+            
+            // Draw pattern if selected
+            const pattern = this.patterns.find(p => p.id === this.currentSelection.pattern);
+            if (pattern && pattern.id !== 'none' && (pattern.filename || pattern.githubPath)) {
+                const imgUrl = pattern.githubPath ? 
+                    `${CONFIG.BASE_URL}/${pattern.githubPath}` : 
+                    `${CONFIG.PATTERNS_BASE_URL}/${pattern.filename}`;
+                
+                const img = new Image();
+                img.onload = () => {
+                    ctx.save();
+                    ctx.globalAlpha = 0.2;
+                    ctx.drawImage(img, displayWidth - 50, displayHeight - 50, 32, 32);
+                    ctx.restore();
+                };
+                img.src = imgUrl;
+            }
         },
         
         // 綁定事件
@@ -1179,6 +1301,16 @@
                     item.style.display = 'none';
                 }
             });
+        },
+        
+        // 除錯方法
+        debugInfo() {
+            console.log('🔍 除錯資訊:');
+            console.log('配置檔 URL:', CONFIG.CONFIG_URL);
+            console.log('字體基礎 URL:', CONFIG.FONTS_BASE_URL);
+            console.log('已載入字體:', this.fonts);
+            console.log('載入成功:', Object.keys(this.loadedFonts));
+            console.log('載入失敗:', this.fontLoadErrors);
         }
     };
     
@@ -1195,9 +1327,9 @@
     window.StampFontWidget = StampFontWidget;
     
     // 版本資訊
-    console.log('%c🎯 印章預覽系統 v11.6.0', 'font-size: 16px; font-weight: bold; color: #9fb28e;');
+    console.log('%c🎯 印章預覽系統 v11.7.0', 'font-size: 16px; font-weight: bold; color: #9fb28e;');
     console.log('%c📅 最後更新: 2025-01-30', 'color: #666;');
-    console.log('%c✅ 採用另一個 repo 的成功載入邏輯', 'color: #28a745;');
-    console.log('%c✅ 修正 Canvas willReadFrequently 警告', 'color: #28a745;');
+    console.log('%c✅ 先讀取 config/stamp-config.json 再載入字體', 'color: #28a745;');
+    console.log('%c💡 除錯: StampFontWidget.debugInfo()', 'color: #ff9800;');
     
 })();
