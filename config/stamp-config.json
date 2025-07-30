@@ -1,16 +1,6 @@
 {
   "fonts": [
     {
-      "id": 1753848222722.9607,
-      "name": "華康pop1體w7",
-      "filename": "華康pop1體w7.ttf",
-      "displayName": "華康pop1體w7",
-      "category": "custom",
-      "weight": "normal",
-      "systemFont": null,
-      "githubPath": "assets/fonts/華康pop1體w7.ttf"
-    },
-    {
       "id": 1753849837213.2207,
       "name": "辰宇落雁體 等寬版全繁體",
       "filename": "辰宇落雁體 等寬版全繁體.ttf",
@@ -109,7 +99,7 @@
       ]
     }
   ],
-  "lastUpdate": "2025-07-30T04:38:04.088Z",
+  "lastUpdate": "2025-07-30T04:45:41.924Z",
   "version": "3.0.0",
   "frontendSecurity": {
     "preventScreenshot": false,
