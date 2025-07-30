@@ -1,16 +1,6 @@
 {
   "fonts": [
     {
-      "id": 1753807741158.7705,
-      "name": "粉圓體全繁體",
-      "filename": "粉圓體全繁體.ttf",
-      "displayName": "粉圓體全繁體",
-      "category": "custom",
-      "weight": "normal",
-      "systemFont": null,
-      "githubPath": "assets/fonts/粉圓體全繁體.ttf"
-    },
-    {
       "id": 1753807741173.5852,
       "name": "辰宇落雁體 等寬版全繁體",
       "filename": "辰宇落雁體 等寬版全繁體.ttf",
@@ -44,7 +34,7 @@
   "shapes": [],
   "patterns": [],
   "colors": [],
-  "lastUpdate": "2025-07-29T16:49:36.953Z",
+  "lastUpdate": "2025-07-30T02:36:35.542Z",
   "version": "3.0.0",
   "frontendSecurity": {
     "preventScreenshot": false,
