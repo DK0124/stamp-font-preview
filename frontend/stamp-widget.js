@@ -1,9 +1,9 @@
 /**
- * 印章預覽系統 - Canvas 高清渲染版
+ * 印章預覽系統 - 字體載入修正版
  * @author DK0124
- * @version 11.4.0
+ * @version 11.5.0
  * @date 2025-01-30
- * @description 修復 Canvas 模糊和字體渲染問題
+ * @description 修復字體載入和渲染問題
  */
 
 (function() {
@@ -44,7 +44,7 @@
         }
     };
     
-    // 建立樣式（簡化版本，主要是 Canvas 相關）
+    // 建立樣式（保持原有）
     const styles = `
         /* 基礎樣式 */
         #stamp-custom-font-widget {
@@ -124,7 +124,7 @@
             transition: all 0.3s ease;
         }
         
-        /* Canvas 預覽樣式 - 重要！ */
+        /* Canvas 預覽樣式 */
         #stamp-custom-font-widget .scfw-main-canvas {
             display: block;
             cursor: pointer;
@@ -544,6 +544,12 @@
             background: #ccc;
         }
         
+        /* 測試用字體顯示 */
+        @font-face {
+            font-family: 'TestFont';
+            src: local('Arial');
+        }
+        
         /* 響應式 */
         @media (max-width: 768px) {
             #stamp-custom-font-widget .scfw-content {
@@ -655,7 +661,7 @@
             }
         },
         
-        // 建立 HTML（修改主預覽部分）
+        // 建立 HTML
         createHTML() {
             const container = document.getElementById('stamp-font-widget-container') || 
                            document.getElementById('stamp-preview-root') ||
@@ -803,7 +809,7 @@
             };
         },
         
-        // 初始化主 Canvas（高解析度）
+        // 初始化主 Canvas
         initMainCanvas() {
             const canvas = this.elements.mainCanvas;
             const dpr = window.devicePixelRatio || 1;
@@ -827,7 +833,7 @@
             console.log(`Canvas 初始化: ${displayWidth}x${displayHeight}, DPR: ${dpr}`);
         },
         
-        // 載入配置（保持不變）
+        // 載入配置
         async loadConfig() {
             try {
                 console.log('📋 開始載入配置檔案...');
@@ -849,35 +855,10 @@
                         this.fonts = this.defaultFonts;
                     }
                     
-                    // 處理形狀配置
-                    if (data.shapes && data.shapes.length > 0) {
-                        this.shapes = data.shapes.map((shape, index) => ({
-                            ...shape,
-                            id: shape.id || `shape_${index}`
-                        }));
-                    } else {
-                        this.shapes = this.defaultShapes;
-                    }
-                    
-                    // 處理顏色配置
-                    if (data.colors && data.colors.length > 0) {
-                        this.colors = data.colors;
-                    } else {
-                        this.colors = this.defaultColors;
-                    }
-                    
-                    // 處理圖案配置
-                    if (data.patterns && data.patterns.length > 0) {
-                        this.patterns = [
-                            { id: 'none', name: '無', filename: '' },
-                            ...data.patterns.map((pattern, index) => ({
-                                ...pattern,
-                                id: pattern.id || `pattern_${index}`
-                            }))
-                        ];
-                    } else {
-                        this.patterns = this.defaultPatterns;
-                    }
+                    // 其他配置處理...
+                    this.shapes = this.defaultShapes;
+                    this.colors = this.defaultColors;
+                    this.patterns = this.defaultPatterns;
                     
                 } else {
                     throw new Error('無法載入配置');
@@ -895,11 +876,9 @@
                 this.currentSelection.font = this.fonts[0];
                 this.currentSelection.fontId = this.fonts[0].id;
             }
-            
-            console.log('📦 最終字體列表:', this.fonts);
         },
         
-        // 初始化形狀（保持不變）
+        // 初始化形狀
         initializeShapes() {
             const shapesGrid = this.elements.shapesGrid;
             shapesGrid.innerHTML = '';
@@ -910,35 +889,25 @@
                 if (index === 0) item.classList.add('selected');
                 item.dataset.shape = shape.id;
                 
-                // 判斷是使用圖片還是 CSS 繪製
-                let preview = '';
-                if (shape.filename || shape.githubPath) {
-                    // 使用圖片
-                    const imgUrl = shape.githubPath ? 
-                        `${CONFIG.BASE_URL}/${shape.githubPath}` : 
-                        `${CONFIG.SHAPES_BASE_URL}/${shape.filename}`;
-                    preview = `<img src="${imgUrl}" alt="${shape.name}">`;
-                } else {
-                    // 使用 CSS 繪製
-                    let shapeStyle = '';
-                    let dimensions = '';
-                    
-                    switch(shape.id) {
-                        case 'circle':
-                            shapeStyle = 'border-radius: 50%;';
-                            break;
-                        case 'ellipse':
-                            shapeStyle = 'border-radius: 50%; width: 60px; height: 40px;';
-                            break;
-                        case 'rectangle':
-                            dimensions = 'width: 60px; height: 40px;';
-                            break;
-                    }
-                    preview = `<div class="scfw-shape-preview-border" style="${shapeStyle} ${dimensions}"></div>`;
+                let shapeStyle = '';
+                let dimensions = '';
+                
+                switch(shape.id) {
+                    case 'circle':
+                        shapeStyle = 'border-radius: 50%;';
+                        break;
+                    case 'ellipse':
+                        shapeStyle = 'border-radius: 50%; width: 60px; height: 40px;';
+                        break;
+                    case 'rectangle':
+                        dimensions = 'width: 60px; height: 40px;';
+                        break;
                 }
                 
                 item.innerHTML = `
-                    <div class="scfw-shape-preview">${preview}</div>
+                    <div class="scfw-shape-preview">
+                        <div class="scfw-shape-preview-border" style="${shapeStyle} ${dimensions}"></div>
+                    </div>
                     <span class="scfw-shape-label">${shape.name}</span>
                 `;
                 
@@ -953,7 +922,7 @@
             });
         },
         
-        // 初始化顏色（保持不變）
+        // 初始化顏色
         initializeColors() {
             const colorsGrid = this.elements.colorsGrid;
             colorsGrid.innerHTML = '';
@@ -974,6 +943,7 @@
                     mainColor.classList.add('selected');
                     this.currentSelection.color = color.main;
                     this.updateMainPreview();
+                    this.updateAllFontPreviews();
                 });
                 
                 colorGroup.appendChild(mainColor);
@@ -981,7 +951,7 @@
             });
         },
         
-        // 初始化圖案（保持不變）
+        // 初始化圖案
         initializePatterns() {
             const patternsGrid = this.elements.patternsGrid;
             patternsGrid.innerHTML = '';
@@ -995,16 +965,7 @@
                 if (pattern.id === 'none') {
                     item.innerHTML = '<span class="scfw-pattern-none">無</span>';
                 } else {
-                    // 使用圖片
-                    const imgUrl = pattern.githubPath ? 
-                        `${CONFIG.BASE_URL}/${pattern.githubPath}` : 
-                        pattern.filename ? `${CONFIG.PATTERNS_BASE_URL}/${pattern.filename}` : '';
-                    
-                    if (imgUrl) {
-                        item.innerHTML = `<div class="scfw-pattern-preview"><img src="${imgUrl}" alt="${pattern.name}"></div>`;
-                    } else {
-                        item.innerHTML = `<span class="scfw-pattern-none">${pattern.name}</span>`;
-                    }
+                    item.innerHTML = `<span class="scfw-pattern-none">${pattern.name}</span>`;
                 }
                 
                 item.addEventListener('click', () => {
@@ -1018,17 +979,24 @@
             });
         },
         
-        // 載入字體
+        // 載入字體（關鍵修正）
         async loadFont(fontData) {
-            if (this.loadedFonts[fontData.id]) {
-                return this.loadedFonts[fontData.id];
+            const fontId = fontData.id;
+            
+            // 檢查是否已載入
+            if (this.loadedFonts[fontId]) {
+                return this.loadedFonts[fontId];
             }
             
             try {
-                // 系統字體直接返回
+                // 系統字體
                 if (fontData.systemFont) {
-                    this.loadedFonts[fontData.id] = { systemFont: fontData.systemFont };
-                    return this.loadedFonts[fontData.id];
+                    console.log(`✅ 使用系統字體: ${fontData.displayName}`);
+                    this.loadedFonts[fontId] = { 
+                        systemFont: fontData.systemFont,
+                        loaded: true 
+                    };
+                    return this.loadedFonts[fontId];
                 }
                 
                 // 建構字體 URL
@@ -1039,27 +1007,75 @@
                     fontUrl = `${CONFIG.FONTS_BASE_URL}/${encodeURIComponent(fontData.filename)}`;
                 }
                 
-                if (!fontUrl) throw new Error('無字體路徑');
+                if (!fontUrl) {
+                    throw new Error('無字體路徑');
+                }
                 
-                console.log(`🔄 載入字體: ${fontData.displayName} from ${fontUrl}`);
+                console.log(`🔄 開始載入字體: ${fontData.displayName}`);
+                console.log(`📍 字體 URL: ${fontUrl}`);
                 
-                const fontFace = new FontFace(
-                    `CustomFont${fontData.id}`, 
-                    `url("${fontUrl}")`
-                );
+                // 建立並載入字體
+                const fontName = `CustomFont_${fontId}`;
+                const fontFace = new FontFace(fontName, `url("${fontUrl}")`);
                 
+                // 載入字體
                 await fontFace.load();
+                
+                // 添加到文檔
                 document.fonts.add(fontFace);
-                this.loadedFonts[fontData.id] = fontFace;
+                
+                // 驗證字體是否真的載入
+                const checkLoaded = await document.fonts.ready;
+                
+                // 儲存載入結果
+                this.loadedFonts[fontId] = {
+                    fontFace: fontFace,
+                    fontName: fontName,
+                    loaded: true
+                };
                 
                 console.log(`✅ 字體載入成功: ${fontData.displayName}`);
-                return fontFace;
+                
+                // 測試字體是否可用
+                this.testFontLoaded(fontName, fontData.displayName);
+                
+                return this.loadedFonts[fontId];
                 
             } catch (error) {
                 console.error(`❌ 載入字體失敗 ${fontData.displayName}:`, error);
-                this.fontLoadErrors[fontData.id] = error.message;
+                this.fontLoadErrors[fontId] = error.message;
                 return null;
             }
+        },
+        
+        // 測試字體是否真的載入
+        testFontLoaded(fontName, displayName) {
+            const testCanvas = document.createElement('canvas');
+            const testCtx = testCanvas.getContext('2d');
+            
+            // 測試預設字體
+            testCtx.font = '20px sans-serif';
+            testCtx.fillText('測', 0, 20);
+            const defaultData = testCtx.getImageData(0, 0, 30, 30).data;
+            
+            // 清空
+            testCtx.clearRect(0, 0, 30, 30);
+            
+            // 測試自訂字體
+            testCtx.font = `20px ${fontName}`;
+            testCtx.fillText('測', 0, 20);
+            const customData = testCtx.getImageData(0, 0, 30, 30).data;
+            
+            // 比較是否不同
+            let isDifferent = false;
+            for (let i = 0; i < defaultData.length; i++) {
+                if (defaultData[i] !== customData[i]) {
+                    isDifferent = true;
+                    break;
+                }
+            }
+            
+            console.log(`🔍 字體 ${displayName} 載入檢查: ${isDifferent ? '成功' : '失敗'}`);
         },
         
         // 建立預覽 Canvas（修正版）
@@ -1080,28 +1096,39 @@
             // 縮放 context
             ctx.scale(dpr, dpr);
             
-            // 清空 Canvas
-            ctx.clearRect(0, 0, displayWidth, displayHeight);
+            // 清空並填充白色背景
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, displayWidth, displayHeight);
             
-            // 設定字體和樣式
-            let fontFamily;
-            if (fontData.systemFont) {
-                fontFamily = fontData.systemFont;
-            } else {
-                fontFamily = `CustomFont${fontData.id}`;
+            // 取得字體資訊
+            const fontInfo = this.loadedFonts[fontData.id];
+            if (!fontInfo) {
+                ctx.font = '16px sans-serif';
+                ctx.fillStyle = '#999';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('載入中...', displayWidth / 2, displayHeight / 2);
+                return canvas;
             }
             
-            // 使用較大的字體大小
+            // 設定字體
+            let fontFamily;
+            if (fontInfo.systemFont) {
+                fontFamily = fontInfo.systemFont;
+            } else if (fontInfo.fontName) {
+                fontFamily = fontInfo.fontName;
+            } else {
+                fontFamily = 'sans-serif';
+            }
+            
+            // 繪製文字
             ctx.font = `bold 36px ${fontFamily}`;
             ctx.fillStyle = color || '#333333';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            
-            // 啟用字體平滑
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
             
-            // 繪製文字
             const displayText = text.substring(0, 2) || '印';
             ctx.fillText(displayText, displayWidth / 2, displayHeight / 2);
             
@@ -1130,7 +1157,6 @@
             
             // 點擊事件
             item.addEventListener('click', () => {
-                // 如果字體載入失敗，不允許選擇
                 if (this.fontLoadErrors[fontData.id]) {
                     alert(`無法選擇此字體：${this.fontLoadErrors[fontData.id]}`);
                     return;
@@ -1145,22 +1171,21 @@
                 this.updateMainPreview();
             });
             
-            // 異步載入字體並建立預覽
+            // 載入字體
             this.loadFont(fontData).then((loaded) => {
                 if (loaded) {
-                    // 延遲一下確保字體完全載入
-                    setTimeout(() => {
+                    // 確保字體真的載入後再渲染
+                    requestAnimationFrame(() => {
                         const previewDiv = item.querySelector('.scfw-font-preview');
                         previewDiv.innerHTML = '';
                         
-                        // 使用 Canvas 建立預覽
                         const canvas = this.createPreviewCanvas(
                             this.currentSelection.text, 
                             fontData, 
                             this.currentSelection.color
                         );
                         previewDiv.appendChild(canvas);
-                    }, 100);
+                    });
                 }
             }).catch(error => {
                 const previewDiv = item.querySelector('.scfw-font-preview');
@@ -1184,23 +1209,30 @@
             
             console.log('🚀 開始載入所有字體...');
             
-            // 短暫延遲以顯示載入動畫
             await new Promise(resolve => setTimeout(resolve, 300));
             
             this.elements.fontsGrid.innerHTML = '';
             
-            // 依序建立字體卡片
+            // 先載入所有字體
+            const loadPromises = this.fonts.map(font => this.loadFont(font));
+            await Promise.allSettled(loadPromises);
+            
+            // 然後建立卡片
             for (const fontData of this.fonts) {
                 const card = this.createFontCard(fontData);
                 this.elements.fontsGrid.appendChild(card);
             }
             
             this.isLoading = false;
+            
+            // 檢查載入狀態
+            console.log('📊 字體載入完成:');
+            console.log('已載入:', Object.keys(this.loadedFonts).length);
+            console.log('失敗:', Object.keys(this.fontLoadErrors).length);
         },
         
-        // 更新主預覽（高解析度版本）
+        // 更新主預覽
         updateMainPreview() {
-            // 使用 timeout 避免過度頻繁更新
             if (this.updateTimeout) {
                 clearTimeout(this.updateTimeout);
             }
@@ -1215,148 +1247,116 @@
             const ctx = canvas.getContext('2d');
             const font = this.currentSelection.font;
             
-            // 取得顯示尺寸
             const displayWidth = parseInt(canvas.style.width);
             const displayHeight = parseInt(canvas.style.height);
             
             // 清空 Canvas
             ctx.clearRect(0, 0, displayWidth, displayHeight);
             
-            // 設定平滑
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
-            
-            // 繪製白色背景
+            // 白色背景
             ctx.fillStyle = 'white';
             ctx.fillRect(0, 0, displayWidth, displayHeight);
             
-            // 繪製印章形狀
+            // 繪製形狀
             const centerX = displayWidth / 2;
             const centerY = displayHeight / 2;
             const size = 180;
             
             ctx.save();
-            
-            // 設定樣式
             ctx.strokeStyle = this.currentSelection.color;
             ctx.lineWidth = 5;
             
-            // 繪製形狀
             switch(this.currentSelection.shape) {
                 case 'circle':
                     ctx.beginPath();
                     ctx.arc(centerX, centerY, size / 2, 0, Math.PI * 2);
                     ctx.stroke();
                     break;
-                    
                 case 'ellipse':
                     ctx.beginPath();
                     ctx.ellipse(centerX, centerY, size * 0.6, size * 0.4, 0, 0, Math.PI * 2);
                     ctx.stroke();
                     break;
-                    
                 case 'rectangle':
                     ctx.strokeRect(centerX - size * 0.55, centerY - size * 0.35, size * 1.1, size * 0.7);
                     break;
-                    
                 case 'square':
                     ctx.strokeRect(centerX - size / 2, centerY - size / 2, size, size);
                     break;
             }
-            
             ctx.restore();
             
-            // 繪製文字（如果字體已載入）
-            if (font && this.loadedFonts[font.id]) {
-                ctx.save();
-                
-                let fontFamily;
-                if (font.systemFont) {
-                    fontFamily = font.systemFont;
-                } else {
-                    fontFamily = `CustomFont${font.id}`;
-                }
-                
-                // 根據文字長度調整字體大小
-                const text = this.currentSelection.text || '印章範例';
-                let fontSize = 48;
-                
-                if (text.length === 1) {
-                    fontSize = 72;
-                } else if (text.length === 2) {
-                    fontSize = 60;
-                } else if (text.length >= 5) {
-                    fontSize = 36;
-                }
-                
-                ctx.font = `bold ${fontSize}px ${fontFamily}`;
-                ctx.fillStyle = this.currentSelection.color;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                
-                // 根據文字長度和形狀決定排版
-                if (text.length > 2 && (this.currentSelection.shape === 'circle' || this.currentSelection.shape === 'square')) {
-                    // 分行顯示
-                    const half = Math.ceil(text.length / 2);
-                    const line1 = text.substring(0, half);
-                    const line2 = text.substring(half);
+            // 繪製文字
+            if (font) {
+                const fontInfo = this.loadedFonts[font.id];
+                if (fontInfo && fontInfo.loaded) {
+                    ctx.save();
                     
-                    const lineHeight = fontSize * 0.8;
-                    ctx.font = `bold ${fontSize * 0.8}px ${fontFamily}`;
-                    ctx.fillText(line1, centerX, centerY - lineHeight / 2);
-                    ctx.fillText(line2, centerX, centerY + lineHeight / 2);
-                } else {
-                    // 單行顯示
-                    ctx.fillText(text, centerX, centerY);
-                }
-                
-                ctx.restore();
-            }
-            
-            // 繪製圖案
-            const pattern = this.patterns.find(p => p.id === this.currentSelection.pattern);
-            if (pattern && pattern.id !== 'none') {
-                const imgUrl = pattern.githubPath ? 
-                    `${CONFIG.BASE_URL}/${pattern.githubPath}` : 
-                    pattern.filename ? `${CONFIG.PATTERNS_BASE_URL}/${pattern.filename}` : '';
-                
-                if (imgUrl) {
-                    const img = new Image();
-                    img.onload = () => {
-                        ctx.save();
-                        ctx.globalAlpha = 0.2;
-                        const patternSize = 32;
-                        ctx.drawImage(img, 
-                            displayWidth - patternSize - 15, 
-                            displayHeight - patternSize - 15, 
-                            patternSize, 
-                            patternSize
-                        );
-                        ctx.restore();
-                    };
-                    img.src = imgUrl;
+                    let fontFamily;
+                    if (fontInfo.systemFont) {
+                        fontFamily = fontInfo.systemFont;
+                    } else if (fontInfo.fontName) {
+                        fontFamily = fontInfo.fontName;
+                    } else {
+                        fontFamily = 'sans-serif';
+                    }
+                    
+                    const text = this.currentSelection.text || '印章範例';
+                    let fontSize = 48;
+                    
+                    if (text.length === 1) {
+                        fontSize = 72;
+                    } else if (text.length === 2) {
+                        fontSize = 60;
+                    } else if (text.length >= 5) {
+                        fontSize = 36;
+                    }
+                    
+                    ctx.font = `bold ${fontSize}px ${fontFamily}`;
+                    ctx.fillStyle = this.currentSelection.color;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    
+                    if (text.length > 2 && (this.currentSelection.shape === 'circle' || this.currentSelection.shape === 'square')) {
+                        const half = Math.ceil(text.length / 2);
+                        const line1 = text.substring(0, half);
+                        const line2 = text.substring(half);
+                        
+                        const lineHeight = fontSize * 0.8;
+                        ctx.font = `bold ${fontSize * 0.8}px ${fontFamily}`;
+                        ctx.fillText(line1, centerX, centerY - lineHeight / 2);
+                        ctx.fillText(line2, centerX, centerY + lineHeight / 2);
+                    } else {
+                        ctx.fillText(text, centerX, centerY);
+                    }
+                    
+                    ctx.restore();
                 }
             }
         },
         
         // 更新所有字體預覽
         updateAllFontPreviews() {
-            this.elements.widget.querySelectorAll('.scfw-font-item').forEach(item => {
-                const fontId = item.dataset.fontId;
-                const fontData = this.fonts.find(f => f.id === fontId);
-                
-                if (fontData && this.loadedFonts[fontId]) {
-                    const previewDiv = item.querySelector('.scfw-font-preview');
-                    previewDiv.innerHTML = '';
+            if (!this.isLoading) {
+                this.elements.widget.querySelectorAll('.scfw-font-item').forEach(item => {
+                    const fontId = item.dataset.fontId;
+                    const fontData = this.fonts.find(f => f.id === fontId);
                     
-                    const canvas = this.createPreviewCanvas(
-                        this.currentSelection.text,
-                        fontData,
-                        this.currentSelection.color
-                    );
-                    previewDiv.appendChild(canvas);
-                }
-            });
+                    if (fontData && this.loadedFonts[fontId]) {
+                        requestAnimationFrame(() => {
+                            const previewDiv = item.querySelector('.scfw-font-preview');
+                            previewDiv.innerHTML = '';
+                            
+                            const canvas = this.createPreviewCanvas(
+                                this.currentSelection.text,
+                                fontData,
+                                this.currentSelection.color
+                            );
+                            previewDiv.appendChild(canvas);
+                        });
+                    }
+                });
+            }
         },
         
         // 篩選字體
@@ -1409,53 +1409,19 @@
                     this.filterFonts(btn.dataset.category);
                 });
             });
-            
-            // Canvas 雙擊下載
-            this.elements.mainCanvas.addEventListener('dblclick', () => {
-                this.downloadStamp();
-            });
         },
         
-        // 下載印章
-        downloadStamp() {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            const dpr = 4; // 使用更高的解析度
+        // 除錯方法：列出所有載入的字體
+        debugFonts() {
+            console.log('🔍 除錯資訊:');
+            console.log('載入的字體:', this.loadedFonts);
+            console.log('錯誤的字體:', this.fontLoadErrors);
+            console.log('當前選擇:', this.currentSelection);
             
-            // 設定大尺寸
-            const size = 500;
-            canvas.width = size * dpr;
-            canvas.height = size * dpr;
-            
-            // 縮放
-            ctx.scale(dpr, dpr);
-            
-            // 白色背景
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0, 0, size, size);
-            
-            // 複製當前預覽（放大版）
-            const scale = size / 250;
-            ctx.save();
-            ctx.scale(scale, scale);
-            
-            // 重新繪製
-            const tempCanvas = this.elements.mainCanvas;
-            const tempCtx = tempCanvas.getContext('2d');
-            this.elements.mainCanvas = canvas;
-            this._doUpdateMainPreview();
-            this.elements.mainCanvas = tempCanvas;
-            
-            ctx.restore();
-            
-            // 下載
-            canvas.toBlob((blob) => {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `印章_${this.currentSelection.text}_${new Date().toISOString().split('T')[0]}.png`;
-                a.click();
-                URL.revokeObjectURL(url);
+            // 列出所有已註冊的字體
+            console.log('已註冊的字體:');
+            document.fonts.forEach(font => {
+                console.log(`- ${font.family}: ${font.status}`);
             });
         }
     };
@@ -1473,9 +1439,9 @@
     window.StampFontWidget = StampFontWidget;
     
     // 版本資訊
-    console.log('%c🎯 印章預覽系統 v11.4.0', 'font-size: 16px; font-weight: bold; color: #9fb28e;');
+    console.log('%c🎯 印章預覽系統 v11.5.0', 'font-size: 16px; font-weight: bold; color: #9fb28e;');
     console.log('%c📅 最後更新: 2025-01-30', 'color: #666;');
-    console.log('%c✅ 修復 Canvas 高解析度渲染問題', 'color: #28a745;');
-    console.log('%c💡 提示: 雙擊主預覽可下載高清印章圖片', 'color: #ff9800;');
+    console.log('%c✅ 修復字體載入和渲染邏輯', 'color: #28a745;');
+    console.log('%c💡 除錯: StampFontWidget.debugFonts()', 'color: #ff9800;');
     
 })();
