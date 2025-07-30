@@ -21,7 +21,14 @@
       "githubPath": "assets/fonts/辰宇落雁體 等寬版全繁體.ttf"
     }
   ],
-  "shapes": [],
+  "shapes": [
+    {
+      "id": 1753850277387.4475,
+      "name": "2k2kvRWJ_400x400",
+      "class": "2k2kvRWJ_400x400",
+      "githubPath": "assets/shapes/2k2kvRWJ_400x400.jpg"
+    }
+  ],
   "patterns": [
     {
       "id": 1753849898617.7578,
@@ -102,7 +109,7 @@
       ]
     }
   ],
-  "lastUpdate": "2025-07-30T04:34:11.044Z",
+  "lastUpdate": "2025-07-30T04:38:04.088Z",
   "version": "3.0.0",
   "frontendSecurity": {
     "preventScreenshot": false,
