@@ -9,6 +9,16 @@
       "weight": "normal",
       "systemFont": null,
       "githubPath": "assets/fonts/辰宇落雁體 等寬版全繁體.ttf"
+    },
+    {
+      "id": 1753850775377.1016,
+      "name": "粉圓體全繁體",
+      "filename": "粉圓體全繁體.ttf",
+      "displayName": "粉圓體全繁體",
+      "category": "custom",
+      "weight": "normal",
+      "systemFont": null,
+      "githubPath": "assets/fonts/粉圓體全繁體.ttf"
     }
   ],
   "shapes": [
@@ -99,7 +109,7 @@
       ]
     }
   ],
-  "lastUpdate": "2025-07-30T04:45:41.924Z",
+  "lastUpdate": "2025-07-30T04:46:26.232Z",
   "version": "3.0.0",
   "frontendSecurity": {
     "preventScreenshot": false,
