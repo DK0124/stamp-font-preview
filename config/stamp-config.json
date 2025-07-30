@@ -1,20 +1,9 @@
 {
-  "fonts": [
-    {
-      "id": 1753807741220.614,
-      "name": "金萱那堤全繁體",
-      "filename": "金萱那堤全繁體.ttf",
-      "displayName": "金萱那堤全繁體",
-      "category": "custom",
-      "weight": "normal",
-      "systemFont": null,
-      "githubPath": "assets/fonts/金萱那堤全繁體.ttf"
-    }
-  ],
+  "fonts": [],
   "shapes": [],
   "patterns": [],
   "colors": [],
-  "lastUpdate": "2025-07-30T02:36:41.220Z",
+  "lastUpdate": "2025-07-30T02:36:42.542Z",
   "version": "3.0.0",
   "frontendSecurity": {
     "preventScreenshot": false,
