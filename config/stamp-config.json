@@ -1,16 +1,6 @@
 {
   "fonts": [
     {
-      "id": 1753807741200.4119,
-      "name": "辰宇落雁體 不等寬版全繁體",
-      "filename": "辰宇落雁體 不等寬版全繁體.ttf",
-      "displayName": "辰宇落雁體 不等寬版全繁體",
-      "category": "custom",
-      "weight": "normal",
-      "systemFont": null,
-      "githubPath": "assets/fonts/辰宇落雁體 不等寬版全繁體.ttf"
-    },
-    {
       "id": 1753807741220.614,
       "name": "金萱那堤全繁體",
       "filename": "金萱那堤全繁體.ttf",
@@ -24,7 +14,7 @@
   "shapes": [],
   "patterns": [],
   "colors": [],
-  "lastUpdate": "2025-07-30T02:36:38.864Z",
+  "lastUpdate": "2025-07-30T02:36:41.220Z",
   "version": "3.0.0",
   "frontendSecurity": {
     "preventScreenshot": false,
