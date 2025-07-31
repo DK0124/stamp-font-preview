@@ -544,7 +544,7 @@ function getFontsContent() {
                 <div class="upload-icon material-icons">cloud_upload</div>
                 <p>拖放字體檔案到此處，或點擊選擇檔案</p>
                 <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 10px;">
-                    支援格式：.ttf, .otf, .woff, .woff2 | 最大檔案大小：10MB
+                    支援格式：.ttf, .otf, .woff, .woff2 | 無檔案大小限制
                 </p>
                 <input type="file" id="fontFileInput" multiple accept=".ttf,.otf,.woff,.woff2" style="display: none;">
             </div>
@@ -575,6 +575,7 @@ function getFontsContent() {
                             <th>字體名稱</th>
                             <th>檔案名稱</th>
                             <th width="100">檔案大小</th>
+                            <th width="100">分類</th>
                             <th width="100">字重</th>
                             <th width="80">狀態</th>
                             <th width="150">操作</th>
@@ -1613,7 +1614,7 @@ function setupBackendSecurity() {
 
 // 處理檔案上傳
 function handleFontFiles(files) {
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    // 移除檔案大小限制
     
     Array.from(files).forEach(file => {
         if (!file.name.match(/\.(ttf|otf|woff|woff2)$/i)) {
@@ -1621,24 +1622,31 @@ function handleFontFiles(files) {
             return;
         }
         
-        if (file.size > maxSize) {
-            showNotification(`檔案 "${file.name}" 超過 10MB 限制`, 'warning');
-            return;
-        }
+        // 移除大小檢查
+        // if (file.size > maxSize) {
+        //     showNotification(`檔案 "${file.name}" 超過限制`, 'warning');
+        //     return;
+        // }
         
         const reader = new FileReader();
         reader.onload = (e) => {
             const extension = file.name.split('.').pop().toLowerCase();
             const baseName = file.name.replace(/\.[^.]+$/, '');
             
+            // 修正 ID 生成 - 使用簡單的遞增數字
+            const existingIds = uploadedData.fonts.map(f => parseInt(f.id)).filter(id => !isNaN(id));
+            const nextId = existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1;
+            
             const fontData = {
-                id: Date.now() + Math.random(),
+                id: nextId, // 使用數字 ID
                 name: baseName,
+                displayName: baseName, // 確保有 displayName
                 filename: file.name,
                 extension: extension,
                 file: file,
-                size: (file.size / 1024).toFixed(2) + ' KB',
+                size: formatFileSize(file.size), // 格式化檔案大小
                 weight: 'normal',
+                category: 'custom', // 預設分類
                 fontSize: '16px',
                 lineHeight: '1.5',
                 url: e.target.result,
@@ -1648,10 +1656,19 @@ function handleFontFiles(files) {
             
             uploadedData.fonts.push(fontData);
             updateFontsTable();
-            showNotification(`字體 "${baseName}" 已新增`, 'success');
+            showNotification(`字體 "${baseName}" 已新增 (${formatFileSize(file.size)})`, 'success');
         };
         reader.readAsDataURL(file);
     });
+}
+
+// 新增檔案大小格式化函數
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
 function handleShapeFiles(files) {
@@ -1738,9 +1755,17 @@ function updateFontsTable() {
     tbody.innerHTML = uploadedData.fonts.map((font, index) => `
         <tr data-id="${font.id}">
             <td><span class="material-icons" style="cursor: move; color: var(--admin-text-secondary);">drag_indicator</span></td>
-            <td style="font-weight: 600;">${font.name}</td>
+            <td style="font-weight: 600;">${font.displayName || font.name}</td>
             <td style="color: var(--admin-text-secondary);">${font.filename || font.name + '.' + font.extension}</td>
             <td>${font.size}</td>
+            <td>
+                <select class="form-control form-control-sm" onchange="updateFontCategory('${font.id}', this.value)">
+                    <option value="custom" ${font.category === 'custom' ? 'selected' : ''}>自訂</option>
+                    <option value="traditional" ${font.category === 'traditional' ? 'selected' : ''}>傳統</option>
+                    <option value="handwrite" ${font.category === 'handwrite' ? 'selected' : ''}>手寫</option>
+                    <option value="modern" ${font.category === 'modern' ? 'selected' : ''}>現代</option>
+                </select>
+            </td>
             <td>${font.weight}</td>
             <td>
                 ${font.uploaded ? 
@@ -1761,6 +1786,15 @@ function updateFontsTable() {
             </td>
         </tr>
     `).join('');
+}
+
+// 新增更新字體分類的函數
+function updateFontCategory(fontId, category) {
+    const font = uploadedData.fonts.find(f => f.id == fontId);
+    if (font) {
+        font.category = category;
+        showNotification(`字體分類已更新為: ${category}`, 'success');
+    }
 }
 
 function updateShapesPreview() {
@@ -2100,6 +2134,19 @@ function editFont(id) {
             <input type="text" class="form-control" id="editFontName" value="${font.name}">
         </div>
         <div class="form-group">
+            <label class="form-label">顯示名稱</label>
+            <input type="text" class="form-control" id="editFontDisplayName" value="${font.displayName || font.name}">
+        </div>
+        <div class="form-group">
+            <label class="form-label">分類</label>
+            <select class="form-control" id="editFontCategory">
+                <option value="custom" ${font.category === 'custom' ? 'selected' : ''}>自訂</option>
+                <option value="traditional" ${font.category === 'traditional' ? 'selected' : ''}>傳統</option>
+                <option value="handwrite" ${font.category === 'handwrite' ? 'selected' : ''}>手寫</option>
+                <option value="modern" ${font.category === 'modern' ? 'selected' : ''}>現代</option>
+            </select>
+        </div>
+        <div class="form-group">
             <label class="form-label">字重</label>
             <select class="form-control" id="editFontWeight">
                 <option value="normal" ${font.weight === 'normal' ? 'selected' : ''}>Normal</option>
@@ -2130,6 +2177,8 @@ function saveEditFont(id) {
     if (!font) return;
     
     font.name = document.getElementById('editFontName').value;
+    font.displayName = document.getElementById('editFontDisplayName').value;
+    font.category = document.getElementById('editFontCategory').value;
     font.weight = document.getElementById('editFontWeight').value;
     
     updateFontsTable();
@@ -2293,29 +2342,33 @@ async function checkFontsPaths() {
 async function getCurrentConfig() {
     return {
         fonts: uploadedData.fonts.map(f => ({
-            id: f.id,
+            id: String(f.id), // 確保 ID 是字串
             name: f.name,
             filename: f.filename,
-            displayName: f.name,
-            category: 'custom',
+            displayName: f.displayName || f.name,
+            category: f.category || 'custom',
             weight: f.weight || 'normal',
-            systemFont: null,
             githubPath: f.githubPath || `assets/fonts/${f.filename}`
         })),
         shapes: uploadedData.shapes.map(s => ({
             id: s.id,
             name: s.name,
-            class: s.name,
-            githubPath: s.githubPath || null
+            filename: s.filename,
+            githubPath: s.githubPath || `assets/shapes/${s.filename}`
         })),
         patterns: uploadedData.patterns.map(p => ({
             id: p.id,
             name: p.name,
-            githubPath: p.githubPath || null
+            filename: p.filename,
+            githubPath: p.githubPath || `assets/patterns/${p.filename}`
         })),
-        colors: uploadedData.colors,
+        colors: uploadedData.colors.map(c => ({
+            main: c.main || c,
+            name: c.name
+        })),
+        frontendSecurity: JSON.parse(localStorage.getItem('frontend_security_settings') || '{}'),
         lastUpdate: new Date().toISOString(),
-        version: '3.0.0'
+        version: '3.1.0'
     };
 }
 
@@ -2410,34 +2463,51 @@ async function loadFromGitHub() {
         if (response.ok) {
             const config = await response.json();
             
-            uploadedData.fonts = config.fonts || [];
+            // 處理字體資料，確保格式正確
+            if (config.fonts && Array.isArray(config.fonts)) {
+                uploadedData.fonts = config.fonts.map((font, index) => {
+                    // 確保每個字體都有必要的屬性
+                    return {
+                        id: font.id || index + 1,
+                        name: font.name || font.displayName || '未命名字體',
+                        displayName: font.displayName || font.name || '未命名字體',
+                        filename: font.filename || (font.githubPath ? font.githubPath.split('/').pop() : ''),
+                        extension: font.filename ? font.filename.split('.').pop() : 'ttf',
+                        category: font.category || 'custom',
+                        weight: font.weight || 'normal',
+                        size: font.size || '未知',
+                        githubPath: font.githubPath,
+                        uploaded: !!font.githubPath
+                    };
+                });
+            } else {
+                uploadedData.fonts = [];
+            }
+            
+            // 處理其他資料
             uploadedData.shapes = config.shapes || [];
             uploadedData.patterns = config.patterns || [];
             uploadedData.colors = config.colors || [];
+            
+            // 確保形狀和圖案有正確的屬性
+            uploadedData.shapes = uploadedData.shapes.map(s => ({
+                ...s,
+                uploaded: !!s.githubPath,
+                filename: s.filename || (s.githubPath ? s.githubPath.split('/').pop() : '')
+            }));
+            
+            uploadedData.patterns = uploadedData.patterns.map(p => ({
+                ...p,
+                uploaded: !!p.githubPath,
+                filename: p.filename || (p.githubPath ? p.githubPath.split('/').pop() : '')
+            }));
             
             // 載入前台安全設定
             if (config.frontendSecurity) {
                 localStorage.setItem('frontend_security_settings', JSON.stringify(config.frontendSecurity));
             }
             
-            uploadedData.fonts.forEach(f => {
-                if (f.githubPath) {
-                    f.uploaded = true;
-                    if (!f.filename && f.githubPath) {
-                        f.filename = f.githubPath.split('/').pop();
-                        f.extension = f.filename.split('.').pop();
-                    }
-                }
-            });
-            
-            uploadedData.shapes.forEach(s => {
-                if (s.githubPath) s.uploaded = true;
-            });
-            
-            uploadedData.patterns.forEach(p => {
-                if (p.githubPath) p.uploaded = true;
-            });
-            
+            // 更新顯示
             if (currentPage === 'fonts') updateFontsTable();
             if (currentPage === 'shapes') updateShapesPreview();
             if (currentPage === 'patterns') updatePatternsPreview();
@@ -2455,6 +2525,60 @@ async function loadFromGitHub() {
         showNotification('載入失敗', 'warning');
         updateGitHubStatus(false);
     }
+}
+
+// 加入批次分類功能
+function batchUpdateFontCategories() {
+    const content = `
+        <div class="form-group">
+            <label class="form-label">選擇要批次更新的字體</label>
+            <div style="max-height: 300px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px; padding: 10px;">
+                ${uploadedData.fonts.map(font => `
+                    <label style="display: block; margin-bottom: 8px;">
+                        <input type="checkbox" name="batchFonts" value="${font.id}" checked>
+                        ${font.displayName || font.name}
+                    </label>
+                `).join('')}
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">設定分類為</label>
+            <select class="form-control" id="batchCategory">
+                <option value="custom">自訂</option>
+                <option value="traditional">傳統</option>
+                <option value="handwrite">手寫</option>
+                <option value="modern">現代</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+            <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+            <button class="btn btn-primary" onclick="applyBatchCategory()">
+                <span class="material-icons">done_all</span>
+                套用
+            </button>
+        </div>
+    `;
+    
+    showModal('批次更新字體分類', content);
+}
+
+function applyBatchCategory() {
+    const selectedFonts = Array.from(document.querySelectorAll('input[name="batchFonts"]:checked'))
+        .map(input => input.value);
+    const category = document.getElementById('batchCategory').value;
+    
+    let updateCount = 0;
+    selectedFonts.forEach(fontId => {
+        const font = uploadedData.fonts.find(f => f.id == fontId);
+        if (font) {
+            font.category = category;
+            updateCount++;
+        }
+    });
+    
+    updateFontsTable();
+    closeModal();
+    showNotification(`已更新 ${updateCount} 個字體的分類`, 'success');
 }
 
 // 更新總覽狀態
@@ -3019,7 +3143,7 @@ window.addEventListener('beforeunload', (e) => {
     }
 });
 
-console.log('🎯 印章系統後台管理 v3.0.0');
+console.log('🎯 印章系統後台管理 v3.1.0');
 console.log('👤 作者: DK0124');
-console.log('📅 最後更新: 2025-07-29');
-console.log('🔐 預設帳號: admin / 密碼: 0918124726');
+console.log('📅 最後更新: 2025-01-31');
+console.log('✨ 新功能: 移除字體大小限制、支援批次分類');
