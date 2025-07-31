@@ -1,8 +1,9 @@
 /**
- * 印章系統後台管理
+ * 印章系統後台管理 v4.0.0
  * @author DK0124
- * @version 3.0.0
- * @date 2025-07-29
+ * @version 4.0.0
+ * @date 2025-01-31
+ * @description 加入安全設定管理、預覽參數調整、字體路徑保護
  */
 
 // 全域變數
@@ -14,22 +15,72 @@ let uploadedData = {
     colors: []
 };
 
-// 登入設定
+// 新增：預覽設定
+let previewSettings = {
+    fontSize: { min: 24, max: 72, default: 48 },
+    lineHeight: { min: 0.8, max: 2, default: 1.2 },
+    borderWidth: { min: 1, max: 10, default: 5 },
+    canvasSize: { width: 250, height: 250 },
+    quality: 'high', // 'low', 'medium', 'high'
+    antiAlias: true,
+    patternPositions: ['topLeft', 'topRight', 'bottomLeft', 'bottomRight']
+};
+
+// 新增：字體保護設定
+const FontProtection = {
+    // 生成加密的字體路徑
+    generateSecurePath: function(fontId) {
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substr(2, 9);
+        const hash = btoa(`${fontId}_${timestamp}_${random}`).replace(/=/g, '');
+        return `secure/${hash}`;
+    },
+    
+    // 建立臨時訪問令牌
+    createAccessToken: function(fontId, duration = 3600000) { // 1小時
+        const token = {
+            fontId: fontId,
+            expires: Date.now() + duration,
+            signature: this.generateSignature(fontId)
+        };
+        return btoa(JSON.stringify(token));
+    },
+    
+    // 生成簽名
+    generateSignature: function(fontId) {
+        const secret = localStorage.getItem('font_secret') || 'default_secret';
+        return btoa(`${fontId}_${secret}_${new Date().toDateString()}`);
+    },
+    
+    // 驗證訪問令牌
+    validateToken: function(token) {
+        try {
+            const decoded = JSON.parse(atob(token));
+            if (decoded.expires < Date.now()) {
+                return false;
+            }
+            const expectedSignature = this.generateSignature(decoded.fontId);
+            return decoded.signature === expectedSignature;
+        } catch (e) {
+            return false;
+        }
+    }
+};
+
+// 登入設定（保持原有）
 const AdminAuth = {
     defaultUsername: 'admin',
     defaultPassword: '0918124726',
     sessionKey: 'admin_session',
     maxLoginAttempts: 5,
-    lockoutDuration: 300000, // 5分鐘
+    lockoutDuration: 300000,
     
-    // 檢查是否已登入
     isLoggedIn: function() {
         const session = sessionStorage.getItem(this.sessionKey);
         if (!session) return false;
         
         try {
             const sessionData = JSON.parse(session);
-            // 檢查 session 是否過期（24小時）
             if (new Date().getTime() - sessionData.loginTime > 24 * 60 * 60 * 1000) {
                 this.logout();
                 return false;
@@ -40,7 +91,6 @@ const AdminAuth = {
         }
     },
     
-    // 檢查帳號是否被鎖定
     isLocked: function() {
         const lockData = localStorage.getItem('admin_lockout');
         if (!lockData) return false;
@@ -54,7 +104,6 @@ const AdminAuth = {
         }
     },
     
-    // 記錄失敗次數
     recordFailedAttempt: function() {
         const attempts = parseInt(localStorage.getItem('failed_attempts') || '0') + 1;
         localStorage.setItem('failed_attempts', attempts.toString());
@@ -63,18 +112,16 @@ const AdminAuth = {
             const lockedUntil = new Date().getTime() + this.lockoutDuration;
             localStorage.setItem('admin_lockout', JSON.stringify({ lockedUntil }));
             localStorage.removeItem('failed_attempts');
-            return true; // 已鎖定
+            return true;
         }
-        return false; // 未鎖定
+        return false;
     },
     
-    // 登入
     login: function(username, password) {
         if (this.isLocked()) {
             return { success: false, message: '帳號已被鎖定，請稍後再試' };
         }
         
-        // 取得儲存的帳密（如果有）
         const savedAuth = JSON.parse(localStorage.getItem('admin_auth') || '{}');
         const validUsername = savedAuth.username || this.defaultUsername;
         const validPassword = savedAuth.password || this.defaultPassword;
@@ -99,13 +146,11 @@ const AdminAuth = {
         }
     },
     
-    // 登出
     logout: function() {
         sessionStorage.removeItem(this.sessionKey);
         window.location.reload();
     },
     
-    // 修改密碼
     changePassword: function(oldPassword, newPassword) {
         const savedAuth = JSON.parse(localStorage.getItem('admin_auth') || '{}');
         const currentPassword = savedAuth.password || this.defaultPassword;
@@ -120,14 +165,13 @@ const AdminAuth = {
     }
 };
 
-// GitHub 設定
+// GitHub 設定（加入字體保護）
 const GitHubConfig = {
     owner: 'DK0124',
     repo: 'stamp-font-preview',
     branch: 'main',
     configPath: 'config/stamp-config.json',
     
-    // Token 管理
     getToken: function() {
         return localStorage.getItem('github_token') || '';
     },
@@ -144,9 +188,7 @@ const GitHubConfig = {
                     GitHub Personal Access Token
                 </label>
                 <input type="password" class="form-control" id="githubTokenInput" placeholder="ghp_xxxxxxxxxxxx">
-                <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 8px;">
-                    需要具有 repo 權限的 token 才能上傳檔案
-                </p>
+                <p class="help-text">需要具有 repo 權限的 token 才能上傳檔案</p>
             </div>
             <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
                 <button class="btn btn-secondary" onclick="closeModal()">取消</button>
@@ -163,17 +205,18 @@ const GitHubConfig = {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', function() {
-    // 檢查登入狀態
     if (!AdminAuth.isLoggedIn()) {
         showLoginPage();
         return;
     }
     
-    // 已登入，初始化後台
     initializeAdmin();
     setupBackendSecurity();
     
-    // 載入 GitHub 設定
+    // 載入設定
+    loadPreviewSettings();
+    loadSecuritySettings();
+    
     setTimeout(() => {
         loadFromGitHub();
     }, 1000);
@@ -241,11 +284,8 @@ function handleLogin(event) {
     } else {
         errorDiv.textContent = result.message;
         errorDiv.style.display = 'block';
-        
-        // 清除密碼欄位
         document.getElementById('password').value = '';
         
-        // 震動效果
         const loginBox = document.querySelector('.login-box');
         loginBox.style.animation = 'shake 0.5s';
         setTimeout(() => {
@@ -256,7 +296,6 @@ function handleLogin(event) {
 
 // 初始化管理系統
 function initializeAdmin() {
-    // 重建頁面結構（登入後）
     document.body.innerHTML = `
         <div class="admin-wrapper">
             <nav class="admin-sidebar" id="sidebar">
@@ -280,8 +319,11 @@ function initializeAdmin() {
                     <li><a href="#" class="admin-nav-item" data-page="colors">
                         <span class="material-icons">palette</span> 顏色管理
                     </a></li>
+                    <li><a href="#" class="admin-nav-item" data-page="preview">
+                        <span class="material-icons">preview</span> 預覽設定
+                    </a></li>
                     <li><a href="#" class="admin-nav-item" data-page="security">
-                        <span class="material-icons">security</span> 前台安全設定
+                        <span class="material-icons">security</span> 安全設定
                     </a></li>
                     <li><a href="#" class="admin-nav-item" data-page="account">
                         <span class="material-icons">account_circle</span> 帳號設定
@@ -313,11 +355,6 @@ function initializeAdmin() {
                 </div>
             </main>
         </div>
-        <div id="screenshotProtection" class="screenshot-protection">
-            <span class="material-icons">no_photography</span>
-            <p>禁止截圖</p>
-        </div>
-        <div id="watermarkLayer" class="watermark-layer"></div>
         <div id="notificationContainer" class="notification-container"></div>
     `;
     
@@ -333,19 +370,14 @@ function initializeAdmin() {
         });
     });
 
-    // 檢查螢幕寬度
     checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
-
-    // 載入初始頁面
     loadPage('dashboard');
     
-    // 初始化後加入 GitHub 按鈕
     setTimeout(() => {
         addGitHubButtons();
     }, 100);
     
-    // 設定鍵盤快捷鍵
     setupKeyboardShortcuts();
 }
 
@@ -371,7 +403,6 @@ function loadPage(page) {
     const content = document.getElementById('adminContent');
     const title = document.getElementById('pageTitle');
     
-    // 關閉手機版側邊欄
     if (window.innerWidth <= 768) {
         document.getElementById('sidebar').classList.remove('active');
     }
@@ -402,8 +433,13 @@ function loadPage(page) {
             content.innerHTML = getColorsContent();
             initializeColorsPage();
             break;
+        case 'preview':
+            title.textContent = '預覽設定';
+            content.innerHTML = getPreviewContent();
+            initializePreviewPage();
+            break;
         case 'security':
-            title.textContent = '前台安全設定';
+            title.textContent = '安全設定';
             content.innerHTML = getSecurityContent();
             initializeSecurityPage();
             break;
@@ -463,8 +499,8 @@ function getDashboardContent() {
         <div class="admin-card">
             <div class="admin-card-header">
                 <div class="admin-card-title">
-                    <span class="material-icons">timeline</span>
-                    系統狀態
+                    <span class="material-icons">security</span>
+                    安全狀態
                 </div>
             </div>
             <div class="grid grid-2">
@@ -474,11 +510,12 @@ function getDashboardContent() {
                     <p>浮水印保護：<span id="frontWatermarkStatus" class="badge">檢查中...</span></p>
                     <p>右鍵保護：<span id="frontRightClickStatus" class="badge">檢查中...</span></p>
                     <p>開發者工具偵測：<span id="frontDevToolsStatus" class="badge">檢查中...</span></p>
+                    <p>字體路徑保護：<span id="fontProtectionStatus" class="badge">檢查中...</span></p>
                 </div>
                 <div>
                     <h4 style="color: var(--admin-accent); margin-bottom: 16px;">系統資訊</h4>
                     <p>最後更新：${new Date().toLocaleString('zh-TW')}</p>
-                    <p>系統版本：3.0.0</p>
+                    <p>系統版本：4.0.0</p>
                     <p>登入時間：${new Date(JSON.parse(sessionStorage.getItem('admin_session')).loginTime).toLocaleString('zh-TW')}</p>
                     <p>瀏覽器：${navigator.userAgent.match(/(Chrome|Safari|Firefox|Edge)/)?.[0] || 'Unknown'}</p>
                 </div>
@@ -500,33 +537,10 @@ function getDashboardContent() {
                 <p>檢查中...</p>
             </div>
         </div>
-        
-        <div class="admin-card">
-            <div class="admin-card-header">
-                <div class="admin-card-title">
-                    <span class="material-icons">info</span>
-                    快速操作
-                </div>
-            </div>
-            <div class="grid grid-3">
-                <button class="btn btn-secondary" onclick="showShortcuts()" style="width: 100%;">
-                    <span class="material-icons">keyboard</span>
-                    查看快捷鍵
-                </button>
-                <button class="btn btn-secondary" onclick="exportSettings()" style="width: 100%;">
-                    <span class="material-icons">download</span>
-                    匯出設定
-                </button>
-                <button class="btn btn-secondary" onclick="importSettings()" style="width: 100%;">
-                    <span class="material-icons">upload</span>
-                    匯入設定
-                </button>
-            </div>
-        </div>
     `;
 }
 
-// 字體管理頁面
+// 字體管理頁面（加入保護功能）
 function getFontsContent() {
     return `
         <div class="admin-card">
@@ -535,15 +549,21 @@ function getFontsContent() {
                     <span class="material-icons">upload_file</span>
                     上傳字體
                 </div>
-                <button class="btn btn-primary" onclick="showFontSettings()">
-                    <span class="material-icons">settings</span>
-                    字體設定
-                </button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" onclick="showFontSettings()">
+                        <span class="material-icons">settings</span>
+                        字體設定
+                    </button>
+                    <button class="btn btn-warning" onclick="showFontProtectionSettings()">
+                        <span class="material-icons">shield</span>
+                        保護設定
+                    </button>
+                </div>
             </div>
             <div class="upload-area" id="fontUploadArea">
                 <div class="upload-icon material-icons">cloud_upload</div>
                 <p>拖放字體檔案到此處，或點擊選擇檔案</p>
-                <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 10px;">
+                <p class="help-text">
                     支援格式：.ttf, .otf, .woff, .woff2 | 無檔案大小限制
                 </p>
                 <input type="file" id="fontFileInput" multiple accept=".ttf,.otf,.woff,.woff2" style="display: none;">
@@ -561,6 +581,10 @@ function getFontsContent() {
                         <span class="material-icons">upload</span>
                         批次上傳
                     </button>
+                    <button class="btn btn-secondary" onclick="batchUpdateFontCategories()">
+                        <span class="material-icons">category</span>
+                        批次分類
+                    </button>
                     <button class="btn btn-warning" onclick="checkFontsPaths()">
                         <span class="material-icons">sync</span>
                         檢查路徑
@@ -577,6 +601,7 @@ function getFontsContent() {
                             <th width="100">檔案大小</th>
                             <th width="100">分類</th>
                             <th width="100">字重</th>
+                            <th width="120">保護狀態</th>
                             <th width="80">狀態</th>
                             <th width="150">操作</th>
                         </tr>
@@ -590,492 +615,169 @@ function getFontsContent() {
     `;
 }
 
-// 形狀管理頁面 - 加入上傳按鈕
-function getShapesContent() {
+// 新增：預覽設定頁面
+function getPreviewContent() {
     return `
         <div class="admin-card">
             <div class="admin-card-header">
                 <div class="admin-card-title">
-                    <span class="material-icons">upload_file</span>
-                    上傳形狀
+                    <span class="material-icons">tune</span>
+                    預覽參數設定
                 </div>
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-primary" onclick="uploadAllShapes()">
-                        <span class="material-icons">upload</span>
-                        批次上傳到 GitHub
-                    </button>
-                    <button class="btn btn-info" onclick="showShapeGuide()">
-                        <span class="material-icons">help</span>
-                        製作指南
-                    </button>
-                </div>
-            </div>
-            <div class="upload-area" id="shapeUploadArea">
-                <div class="upload-icon material-icons">cloud_upload</div>
-                <p>拖放形狀圖片到此處，或點擊選擇檔案</p>
-                <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 10px;">
-                    支援格式：.png, .jpg, .svg | 建議尺寸：512x512px | 透明背景
-                </p>
-                <input type="file" id="shapeFileInput" multiple accept=".png,.jpg,.jpeg,.svg" style="display: none;">
-            </div>
-        </div>
-        
-        <div class="admin-card">
-            <div class="admin-card-header">
-                <div class="admin-card-title">
-                    <span class="material-icons">grid_view</span>
-                    形狀預覽
-                </div>
-                <div>
-                    <span class="badge badge-info">
-                        <span class="material-icons">info</span>
-                        共 ${uploadedData.shapes.length} 個形狀
-                    </span>
-                </div>
-            </div>
-            <div class="preview-grid" id="shapesPreview">
-                <!-- 動態載入 -->
-            </div>
-        </div>
-    `;
-}
-
-// 圖案管理頁面 - 加入上傳按鈕
-function getPatternsContent() {
-    return `
-        <div class="admin-card">
-            <div class="admin-card-header">
-                <div class="admin-card-title">
-                    <span class="material-icons">upload_file</span>
-                    上傳圖案
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-primary" onclick="uploadAllPatterns()">
-                        <span class="material-icons">upload</span>
-                        批次上傳到 GitHub
-                    </button>
-                    <button class="btn btn-info" onclick="showPatternGuide()">
-                        <span class="material-icons">help</span>
-                        製作指南
-                    </button>
-                </div>
-            </div>
-            <div class="upload-area" id="patternUploadArea">
-                <div class="upload-icon material-icons">cloud_upload</div>
-                <p>拖放圖案到此處，或點擊選擇檔案</p>
-                <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 10px;">
-                    支援格式：.png, .jpg, .svg | 建議尺寸：64x64px | 可平鋪圖案
-                </p>
-                <input type="file" id="patternFileInput" multiple accept=".png,.jpg,.jpeg,.svg" style="display: none;">
-            </div>
-        </div>
-        
-        <div class="admin-card">
-            <div class="admin-card-header">
-                <div class="admin-card-title">
-                    <span class="material-icons">auto_awesome</span>
-                    圖案預覽
-                </div>
-                <div>
-                    <span class="badge badge-info">
-                        <span class="material-icons">info</span>
-                        共 ${uploadedData.patterns.length} 個圖案
-                    </span>
-                </div>
-            </div>
-            <div class="preview-grid" id="patternsPreview">
-                <!-- 動態載入 -->
-            </div>
-        </div>
-    `;
-}
-
-// 更新形狀預覽 - 加入上傳按鈕
-function updateShapesPreview() {
-    const preview = document.getElementById('shapesPreview');
-    if (!preview) return;
-    
-    if (uploadedData.shapes.length === 0) {
-        preview.innerHTML = '<p style="text-align: center; color: var(--admin-text-secondary); padding: 40px;">尚無形狀，請上傳形狀圖片</p>';
-        return;
-    }
-    
-    preview.innerHTML = uploadedData.shapes.map(shape => `
-        <div class="preview-item" data-id="${shape.id}">
-            ${shape.url ? `<img src="${shape.url}" alt="${shape.name}" onerror="this.style.display='none'; this.parentElement.innerHTML+='<div style=\\'text-align:center; padding:20px;\\'>載入失敗</div>'">` : 
-              shape.githubPath ? `<img src="https://raw.githubusercontent.com/${GitHubConfig.owner}/${GitHubConfig.repo}/${GitHubConfig.branch}/${shape.githubPath}" alt="${shape.name}">` :
-              '<div style="text-align:center; padding:20px;">無預覽</div>'}
-            <p>${shape.name}</p>
-            <span class="badge ${shape.uploaded ? 'badge-success' : 'badge-warning'}">
-                ${shape.uploaded ? '已上傳' : '待上傳'}
-            </span>
-            <div style="display: flex; gap: 4px; margin-top: 8px;">
-                ${!shape.uploaded ? 
-                    `<button class="btn btn-sm btn-info" onclick="uploadSingleShape('${shape.id}')" title="上傳">
-                        <span class="material-icons">upload</span>
-                    </button>` : ''}
-                <button class="btn btn-sm btn-danger" onclick="deleteShape('${shape.id}')" title="刪除">
-                    <span class="material-icons">delete</span>
+                <button class="btn btn-secondary" onclick="resetPreviewSettings()">
+                    <span class="material-icons">restart_alt</span>
+                    重設為預設值
                 </button>
             </div>
-        </div>
-    `).join('');
-}
-
-// 更新圖案預覽 - 加入上傳按鈕
-function updatePatternsPreview() {
-    const preview = document.getElementById('patternsPreview');
-    if (!preview) return;
-    
-    if (uploadedData.patterns.length === 0) {
-        preview.innerHTML = '<p style="text-align: center; color: var(--admin-text-secondary); padding: 40px;">尚無圖案，請上傳圖案圖片</p>';
-        return;
-    }
-    
-    preview.innerHTML = uploadedData.patterns.map(pattern => `
-        <div class="preview-item" data-id="${pattern.id}">
-            <div style="width: 80px; height: 80px; margin: 0 auto; border-radius: 8px; overflow: hidden; background: #f0f0f0;">
-                ${pattern.url ? 
-                    `<div style="width: 100%; height: 100%; background: url(${pattern.url}) repeat; background-size: 40px 40px;"></div>` : 
-                    pattern.githubPath ? 
-                    `<div style="width: 100%; height: 100%; background: url(https://raw.githubusercontent.com/${GitHubConfig.owner}/${GitHubConfig.repo}/${GitHubConfig.branch}/${pattern.githubPath}) repeat; background-size: 40px 40px;"></div>` :
-                    '<div style="text-align:center; line-height: 80px;">無預覽</div>'}
-            </div>
-            <p>${pattern.name}</p>
-            <span class="badge ${pattern.uploaded ? 'badge-success' : 'badge-warning'}">
-                ${pattern.uploaded ? '已上傳' : '待上傳'}
-            </span>
-            <div style="display: flex; gap: 4px; margin-top: 8px;">
-                ${!pattern.uploaded ? 
-                    `<button class="btn btn-sm btn-info" onclick="uploadSinglePattern('${pattern.id}')" title="上傳">
-                        <span class="material-icons">upload</span>
-                    </button>` : ''}
-                <button class="btn btn-sm btn-danger" onclick="deletePattern('${pattern.id}')" title="刪除">
-                    <span class="material-icons">delete</span>
-                </button>
-            </div>
-        </div>
-    `).join('');
-}
-
-// 上傳單個形狀
-async function uploadSingleShape(shapeId) {
-    const shape = uploadedData.shapes.find(s => s.id == shapeId);
-    if (!shape) return;
-    
-    const success = await uploadShapeFile(shape);
-    if (success) {
-        shape.uploaded = true;
-        updateShapesPreview();
-    }
-}
-
-// 上傳單個圖案
-async function uploadSinglePattern(patternId) {
-    const pattern = uploadedData.patterns.find(p => p.id == patternId);
-    if (!pattern) return;
-    
-    const success = await uploadPatternFile(pattern);
-    if (success) {
-        pattern.uploaded = true;
-        updatePatternsPreview();
-    }
-}
-
-// 上傳形狀檔案到 GitHub
-async function uploadShapeFile(shapeData) {
-    const token = GitHubConfig.getToken();
-    if (!token) {
-        GitHubConfig.promptToken();
-        return false;
-    }
-    
-    try {
-        console.log('開始上傳形狀檔案:', shapeData.name);
-        showNotification(`正在上傳形狀: ${shapeData.name}...`, 'info');
-        
-        const base64Content = shapeData.url.split(',')[1];
-        const filePath = `assets/shapes/${shapeData.filename}`;
-        const apiUrl = `https://api.github.com/repos/${GitHubConfig.owner}/${GitHubConfig.repo}/contents/${filePath}`;
-        
-        // 檢查檔案是否已存在
-        let sha = null;
-        const checkResponse = await fetch(apiUrl, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/vnd.github.v3+json'
-            }
-        });
-        
-        if (checkResponse.ok) {
-            const existingFile = await checkResponse.json();
-            sha = existingFile.sha;
-            console.log('檔案已存在，將更新');
-        }
-        
-        const requestBody = {
-            message: `Upload shape: ${shapeData.name}`,
-            content: base64Content,
-            branch: GitHubConfig.branch
-        };
-        
-        if (sha) {
-            requestBody.sha = sha;
-        }
-        
-        const uploadResponse = await fetch(apiUrl, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/vnd.github.v3+json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestBody)
-        });
-        
-        if (uploadResponse.ok) {
-            const result = await uploadResponse.json();
-            console.log('形狀檔案上傳成功:', result.content.path);
-            shapeData.githubPath = filePath;
-            shapeData.uploaded = true;
-            showNotification(`形狀 ${shapeData.name} 上傳成功`, 'success');
-            return true;
-        } else {
-            const error = await uploadResponse.json();
-            console.error('上傳失敗:', error);
-            showNotification(`形狀上傳失敗: ${error.message}`, 'danger');
-            return false;
-        }
-        
-    } catch (error) {
-        console.error('上傳錯誤:', error);
-        showNotification('形狀上傳失敗：' + error.message, 'danger');
-        return false;
-    }
-}
-
-// 上傳圖案檔案到 GitHub
-async function uploadPatternFile(patternData) {
-    const token = GitHubConfig.getToken();
-    if (!token) {
-        GitHubConfig.promptToken();
-        return false;
-    }
-    
-    try {
-        console.log('開始上傳圖案檔案:', patternData.name);
-        showNotification(`正在上傳圖案: ${patternData.name}...`, 'info');
-        
-        const base64Content = patternData.url.split(',')[1];
-        const filePath = `assets/patterns/${patternData.filename}`;
-        const apiUrl = `https://api.github.com/repos/${GitHubConfig.owner}/${GitHubConfig.repo}/contents/${filePath}`;
-        
-        // 檢查檔案是否已存在
-        let sha = null;
-        const checkResponse = await fetch(apiUrl, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/vnd.github.v3+json'
-            }
-        });
-        
-        if (checkResponse.ok) {
-            const existingFile = await checkResponse.json();
-            sha = existingFile.sha;
-            console.log('檔案已存在，將更新');
-        }
-        
-        const requestBody = {
-            message: `Upload pattern: ${patternData.name}`,
-            content: base64Content,
-            branch: GitHubConfig.branch
-        };
-        
-        if (sha) {
-            requestBody.sha = sha;
-        }
-        
-        const uploadResponse = await fetch(apiUrl, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/vnd.github.v3+json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestBody)
-        });
-        
-        if (uploadResponse.ok) {
-            const result = await uploadResponse.json();
-            console.log('圖案檔案上傳成功:', result.content.path);
-            patternData.githubPath = filePath;
-            patternData.uploaded = true;
-            showNotification(`圖案 ${patternData.name} 上傳成功`, 'success');
-            return true;
-        } else {
-            const error = await uploadResponse.json();
-            console.error('上傳失敗:', error);
-            showNotification(`圖案上傳失敗: ${error.message}`, 'danger');
-            return false;
-        }
-        
-    } catch (error) {
-        console.error('上傳錯誤:', error);
-        showNotification('圖案上傳失敗：' + error.message, 'danger');
-        return false;
-    }
-}
-
-// 批次上傳所有形狀
-async function uploadAllShapes() {
-    const token = GitHubConfig.getToken();
-    if (!token) {
-        GitHubConfig.promptToken();
-        return;
-    }
-    
-    const unuploadedShapes = uploadedData.shapes.filter(s => !s.uploaded);
-    
-    if (unuploadedShapes.length === 0) {
-        showNotification('沒有需要上傳的形狀', 'info');
-        return;
-    }
-    
-    showNotification(`開始上傳 ${unuploadedShapes.length} 個形狀檔案...`, 'info');
-    
-    let successCount = 0;
-    let failCount = 0;
-    
-    for (const shape of unuploadedShapes) {
-        if (shape.url && shape.url.startsWith('data:')) {
-            const success = await uploadShapeFile(shape);
-            if (success) {
-                successCount++;
-            } else {
-                failCount++;
-            }
             
-            // 避免 API 限制，加入延遲
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-    }
-    
-    updateShapesPreview();
-    
-    if (successCount > 0) {
-        showNotification(`成功上傳 ${successCount} 個形狀檔案`, 'success');
-    }
-    
-    if (failCount > 0) {
-        showNotification(`${failCount} 個形狀上傳失敗`, 'warning');
-    }
-    
-    // 上傳完成後自動儲存設定
-    setTimeout(() => {
-        saveToGitHub();
-    }, 2000);
-}
-
-// 批次上傳所有圖案
-async function uploadAllPatterns() {
-    const token = GitHubConfig.getToken();
-    if (!token) {
-        GitHubConfig.promptToken();
-        return;
-    }
-    
-    const unuploadedPatterns = uploadedData.patterns.filter(p => !p.uploaded);
-    
-    if (unuploadedPatterns.length === 0) {
-        showNotification('沒有需要上傳的圖案', 'info');
-        return;
-    }
-    
-    showNotification(`開始上傳 ${unuploadedPatterns.length} 個圖案檔案...`, 'info');
-    
-    let successCount = 0;
-    let failCount = 0;
-    
-    for (const pattern of unuploadedPatterns) {
-        if (pattern.url && pattern.url.startsWith('data:')) {
-            const success = await uploadPatternFile(pattern);
-            if (success) {
-                successCount++;
-            } else {
-                failCount++;
-            }
-            
-            // 避免 API 限制，加入延遲
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-    }
-    
-    updatePatternsPreview();
-    
-    if (successCount > 0) {
-        showNotification(`成功上傳 ${successCount} 個圖案檔案`, 'success');
-    }
-    
-    if (failCount > 0) {
-        showNotification(`${failCount} 個圖案上傳失敗`, 'warning');
-    }
-    
-    // 上傳完成後自動儲存設定
-    setTimeout(() => {
-        saveToGitHub();
-    }, 2000);
-}
-
-// 顏色管理頁面
-function getColorsContent() {
-    return `
-        <div class="admin-card">
-            <div class="admin-card-header">
-                <div class="admin-card-title">
-                    <span class="material-icons">palette</span>
-                    新增顏色組
+            <div class="preview-settings">
+                <!-- 字體設定 -->
+                <div class="preview-setting-group">
+                    <h4>字體設定</h4>
+                    
+                    <div class="range-input-group">
+                        <label class="form-label">最小字體大小</label>
+                        <input type="range" class="range-input" id="fontSizeMin" 
+                               min="12" max="48" value="${previewSettings.fontSize.min}">
+                        <span class="range-value">${previewSettings.fontSize.min}px</span>
+                    </div>
+                    
+                    <div class="range-input-group">
+                        <label class="form-label">最大字體大小</label>
+                        <input type="range" class="range-input" id="fontSizeMax" 
+                               min="48" max="120" value="${previewSettings.fontSize.max}">
+                        <span class="range-value">${previewSettings.fontSize.max}px</span>
+                    </div>
+                    
+                    <div class="range-input-group">
+                        <label class="form-label">預設字體大小</label>
+                        <input type="range" class="range-input" id="fontSizeDefault" 
+                               min="24" max="72" value="${previewSettings.fontSize.default}">
+                        <span class="range-value">${previewSettings.fontSize.default}px</span>
+                    </div>
+                    
+                    <div class="range-input-group">
+                        <label class="form-label">行高</label>
+                        <input type="range" class="range-input" id="lineHeight" 
+                               min="0.8" max="2" step="0.1" value="${previewSettings.lineHeight.default}">
+                        <span class="range-value">${previewSettings.lineHeight.default}</span>
+                    </div>
+                </div>
+                
+                <!-- 邊框設定 -->
+                <div class="preview-setting-group">
+                    <h4>邊框設定</h4>
+                    
+                    <div class="range-input-group">
+                        <label class="form-label">最小邊框寬度</label>
+                        <input type="range" class="range-input" id="borderWidthMin" 
+                               min="1" max="5" value="${previewSettings.borderWidth.min}">
+                        <span class="range-value">${previewSettings.borderWidth.min}px</span>
+                    </div>
+                    
+                    <div class="range-input-group">
+                        <label class="form-label">最大邊框寬度</label>
+                        <input type="range" class="range-input" id="borderWidthMax" 
+                               min="5" max="20" value="${previewSettings.borderWidth.max}">
+                        <span class="range-value">${previewSettings.borderWidth.max}px</span>
+                    </div>
+                    
+                    <div class="range-input-group">
+                        <label class="form-label">預設邊框寬度</label>
+                        <input type="range" class="range-input" id="borderWidthDefault" 
+                               min="1" max="10" value="${previewSettings.borderWidth.default}">
+                        <span class="range-value">${previewSettings.borderWidth.default}px</span>
+                    </div>
+                </div>
+                
+                <!-- 畫布設定 -->
+                <div class="preview-setting-group">
+                    <h4>畫布設定</h4>
+                    
+                    <div class="form-group">
+                        <label class="form-label">畫布寬度</label>
+                        <input type="number" class="form-control" id="canvasWidth" 
+                               value="${previewSettings.canvasSize.width}" min="100" max="500">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">畫布高度</label>
+                        <input type="number" class="form-control" id="canvasHeight" 
+                               value="${previewSettings.canvasSize.height}" min="100" max="500">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">渲染品質</label>
+                        <select class="form-control" id="renderQuality">
+                            <option value="low" ${previewSettings.quality === 'low' ? 'selected' : ''}>低品質（快速）</option>
+                            <option value="medium" ${previewSettings.quality === 'medium' ? 'selected' : ''}>中等品質</option>
+                            <option value="high" ${previewSettings.quality === 'high' ? 'selected' : ''}>高品質（清晰）</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">
+                            <input type="checkbox" id="antiAlias" ${previewSettings.antiAlias ? 'checked' : ''}>
+                            啟用抗鋸齒
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- 圖案位置設定 -->
+                <div class="preview-setting-group">
+                    <h4>圖案位置設定</h4>
+                    <p class="help-text">選擇圖案可出現的位置（可多選）</p>
+                    
+                    <div class="grid grid-2">
+                        <label class="form-label">
+                            <input type="checkbox" name="patternPosition" value="topLeft" 
+                                   ${previewSettings.patternPositions.includes('topLeft') ? 'checked' : ''}>
+                            左上角
+                        </label>
+                        <label class="form-label">
+                            <input type="checkbox" name="patternPosition" value="topRight"
+                                   ${previewSettings.patternPositions.includes('topRight') ? 'checked' : ''}>
+                            右上角
+                        </label>
+                        <label class="form-label">
+                            <input type="checkbox" name="patternPosition" value="bottomLeft"
+                                   ${previewSettings.patternPositions.includes('bottomLeft') ? 'checked' : ''}>
+                            左下角
+                        </label>
+                        <label class="form-label">
+                            <input type="checkbox" name="patternPosition" value="bottomRight"
+                                   ${previewSettings.patternPositions.includes('bottomRight') ? 'checked' : ''}>
+                            右下角
+                        </label>
+                    </div>
                 </div>
             </div>
-            <div class="grid grid-3">
-                <div class="form-group">
-                    <label class="form-label">顏色名稱</label>
-                    <input type="text" class="form-control" id="colorName" placeholder="例如：朱紅色">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">主色色碼</label>
-                    <input type="color" class="form-control" id="colorMain" value="#dc3545">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">&nbsp;</label>
-                    <button class="btn btn-primary" onclick="addColorGroup()" style="width: 100%;">
-                        <span class="material-icons">add</span>
-                        新增顏色組
-                    </button>
-                </div>
+            
+            <div style="margin-top: 24px;">
+                <button class="btn btn-success" onclick="savePreviewSettings()">
+                    <span class="material-icons">save</span>
+                    儲存設定
+                </button>
             </div>
         </div>
         
+        <!-- 即時預覽 -->
         <div class="admin-card">
             <div class="admin-card-header">
                 <div class="admin-card-title">
-                    <span class="material-icons">color_lens</span>
-                    顏色組列表
+                    <span class="material-icons">visibility</span>
+                    設定預覽
                 </div>
-                <button class="btn btn-secondary" onclick="loadDefaultColors()">
-                    <span class="material-icons">restore</span>
-                    載入預設顏色
-                </button>
             </div>
-            <div class="color-picker-grid" id="colorGroups">
-                <!-- 動態載入 -->
+            <div style="text-align: center; padding: 24px;">
+                <canvas id="previewCanvas" style="border: 1px solid #e0e0e0; border-radius: 8px;"></canvas>
             </div>
         </div>
     `;
 }
 
-// 前台安全設定頁面
+// 安全設定頁面（更新版）
 function getSecurityContent() {
-    // 載入前台安全設定
     const savedSettings = JSON.parse(localStorage.getItem('frontend_security_settings') || '{}');
     
     return `
@@ -1085,365 +787,569 @@ function getSecurityContent() {
                     <span class="material-icons">security</span>
                     前台安全防護設定
                 </div>
-                <span class="badge badge-info">
-                    <span class="material-icons">info</span>
-                    這些設定只影響前台使用者介面
-                </span>
-            </div>
-            <div class="grid grid-2">
-                <div class="form-group">
-                    <label class="form-label">
-                        <input type="checkbox" id="frontPreventScreenshot" ${savedSettings.preventScreenshot !== false ? 'checked' : ''}>
-                        防止截圖保護
-                    </label>
-                    <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 5px;">
-                        前台偵測到截圖行為時顯示黑畫面
-                    </p>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">
-                        <input type="checkbox" id="frontEnableWatermark" ${savedSettings.enableWatermark !== false ? 'checked' : ''}>
-                        啟用浮水印
-                    </label>
-                    <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 5px;">
-                        在前台印章預覽介面顯示浮水印
-                    </p>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">
-                        <input type="checkbox" id="frontDisableRightClick" ${savedSettings.disableRightClick !== false ? 'checked' : ''}>
-                        禁用右鍵選單
-                    </label>
-                    <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 5px;">
-                        防止前台使用者右鍵另存圖片
-                    </p>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">
-                        <input type="checkbox" id="frontDisableTextSelect" ${savedSettings.disableTextSelect !== false ? 'checked' : ''}>
-                        禁止文字選取
-                    </label>
-                    <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 5px;">
-                        防止前台使用者複製文字內容
-                    </p>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">
-                        <input type="checkbox" id="frontDisableDevTools" ${savedSettings.disableDevTools !== false ? 'checked' : ''}>
-                        偵測開發者工具
-                    </label>
-                    <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 5px;">
-                        前台開啟開發者工具時顯示警告
-                    </p>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">
-                        <input type="checkbox" id="frontDisablePrint" ${savedSettings.disablePrint !== false ? 'checked' : ''}>
-                        禁止列印
-                    </label>
-                    <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 5px;">
-                        防止前台使用者列印頁面
-                    </p>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">
-                        <input type="checkbox" id="frontDisableDrag" ${savedSettings.disableDrag !== false ? 'checked' : ''}>
-                        禁止拖曳圖片
-                    </label>
-                    <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 5px;">
-                        防止前台使用者拖曳圖片到其他地方
-                    </p>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">
-                        <input type="checkbox" id="frontBlurOnLoseFocus" ${savedSettings.blurOnLoseFocus ? 'checked' : ''}>
-                        失焦模糊
-                    </label>
-                    <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 5px;">
-                        當使用者切換視窗時模糊內容
-                    </p>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-success" onclick="saveAllSecuritySettings()">
+                        <span class="material-icons">save</span>
+                        儲存所有設定
+                    </button>
+                    <button class="btn btn-secondary" onclick="resetSecuritySettings()">
+                        <span class="material-icons">restart_alt</span>
+                        重設為預設值
+                    </button>
                 </div>
             </div>
-            <div style="margin-top: 20px;">
-                <button class="btn btn-success" onclick="updateFrontendSecuritySettings()">
-                    <span class="material-icons">save</span>
-                    儲存前台安全設定
-                </button>
-                <button class="btn btn-secondary" onclick="resetFrontendSecuritySettings()" style="margin-left: 10px;">
-                    <span class="material-icons">restart_alt</span>
-                    重設為預設值
-                </button>
+            
+            <div class="security-settings-grid">
+                <!-- 基本防護 -->
+                <div class="security-setting-card">
+                    <h4 style="margin-bottom: 16px;">基本防護設定</h4>
+                    
+                    <div class="security-toggle">
+                        <div>
+                            <div class="switch-label">禁用右鍵選單</div>
+                            <p class="help-text">防止使用者右鍵另存圖片</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="disableRightClick" ${savedSettings.disableRightClick !== false ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="security-toggle">
+                        <div>
+                            <div class="switch-label">禁止文字選取</div>
+                            <p class="help-text">防止使用者複製文字內容</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="disableTextSelect" ${savedSettings.disableTextSelect !== false ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="security-toggle">
+                        <div>
+                            <div class="switch-label">禁止拖曳圖片</div>
+                            <p class="help-text">防止使用者拖曳圖片到其他地方</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="disableDrag" ${savedSettings.disableDrag !== false ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="security-toggle">
+                        <div>
+                            <div class="switch-label">禁止列印</div>
+                            <p class="help-text">防止使用者列印頁面</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="disablePrint" ${savedSettings.disablePrint !== false ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- 進階防護 -->
+                <div class="security-setting-card">
+                    <h4 style="margin-bottom: 16px;">進階防護設定</h4>
+                    
+                    <div class="security-toggle">
+                        <div>
+                            <div class="switch-label">防止截圖保護</div>
+                            <p class="help-text">偵測到截圖行為時顯示黑畫面</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="preventScreenshot" ${savedSettings.preventScreenshot ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="security-toggle">
+                        <div>
+                            <div class="switch-label">偵測開發者工具</div>
+                            <p class="help-text">開啟開發者工具時顯示警告</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="detectDevTools" ${savedSettings.detectDevTools ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="security-toggle">
+                        <div>
+                            <div class="switch-label">失焦模糊</div>
+                            <p class="help-text">當使用者切換視窗時模糊內容</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="blurOnLoseFocus" ${savedSettings.blurOnLoseFocus ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="security-toggle">
+                        <div>
+                            <div class="switch-label">禁用快捷鍵</div>
+                            <p class="help-text">禁用複製、儲存等快捷鍵</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="disableShortcuts" ${savedSettings.disableShortcuts !== false ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- 字體保護 -->
+                <div class="security-setting-card">
+                    <h4 style="margin-bottom: 16px;">字體保護設定</h4>
+                    
+                    <div class="security-toggle">
+                        <div>
+                            <div class="switch-label">字體路徑加密</div>
+                            <p class="help-text">使用加密路徑防止直接下載字體</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="encryptFontPath" ${savedSettings.encryptFontPath !== false ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="security-toggle">
+                        <div>
+                            <div class="switch-label">字體訪問令牌</div>
+                            <p class="help-text">需要有效令牌才能載入字體</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="requireFontToken" ${savedSettings.requireFontToken ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">令牌有效期（分鐘）</label>
+                        <input type="number" class="form-control" id="tokenDuration" 
+                               value="${savedSettings.tokenDuration || 60}" min="5" max="1440">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">字體載入密鑰</label>
+                        <input type="text" class="form-control" id="fontSecret" 
+                               value="${savedSettings.fontSecret || ''}" placeholder="留空使用預設密鑰">
+                    </div>
+                </div>
+                
+                <!-- 浮水印設定 -->
+                <div class="security-setting-card">
+                    <h4 style="margin-bottom: 16px;">浮水印設定</h4>
+                    
+                    <div class="security-toggle">
+                        <div>
+                            <div class="switch-label">啟用浮水印</div>
+                            <p class="help-text">在預覽介面顯示浮水印</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="enableWatermark" ${savedSettings.enableWatermark ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">浮水印文字</label>
+                        <input type="text" class="form-control" id="watermarkText" 
+                               value="${savedSettings.watermarkText || '© 2025 印章系統 - 版權所有'}">
+                    </div>
+                    
+                    <div class="range-input-group">
+                        <label class="form-label">透明度</label>
+                        <input type="range" class="range-input" id="watermarkOpacity" 
+                               value="${(savedSettings.watermarkOpacity || 0.05) * 100}" 
+                               min="1" max="20">
+                        <span class="range-value">${((savedSettings.watermarkOpacity || 0.05) * 100).toFixed(0)}%</span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">字體大小</label>
+                        <input type="number" class="form-control" id="watermarkFontSize" 
+                               value="${savedSettings.watermarkFontSize || 20}" min="10" max="50">
+                    </div>
+                </div>
             </div>
         </div>
         
-        <div class="admin-card">
-            <div class="admin-card-header">
-                <div class="admin-card-title">
-                    <span class="material-icons">text_fields</span>
-                    前台浮水印設定
-                </div>
-            </div>
-            <div class="grid grid-2">
-                <div class="form-group">
-                    <label class="form-label">浮水印文字</label>
-                    <input type="text" class="form-control" id="frontWatermarkText" value="${savedSettings.watermarkText || '© 2025 印章系統 - 版權所有'}">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">更新頻率（秒）</label>
-                    <input type="number" class="form-control" id="frontWatermarkInterval" value="${savedSettings.watermarkInterval || 60}" min="10">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">透明度 <span id="frontOpacityValue">${((savedSettings.watermarkOpacity || 0.03) * 100).toFixed(0)}%</span></label>
-                    <input type="range" class="form-control" id="frontWatermarkOpacity" value="${savedSettings.watermarkOpacity || 0.03}" min="0.01" max="0.1" step="0.01">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">字體大小</label>
-                    <input type="number" class="form-control" id="frontWatermarkFontSize" value="${savedSettings.watermarkFontSize || 10}" min="8" max="20">
-                </div>
-            </div>
-            <button class="btn btn-success" onclick="updateFrontendWatermarkSettings()">
-                <span class="material-icons">save</span>
-                儲存浮水印設定
-            </button>
-        </div>
-        
+        <!-- 警告訊息設定 -->
         <div class="admin-card">
             <div class="admin-card-header">
                 <div class="admin-card-title">
                     <span class="material-icons">warning</span>
-                    前台警告訊息設定
+                    警告訊息設定
+                </div>
+            </div>
+            <div class="grid grid-2">
+                <div class="form-group">
+                    <label class="form-label">右鍵警告訊息</label>
+                    <input type="text" class="form-control" id="rightClickWarning" 
+                           value="${savedSettings.rightClickWarning || '禁止右鍵操作'}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">複製警告訊息</label>
+                    <input type="text" class="form-control" id="copyWarning" 
+                           value="${savedSettings.copyWarning || '禁止複製內容'}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">截圖警告訊息</label>
+                    <input type="text" class="form-control" id="screenshotWarning" 
+                           value="${savedSettings.screenshotWarning || '禁止截圖 - 版權所有'}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">開發者工具警告標題</label>
+                    <input type="text" class="form-control" id="devToolsWarningTitle" 
+                           value="${savedSettings.devToolsWarningTitle || '⚠️ 警告'}">
                 </div>
             </div>
             <div class="form-group">
-                <label class="form-label">截圖警告訊息</label>
-                <input type="text" class="form-control" id="frontScreenshotWarning" value="${savedSettings.screenshotWarning || '禁止截圖 - 版權所有'}">
+                <label class="form-label">開發者工具警告內容</label>
+                <textarea class="form-control" id="devToolsWarning" rows="3">${savedSettings.devToolsWarning || '偵測到開發者工具！\n本系統內容受版權保護，禁止任何形式的複製或下載。'}</textarea>
             </div>
-            <div class="form-group">
-                <label class="form-label">開發者工具警告訊息</label>
-                <textarea class="form-control" id="frontDevToolsWarning" rows="3">${savedSettings.devToolsWarning || '警告：偵測到開發者工具！\n本系統內容受版權保護，禁止任何形式的複製或下載。'}</textarea>
-            </div>
-            <button class="btn btn-success" onclick="updateFrontendWarningMessages()">
-                <span class="material-icons">save</span>
-                儲存警告訊息
-            </button>
         </div>
     `;
 }
 
-// 帳號設定頁面
-function getAccountContent() {
-    return `
-        <div class="admin-card">
-            <div class="admin-card-header">
-                <div class="admin-card-title">
-                    <span class="material-icons">lock</span>
-                    修改密碼
-                </div>
-            </div>
-            <form onsubmit="handleChangePassword(event)">
-                <div class="form-group">
-                    <label class="form-label">目前密碼</label>
-                    <input type="password" class="form-control" id="currentPassword" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">新密碼</label>
-                    <input type="password" class="form-control" id="newPassword" required minlength="6" pattern="(?=.*\\d)(?=.*[a-z])(?=.*[A-Z]).{6,}" title="密碼必須包含大小寫字母和數字">
-                    <p style="font-size: 12px; color: var(--admin-text-secondary); margin-top: 5px;">
-                        密碼長度至少 6 個字元，需包含大小寫字母和數字
-                    </p>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">確認新密碼</label>
-                    <input type="password" class="form-control" id="confirmPassword" required>
-                </div>
-                <button type="submit" class="btn btn-primary">
-                    <span class="material-icons">save</span>
-                    更新密碼
+// 處理字體檔案（更新版 - 加入保護）
+function handleFontFiles(files) {
+    Array.from(files).forEach(file => {
+        if (!file.name.match(/\.(ttf|otf|woff|woff2)$/i)) {
+            showNotification(`檔案 "${file.name}" 格式不支援`, 'warning');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const extension = file.name.split('.').pop().toLowerCase();
+            const baseName = file.name.replace(/\.[^.]+$/, '');
+            
+            const existingIds = uploadedData.fonts.map(f => parseInt(f.id)).filter(id => !isNaN(id));
+            const nextId = existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1;
+            
+            const fontData = {
+                id: nextId,
+                name: baseName,
+                displayName: baseName,
+                filename: file.name,
+                extension: extension,
+                file: file,
+                size: formatFileSize(file.size),
+                weight: 'normal',
+                category: 'custom',
+                url: e.target.result,
+                uploaded: false,
+                githubPath: null,
+                protected: true, // 預設啟用保護
+                securePath: null, // 加密路徑
+                accessToken: null // 訪問令牌
+            };
+            
+            uploadedData.fonts.push(fontData);
+            updateFontsTable();
+            showNotification(`字體 "${baseName}" 已新增 (${formatFileSize(file.size)})`, 'success');
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+// 格式化檔案大小
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// 更新字體表格（加入保護狀態）
+function updateFontsTable() {
+    const tbody = document.getElementById('fontsTableBody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = uploadedData.fonts.map((font, index) => `
+        <tr data-id="${font.id}">
+            <td><span class="material-icons" style="cursor: move; color: var(--admin-text-secondary);">drag_indicator</span></td>
+            <td style="font-weight: 600;">${font.displayName || font.name}</td>
+            <td style="color: var(--admin-text-secondary);">${font.filename || font.name + '.' + font.extension}</td>
+            <td>${font.size}</td>
+            <td>
+                <select class="form-control form-control-sm" onchange="updateFontCategory('${font.id}', this.value)">
+                    <option value="custom" ${font.category === 'custom' ? 'selected' : ''}>自訂</option>
+                    <option value="traditional" ${font.category === 'traditional' ? 'selected' : ''}>傳統</option>
+                    <option value="handwrite" ${font.category === 'handwrite' ? 'selected' : ''}>手寫</option>
+                    <option value="modern" ${font.category === 'modern' ? 'selected' : ''}>現代</option>
+                </select>
+            </td>
+            <td>${font.weight}</td>
+            <td>
+                ${font.protected ? 
+                    '<span class="badge badge-success">已保護</span>' : 
+                    '<span class="badge badge-warning">未保護</span>'}
+            </td>
+            <td>
+                ${font.uploaded ? 
+                    '<span class="badge badge-success">已上傳</span>' : 
+                    '<span class="badge badge-warning">待上傳</span>'}
+            </td>
+            <td>
+                <button class="btn btn-sm btn-primary" onclick="editFont('${font.id}')" title="編輯">
+                    <span class="material-icons">edit</span>
                 </button>
-            </form>
-        </div>
-        
-        <div class="admin-card">
-            <div class="admin-card-header">
-                <div class="admin-card-title">
-                    <span class="material-icons">info</span>
-                    登入資訊
-                </div>
-            </div>
-            <div class="info-list">
-                <p><strong>目前使用者：</strong> ${JSON.parse(sessionStorage.getItem('admin_session')).username}</p>
-                <p><strong>登入時間：</strong> ${new Date(JSON.parse(sessionStorage.getItem('admin_session')).loginTime).toLocaleString('zh-TW')}</p>
-                <p><strong>Session 到期：</strong> 24 小時後自動登出</p>
-                <p><strong>上次密碼更新：</strong> ${localStorage.getItem('last_password_change') || '從未更新'}</p>
-            </div>
-        </div>
-        
-        <div class="admin-card">
-            <div class="admin-card-header">
-                <div class="admin-card-title">
-                    <span class="material-icons">security</span>
-                    安全設定
-                </div>
-            </div>
-            <div class="info-list">
-                <p><strong>預設帳號：</strong> admin</p>
-                <p><strong>預設密碼：</strong> 0918124726</p>
-                <p><strong>登入失敗鎖定：</strong> 5 次失敗後鎖定 5 分鐘</p>
-                <p><strong>建議：</strong> 請盡快修改預設密碼以確保安全</p>
-            </div>
-        </div>
-    `;
+                ${!font.uploaded ? 
+                    `<button class="btn btn-sm btn-info" onclick="uploadSingleFont('${font.id}')" title="上傳">
+                        <span class="material-icons">upload</span>
+                    </button>` : ''}
+                <button class="btn btn-sm btn-warning" onclick="toggleFontProtection('${font.id}')" title="切換保護">
+                    <span class="material-icons">shield</span>
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="deleteFont('${font.id}')" title="刪除">
+                    <span class="material-icons">delete</span>
+                </button>
+            </td>
+        </tr>
+    `).join('');
 }
 
-// 初始化各頁面功能
-function initializeFontsPage() {
-    const uploadArea = document.getElementById('fontUploadArea');
-    const fileInput = document.getElementById('fontFileInput');
-    
-    if (!uploadArea || !fileInput) return;
-    
-    uploadArea.addEventListener('click', () => fileInput.click());
-    
-    uploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        uploadArea.classList.add('dragging');
-    });
-    
-    uploadArea.addEventListener('dragleave', () => {
-        uploadArea.classList.remove('dragging');
-    });
-    
-    uploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        uploadArea.classList.remove('dragging');
-        handleFontFiles(e.dataTransfer.files);
-    });
-    
-    fileInput.addEventListener('change', (e) => {
-        handleFontFiles(e.target.files);
-    });
-    
-    updateFontsTable();
-    
-    // 初始化拖曳排序
-    if (typeof Sortable !== 'undefined') {
-        new Sortable(document.getElementById('fontsTableBody'), {
-            animation: 150,
-            handle: '.material-icons',
-            onEnd: function(evt) {
-                // 更新順序
-                const rows = document.querySelectorAll('#fontsTableBody tr');
-                const newOrder = [];
-                rows.forEach((row) => {
-                    const id = row.dataset.id;
-                    const font = uploadedData.fonts.find(f => f.id == id);
-                    if (font) newOrder.push(font);
-                });
-                uploadedData.fonts = newOrder;
-                showNotification('字體順序已更新', 'success');
-            }
+// 初始化預覽設定頁面
+function initializePreviewPage() {
+    // 綁定範圍滑桿事件
+    document.querySelectorAll('.range-input').forEach(input => {
+        const valueSpan = input.parentElement.querySelector('.range-value');
+        
+        input.addEventListener('input', function() {
+            const value = this.value;
+            const suffix = this.id.includes('LineHeight') ? '' : 'px';
+            valueSpan.textContent = value + suffix;
+            
+            // 即時更新預覽
+            updatePreviewCanvas();
         });
+    });
+    
+    // 綁定其他輸入事件
+    ['canvasWidth', 'canvasHeight', 'renderQuality', 'antiAlias'].forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener('change', updatePreviewCanvas);
+        }
+    });
+    
+    // 初始化預覽
+    updatePreviewCanvas();
+}
+
+// 更新預覽畫布
+function updatePreviewCanvas() {
+    const canvas = document.getElementById('previewCanvas');
+    if (!canvas) return;
+    
+    const width = parseInt(document.getElementById('canvasWidth').value);
+    const height = parseInt(document.getElementById('canvasHeight').value);
+    const quality = document.getElementById('renderQuality').value;
+    
+    canvas.width = width;
+    canvas.height = height;
+    
+    const ctx = canvas.getContext('2d', {
+        alpha: false,
+        desynchronized: quality === 'low'
+    });
+    
+    // 白色背景
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, width, height);
+    
+    // 繪製範例印章
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const size = Math.min(width, height) * 0.7;
+    
+    // 邊框
+    ctx.strokeStyle = '#e57373';
+    ctx.lineWidth = parseInt(document.getElementById('borderWidthDefault').value);
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, size / 2, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // 文字
+    const fontSize = parseInt(document.getElementById('fontSizeDefault').value);
+    ctx.font = `bold ${fontSize}px "Microsoft JhengHei"`;
+    ctx.fillStyle = '#e57373';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('範例', centerX, centerY);
+    
+    // 品質提示
+    if (quality === 'low') {
+        ctx.filter = 'blur(1px)';
     }
 }
 
-function initializeShapesPage() {
-    const uploadArea = document.getElementById('shapeUploadArea');
-    const fileInput = document.getElementById('shapeFileInput');
+// 儲存預覽設定
+function savePreviewSettings() {
+    previewSettings = {
+        fontSize: {
+            min: parseInt(document.getElementById('fontSizeMin').value),
+            max: parseInt(document.getElementById('fontSizeMax').value),
+            default: parseInt(document.getElementById('fontSizeDefault').value)
+        },
+        lineHeight: {
+            min: parseFloat(document.getElementById('lineHeight').value),
+            max: 2,
+            default: parseFloat(document.getElementById('lineHeight').value)
+        },
+        borderWidth: {
+            min: parseInt(document.getElementById('borderWidthMin').value),
+            max: parseInt(document.getElementById('borderWidthMax').value),
+            default: parseInt(document.getElementById('borderWidthDefault').value)
+        },
+        canvasSize: {
+            width: parseInt(document.getElementById('canvasWidth').value),
+            height: parseInt(document.getElementById('canvasHeight').value)
+        },
+        quality: document.getElementById('renderQuality').value,
+        antiAlias: document.getElementById('antiAlias').checked,
+        patternPositions: Array.from(document.querySelectorAll('input[name="patternPosition"]:checked'))
+            .map(cb => cb.value)
+    };
     
-    if (!uploadArea || !fileInput) return;
-    
-    uploadArea.addEventListener('click', () => fileInput.click());
-    
-    uploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        uploadArea.classList.add('dragging');
-    });
-    
-    uploadArea.addEventListener('dragleave', () => {
-        uploadArea.classList.remove('dragging');
-    });
-    
-    uploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        uploadArea.classList.remove('dragging');
-        handleShapeFiles(e.dataTransfer.files);
-    });
-    
-    fileInput.addEventListener('change', (e) => {
-        handleShapeFiles(e.target.files);
-    });
-    
-    updateShapesPreview();
+    localStorage.setItem('preview_settings', JSON.stringify(previewSettings));
+    showNotification('預覽設定已儲存', 'success');
 }
 
-function initializePatternsPage() {
-    const uploadArea = document.getElementById('patternUploadArea');
-    const fileInput = document.getElementById('patternFileInput');
-    
-    if (!uploadArea || !fileInput) return;
-    
-    uploadArea.addEventListener('click', () => fileInput.click());
-    
-    uploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        uploadArea.classList.add('dragging');
-    });
-    
-    uploadArea.addEventListener('dragleave', () => {
-        uploadArea.classList.remove('dragging');
-    });
-    
-    uploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        uploadArea.classList.remove('dragging');
-        handlePatternFiles(e.dataTransfer.files);
-    });
-    
-    fileInput.addEventListener('change', (e) => {
-        handlePatternFiles(e.target.files);
-    });
-    
-    updatePatternsPreview();
+// 載入預覽設定
+function loadPreviewSettings() {
+    const saved = localStorage.getItem('preview_settings');
+    if (saved) {
+        previewSettings = JSON.parse(saved);
+    }
 }
 
-function initializeColorsPage() {
-    displayColorGroups();
+// 重設預覽設定
+function resetPreviewSettings() {
+    if (confirm('確定要將預覽設定重設為預設值嗎？')) {
+        previewSettings = {
+            fontSize: { min: 24, max: 72, default: 48 },
+            lineHeight: { min: 0.8, max: 2, default: 1.2 },
+            borderWidth: { min: 1, max: 10, default: 5 },
+            canvasSize: { width: 250, height: 250 },
+            quality: 'high',
+            antiAlias: true,
+            patternPositions: ['topLeft', 'topRight', 'bottomLeft', 'bottomRight']
+        };
+        localStorage.setItem('preview_settings', JSON.stringify(previewSettings));
+        loadPage('preview');
+        showNotification('預覽設定已重設', 'info');
+    }
 }
 
-// 初始化前台安全設定頁面
+// 初始化安全設定頁面
 function initializeSecurityPage() {
-    // 監聽透明度滑桿變化
-    const opacitySlider = document.getElementById('frontWatermarkOpacity');
-    const opacityValue = document.getElementById('frontOpacityValue');
-    
-    if (opacitySlider && opacityValue) {
+    // 綁定範圍滑桿
+    const opacitySlider = document.getElementById('watermarkOpacity');
+    if (opacitySlider) {
+        const valueSpan = opacitySlider.parentElement.querySelector('.range-value');
         opacitySlider.addEventListener('input', function() {
-            opacityValue.textContent = (this.value * 100).toFixed(0) + '%';
+            valueSpan.textContent = this.value + '%';
         });
     }
     
-    // 更新前台安全狀態顯示
-    updateFrontendSecurityStatus();
-    
-    // 即時預覽變更
-    const checkboxes = document.querySelectorAll('#adminContent input[type="checkbox"]');
-    checkboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            showNotification('記得儲存設定以套用變更', 'info');
+    // 綁定開關變化事件
+    document.querySelectorAll('.toggle-switch input').forEach(toggle => {
+        toggle.addEventListener('change', function() {
+            const label = this.closest('.security-toggle').querySelector('.switch-label').textContent;
+            showNotification(`${label} ${this.checked ? '已啟用' : '已停用'}`, 'info');
         });
     });
+    
+    updateSecurityStatus();
 }
 
-// 更新前台安全狀態
-function updateFrontendSecurityStatus() {
+// 儲存所有安全設定
+function saveAllSecuritySettings() {
+    const settings = {
+        // 基本防護
+        disableRightClick: document.getElementById('disableRightClick').checked,
+        disableTextSelect: document.getElementById('disableTextSelect').checked,
+        disableDrag: document.getElementById('disableDrag').checked,
+        disablePrint: document.getElementById('disablePrint').checked,
+        
+        // 進階防護
+        preventScreenshot: document.getElementById('preventScreenshot').checked,
+        detectDevTools: document.getElementById('detectDevTools').checked,
+        blurOnLoseFocus: document.getElementById('blurOnLoseFocus').checked,
+        disableShortcuts: document.getElementById('disableShortcuts').checked,
+        
+        // 字體保護
+        encryptFontPath: document.getElementById('encryptFontPath').checked,
+        requireFontToken: document.getElementById('requireFontToken').checked,
+        tokenDuration: parseInt(document.getElementById('tokenDuration').value),
+        fontSecret: document.getElementById('fontSecret').value || 'default_secret_key_2025',
+        
+        // 浮水印
+        enableWatermark: document.getElementById('enableWatermark').checked,
+        watermarkText: document.getElementById('watermarkText').value,
+        watermarkOpacity: parseFloat(document.getElementById('watermarkOpacity').value) / 100,
+        watermarkFontSize: parseInt(document.getElementById('watermarkFontSize').value),
+        
+        // 警告訊息
+        rightClickWarning: document.getElementById('rightClickWarning').value,
+        copyWarning: document.getElementById('copyWarning').value,
+        screenshotWarning: document.getElementById('screenshotWarning').value,
+        devToolsWarningTitle: document.getElementById('devToolsWarningTitle').value,
+        devToolsWarning: document.getElementById('devToolsWarning').value,
+        
+        lastUpdate: new Date().toISOString()
+    };
+    
+    localStorage.setItem('frontend_security_settings', JSON.stringify(settings));
+    
+    // 如果啟用字體保護，設定密鑰
+    if (settings.encryptFontPath || settings.requireFontToken) {
+        localStorage.setItem('font_secret', settings.fontSecret);
+    }
+    
+    showNotification('安全設定已儲存', 'success');
+    updateSecurityStatus();
+    
+    // 同步到 GitHub
+    if (confirm('是否要將安全設定同步到 GitHub？')) {
+        syncSecurityToGitHub(settings);
+    }
+}
+
+// 載入安全設定
+function loadSecuritySettings() {
+    const saved = localStorage.getItem('frontend_security_settings');
+    if (saved) {
+        const settings = JSON.parse(saved);
+        // 設定會在頁面載入時自動填入
+    }
+}
+
+// 重設安全設定
+function resetSecuritySettings() {
+    if (confirm('確定要將所有安全設定重設為預設值嗎？')) {
+        localStorage.removeItem('frontend_security_settings');
+        localStorage.removeItem('font_secret');
+        loadPage('security');
+        showNotification('安全設定已重設為預設值', 'info');
+    }
+}
+
+// 更新安全狀態
+function updateSecurityStatus() {
     const settings = JSON.parse(localStorage.getItem('frontend_security_settings') || '{}');
     
-    // 更新總覽頁面的狀態顯示
     const statusMap = {
-        'frontSecurityStatus': settings.preventScreenshot !== false,
-        'frontWatermarkStatus': settings.enableWatermark !== false,
+        'frontSecurityStatus': settings.preventScreenshot,
+        'frontWatermarkStatus': settings.enableWatermark,
         'frontRightClickStatus': settings.disableRightClick !== false,
-        'frontDevToolsStatus': settings.disableDevTools !== false
+        'frontDevToolsStatus': settings.detectDevTools,
+        'fontProtectionStatus': settings.encryptFontPath !== false
     };
     
     for (const [id, enabled] of Object.entries(statusMap)) {
@@ -1451,133 +1357,215 @@ function updateFrontendSecurityStatus() {
         if (element) {
             element.textContent = enabled ? '啟用' : '停用';
             element.className = enabled ? 'badge badge-success' : 'badge badge-warning';
-            element.style.color = enabled ? 'var(--admin-success)' : 'var(--admin-warning)';
         }
     }
 }
 
-// 更新前台安全設定
-function updateFrontendSecuritySettings() {
-    const settings = {
-        preventScreenshot: document.getElementById('frontPreventScreenshot').checked,
-        enableWatermark: document.getElementById('frontEnableWatermark').checked,
-        disableRightClick: document.getElementById('frontDisableRightClick').checked,
-        disableTextSelect: document.getElementById('frontDisableTextSelect').checked,
-        disableDevTools: document.getElementById('frontDisableDevTools').checked,
-        disablePrint: document.getElementById('frontDisablePrint').checked,
-        disableDrag: document.getElementById('frontDisableDrag').checked,
-        blurOnLoseFocus: document.getElementById('frontBlurOnLoseFocus').checked,
-        watermarkText: document.getElementById('frontWatermarkText').value,
-        watermarkInterval: document.getElementById('frontWatermarkInterval').value,
-        watermarkOpacity: document.getElementById('frontWatermarkOpacity').value,
-        watermarkFontSize: document.getElementById('frontWatermarkFontSize').value,
-        screenshotWarning: document.getElementById('frontScreenshotWarning').value,
-        devToolsWarning: document.getElementById('frontDevToolsWarning').value,
-        lastUpdate: new Date().toISOString()
+// 切換字體保護
+function toggleFontProtection(fontId) {
+    const font = uploadedData.fonts.find(f => f.id == fontId);
+    if (!font) return;
+    
+    font.protected = !font.protected;
+    
+    if (font.protected) {
+        // 生成安全路徑和令牌
+        font.securePath = FontProtection.generateSecurePath(font.id);
+        font.accessToken = FontProtection.createAccessToken(font.id);
+    } else {
+        font.securePath = null;
+        font.accessToken = null;
+    }
+    
+    updateFontsTable();
+    showNotification(`字體 "${font.name}" 保護已${font.protected ? '啟用' : '停用'}`, 'info');
+}
+
+// 顯示字體保護設定
+function showFontProtectionSettings() {
+    const content = `
+        <div class="form-group">
+            <h4>字體保護說明</h4>
+            <p class="help-text">啟用字體保護後，系統會：</p>
+            <ul style="margin-left: 20px; line-height: 1.8;">
+                <li>使用加密的臨時路徑代替真實路徑</li>
+                <li>需要有效的訪問令牌才能載入字體</li>
+                <li>令牌有時效性，過期自動失效</li>
+                <li>防止直接通過 URL 下載字體檔案</li>
+                <li>記錄所有字體訪問嘗試</li>
+            </ul>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">全域保護設定</label>
+            <button class="btn btn-primary" onclick="enableAllFontProtection()">
+                <span class="material-icons">shield</span>
+                啟用所有字體保護
+            </button>
+            <button class="btn btn-secondary" onclick="disableAllFontProtection()" style="margin-left: 10px;">
+                <span class="material-icons">shield_off</span>
+                停用所有字體保護
+            </button>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">保護統計</label>
+            <p>已保護字體：${uploadedData.fonts.filter(f => f.protected).length} / ${uploadedData.fonts.length}</p>
+            <div class="progress-bar">
+                <div class="progress-bar-fill" style="width: ${(uploadedData.fonts.filter(f => f.protected).length / uploadedData.fonts.length * 100).toFixed(0)}%"></div>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 24px;">
+            <button class="btn btn-secondary" onclick="closeModal()">關閉</button>
+        </div>
+    `;
+    
+    showModal('字體保護設定', content);
+}
+
+// 啟用所有字體保護
+function enableAllFontProtection() {
+    uploadedData.fonts.forEach(font => {
+        font.protected = true;
+        font.securePath = FontProtection.generateSecurePath(font.id);
+        font.accessToken = FontProtection.createAccessToken(font.id);
+    });
+    
+    updateFontsTable();
+    closeModal();
+    showNotification('已啟用所有字體保護', 'success');
+}
+
+// 停用所有字體保護
+function disableAllFontProtection() {
+    if (confirm('確定要停用所有字體保護嗎？這可能會降低版權保護效果。')) {
+        uploadedData.fonts.forEach(font => {
+            font.protected = false;
+            font.securePath = null;
+            font.accessToken = null;
+        });
+        
+        updateFontsTable();
+        closeModal();
+        showNotification('已停用所有字體保護', 'warning');
+    }
+}
+
+// 取得目前設定（更新版）
+async function getCurrentConfig() {
+    const securitySettings = JSON.parse(localStorage.getItem('frontend_security_settings') || '{}');
+    
+    return {
+        fonts: uploadedData.fonts.map(f => ({
+            id: f.id,
+            name: f.name,
+            filename: f.filename,
+            displayName: f.displayName || f.name,
+            category: f.category || 'custom',
+            weight: f.weight || 'normal',
+            githubPath: f.githubPath || `assets/fonts/${f.filename}`,
+            protected: f.protected || false,
+            securePath: f.securePath,
+            accessToken: f.protected ? FontProtection.createAccessToken(f.id) : null
+        })),
+        shapes: uploadedData.shapes.map(s => ({
+            id: s.id,
+            name: s.name,
+            filename: s.filename,
+            githubPath: s.githubPath || `assets/shapes/${s.filename}`
+        })),
+        patterns: uploadedData.patterns.map(p => ({
+            id: p.id,
+            name: p.name,
+            filename: p.filename,
+            githubPath: p.githubPath || `assets/patterns/${p.filename}`
+        })),
+        colors: uploadedData.colors,
+        previewSettings: previewSettings,
+        securitySettings: securitySettings,
+        lastUpdate: new Date().toISOString(),
+        version: '4.0.0'
     };
-    
-    // 儲存到 localStorage
-    localStorage.setItem('frontend_security_settings', JSON.stringify(settings));
-    
-    showNotification('前台安全設定已儲存', 'success');
-    
-    // 更新狀態顯示
-    updateFrontendSecurityStatus();
-    
-    // 自動同步到 GitHub
-    if (confirm('是否要將前台安全設定同步到 GitHub？')) {
-        syncFrontendSecurityToGitHub(settings);
-    }
 }
 
-// 更新前台浮水印設定
-function updateFrontendWatermarkSettings() {
-    const settings = JSON.parse(localStorage.getItem('frontend_security_settings') || '{}');
-    
-    settings.watermarkText = document.getElementById('frontWatermarkText').value;
-    settings.watermarkInterval = document.getElementById('frontWatermarkInterval').value;
-    settings.watermarkOpacity = document.getElementById('frontWatermarkOpacity').value;
-    settings.watermarkFontSize = document.getElementById('frontWatermarkFontSize').value;
-    
-    localStorage.setItem('frontend_security_settings', JSON.stringify(settings));
-    
-    showNotification('前台浮水印設定已更新', 'success');
-}
-
-// 更新前台警告訊息
-function updateFrontendWarningMessages() {
-    const settings = JSON.parse(localStorage.getItem('frontend_security_settings') || '{}');
-    
-    settings.screenshotWarning = document.getElementById('frontScreenshotWarning').value;
-    settings.devToolsWarning = document.getElementById('frontDevToolsWarning').value;
-    
-    localStorage.setItem('frontend_security_settings', JSON.stringify(settings));
-    
-    showNotification('前台警告訊息已更新', 'success');
-}
-
-// 重設前台安全設定
-function resetFrontendSecuritySettings() {
-    if (confirm('確定要將所有前台安全設定重設為預設值嗎？')) {
-        localStorage.removeItem('frontend_security_settings');
-        loadPage('security');
-        showNotification('前台安全設定已重設為預設值', 'info');
-    }
-}
-
-// 同步前台安全設定到 GitHub
-async function syncFrontendSecurityToGitHub(settings) {
+// 同步安全設定到 GitHub
+async function syncSecurityToGitHub(settings) {
     try {
-        // 將前台安全設定加入整體設定
         const config = await getCurrentConfig();
-        config.frontendSecurity = settings;
+        config.securitySettings = settings;
         
         await saveConfigToGitHub(config);
-        showNotification('前台安全設定已同步到 GitHub', 'success');
+        showNotification('安全設定已同步到 GitHub', 'success');
     } catch (error) {
-        console.error('同步前台安全設定失敗:', error);
-        showNotification('同步前台安全設定失敗', 'danger');
+        console.error('同步安全設定失敗:', error);
+        showNotification('同步安全設定失敗', 'danger');
     }
 }
 
-// 處理修改密碼
-function handleChangePassword(event) {
-    event.preventDefault();
-    
-    const currentPassword = document.getElementById('currentPassword').value;
-    const newPassword = document.getElementById('newPassword').value;
-    const confirmPassword = document.getElementById('confirmPassword').value;
-    
-    if (newPassword !== confirmPassword) {
-        showNotification('新密碼與確認密碼不符', 'danger');
-        return;
+// 儲存設定到 GitHub
+async function saveConfigToGitHub(config) {
+    const token = GitHubConfig.getToken();
+    if (!token) {
+        throw new Error('No GitHub token');
     }
     
-    if (AdminAuth.changePassword(currentPassword, newPassword)) {
-        localStorage.setItem('last_password_change', new Date().toLocaleString('zh-TW'));
-        showNotification('密碼修改成功，請重新登入', 'success');
-        setTimeout(() => {
-            AdminAuth.logout();
-        }, 2000);
-    } else {
-        showNotification('目前密碼錯誤', 'danger');
-        document.getElementById('currentPassword').value = '';
+    const apiUrl = `https://api.github.com/repos/${GitHubConfig.owner}/${GitHubConfig.repo}/contents/${GitHubConfig.configPath}`;
+    
+    let sha = null;
+    const getResponse = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github.v3+json'
+        }
+    });
+    
+    if (getResponse.ok) {
+        const fileData = await getResponse.json();
+        sha = fileData.sha;
     }
+    
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(config, null, 2))));
+    
+    const requestBody = {
+        message: `Update stamp config - ${new Date().toLocaleString('zh-TW')}`,
+        content: content,
+        branch: GitHubConfig.branch
+    };
+    
+    if (sha) {
+        requestBody.sha = sha;
+    }
+    
+    const updateResponse = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+    });
+    
+    if (!updateResponse.ok) {
+        const error = await updateResponse.json();
+        throw new Error(error.message || 'Update failed');
+    }
+    
+    return await updateResponse.json();
 }
 
-// 後台安全防護（只針對後台）
+// 後台安全防護
 function setupBackendSecurity() {
     // 後台專用的安全設定
-    
-    // 禁用右鍵（後台）
     document.addEventListener('contextmenu', (e) => {
-        if (!e.ctrlKey) { // 允許 Ctrl+右鍵 for 開發
+        if (!e.ctrlKey) {
             e.preventDefault();
             return false;
         }
     });
     
-    // 禁用文字選擇（部分區域）
     document.addEventListener('selectstart', (e) => {
         if (e.target.closest('.admin-table') || e.target.closest('.preview-item')) {
             e.preventDefault();
@@ -1590,11 +1578,11 @@ function setupBackendSecurity() {
         if (!AdminAuth.isLoggedIn()) {
             window.location.reload();
         }
-    }, 60000); // 每分鐘檢查一次
+    }, 60000);
     
     // 監控頁面活動
     let lastActivity = Date.now();
-    const activityTimeout = 30 * 60 * 1000; // 30分鐘無活動自動登出
+    const activityTimeout = 30 * 60 * 1000;
     
     ['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(event => {
         document.addEventListener(event, () => {
@@ -3131,19 +3119,7 @@ shakeStyle.textContent = `
 `;
 document.head.appendChild(shakeStyle);
 
-// 離開頁面前提醒
-window.addEventListener('beforeunload', (e) => {
-    const hasUnsavedChanges = uploadedData.fonts.some(f => !f.uploaded) ||
-                              uploadedData.shapes.some(s => !s.uploaded) ||
-                              uploadedData.patterns.some(p => !p.uploaded);
-    
-    if (hasUnsavedChanges) {
-        e.preventDefault();
-        e.returnValue = '您有未儲存的變更，確定要離開嗎？';
-    }
-});
-
-console.log('🎯 印章系統後台管理 v3.1.0');
+console.log('🎯 印章系統後台管理 v4.0.0');
 console.log('👤 作者: DK0124');
-console.log('📅 最後更新: 2025-01-31');
-console.log('✨ 新功能: 移除字體大小限制、支援批次分類');
+console.log('📅 最後更新: 2025-07-31');
+console.log('✨ 新功能: 可配置安全設定、預覽參數調整、字體路徑保護');
