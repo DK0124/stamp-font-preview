@@ -19,14 +19,7 @@
       "githubPath": "assets/fonts/粉圓體全繁體.ttf"
     }
   ],
-  "shapes": [
-    {
-      "id": 1753850277387.4475,
-      "name": "2k2kvRWJ_400x400",
-      "filename": "2k2kvRWJ_400x400.jpg",
-      "githubPath": "assets/shapes/2k2kvRWJ_400x400.jpg"
-    }
-  ],
+  "shapes": [],
   "patterns": [
     {
       "id": 1753849898617.7578,
@@ -84,6 +77,6 @@
     "devToolsWarning": "警告：偵測到開發者工具！\n本系統內容受版權保護，禁止任何形式的複製或下載。",
     "lastUpdate": "2025-07-31T05:47:52.283Z"
   },
-  "lastUpdate": "2025-07-31T05:47:53.686Z",
+  "lastUpdate": "2025-07-31T05:48:06.716Z",
   "version": "3.1.0"
 }
