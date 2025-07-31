@@ -948,3 +948,10 @@ input[type="range"]::-moz-range-thumb:hover {
     transform: scale(1.2);
     box-shadow: 0 2px 8px rgba(159, 178, 142, 0.4);
 }
+
+/* 震動動畫 */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-10px); }
+    75% { transform: translateX(10px); }
+}
