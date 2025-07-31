@@ -1,145 +1,84 @@
 {
+  "version": "4.0.0",
+  "lastUpdate": "2025-01-31T07:27:34Z",
   "fonts": [
     {
-      "id": "1",
-      "name": "辰宇落雁體 等寬版全繁體",
-      "filename": "辰宇落雁體 等寬版全繁體.ttf",
-      "displayName": "辰宇落雁體 等寬版全繁體",
-      "category": "custom",
+      "id": "font_1",
+      "name": "標楷體",
+      "displayName": "標楷體",
+      "category": "traditional",
       "weight": "normal",
-      "githubPath": "assets/fonts/辰宇落雁體 等寬版全繁體.ttf"
-    },
-    {
-      "id": "2",
-      "name": "粉圓體全繁體",
-      "filename": "粉圓體全繁體.ttf",
-      "displayName": "粉圓體全繁體",
-      "category": "custom",
-      "weight": "normal",
-      "githubPath": "assets/fonts/粉圓體全繁體.ttf"
-    },
-    {
-      "id": "3",
-      "name": "金萱那堤全繁體",
-      "filename": "金萱那堤全繁體.ttf",
-      "displayName": "金萱那堤全繁體",
-      "category": "custom",
-      "weight": "normal",
-      "githubPath": "assets/fonts/金萱那堤全繁體.ttf"
-    },
-    {
-      "id": "4",
-      "name": "粒線體等寬全繁體",
-      "filename": "粒線體等寬全繁體.ttf",
-      "displayName": "粒線體等寬全繁體",
-      "category": "custom",
-      "weight": "normal",
-      "githubPath": "assets/fonts/粒線體等寬全繁體.ttf"
-    },
-    {
-      "id": "5",
-      "name": "粒線體不等寬全繁體",
-      "filename": "粒線體不等寬全繁體.ttf",
-      "displayName": "粒線體不等寬全繁體",
-      "category": "custom",
-      "weight": "normal",
-      "githubPath": "assets/fonts/粒線體不等寬全繁體.ttf"
-    },
-    {
-      "id": "6",
-      "name": "辰宇落雁體 不等寬版全繁體",
-      "filename": "辰宇落雁體 不等寬版全繁體.ttf",
-      "displayName": "辰宇落雁體 不等寬版全繁體",
-      "category": "custom",
-      "weight": "normal",
-      "githubPath": "assets/fonts/辰宇落雁體 不等寬版全繁體.ttf"
-    },
-    {
-      "id": "7",
-      "name": "粗線體不等寬版 全繁體",
-      "filename": "粗線體不等寬版 全繁體.ttf",
-      "displayName": "粗線體不等寬版 全繁體",
-      "category": "custom",
-      "weight": "normal",
-      "githubPath": "assets/fonts/粗線體不等寬版 全繁體.ttf"
-    },
-    {
-      "id": "8",
-      "name": "粗線體等寬版 全繁體",
-      "filename": "粗線體等寬版 全繁體.ttf",
-      "displayName": "粗線體等寬版 全繁體",
-      "category": "custom",
-      "weight": "normal",
-      "githubPath": "assets/fonts/粗線體等寬版 全繁體.ttf"
-    },
-    {
-      "id": "9",
-      "name": "胖西手寫體 全繁體",
-      "filename": "胖西手寫體 全繁體.ttf",
-      "displayName": "胖西手寫體 全繁體",
-      "category": "custom",
-      "weight": "normal",
-      "githubPath": "assets/fonts/胖西手寫體 全繁體.ttf"
+      "filename": "kaiu.ttf",
+      "githubPath": "assets/fonts/kaiu.ttf",
+      "protected": true,
+      "securePath": "secure/Zm9udF8xXzE3MzgzMDM2NTQ5NjhfYWJjZGVmZ2hp",
+      "accessToken": null
     }
   ],
-  "shapes": [],
+  "shapes": [
+    { "id": "circle", "name": "圓形" },
+    { "id": "square", "name": "方形" },
+    { "id": "ellipse", "name": "橢圓形" },
+    { "id": "rectangle", "name": "長方形" }
+  ],
   "patterns": [
-    {
-      "id": 1753849898617.7578,
-      "name": "伯爵",
-      "filename": "伯爵.png",
-      "githubPath": "assets/patterns/伯爵.png"
-    },
-    {
-      "id": 1753849909909.5032,
-      "name": "黑貓",
-      "filename": "黑貓.png",
-      "githubPath": "assets/patterns/黑貓.png"
-    }
+    { "id": "none", "name": "無", "filename": "" }
   ],
   "colors": [
-    {
-      "main": "#dc3545",
-      "name": "經典紅"
-    },
-    {
-      "main": "#0066cc",
-      "name": "寶藍色"
-    },
-    {
-      "main": "#2d5a2d",
-      "name": "墨綠色"
-    },
-    {
-      "main": "#6f42c1",
-      "name": "紫羅蘭"
-    },
-    {
-      "main": "#ffc107",
-      "name": "金黃色"
-    },
-    {
-      "main": "#495057",
-      "name": "深灰色"
-    }
+    { "main": "#e57373", "name": "珊瑚紅" },
+    { "main": "#9fb28e", "name": "抹茶綠" },
+    { "main": "#64b5f6", "name": "天空藍" },
+    { "main": "#ffb74d", "name": "琥珀黃" },
+    { "main": "#ba68c8", "name": "薰衣草紫" },
+    { "main": "#4db6ac", "name": "青瓷綠" },
+    { "main": "#ff8a65", "name": "蜜桃橘" },
+    { "main": "#90a4ae", "name": "石墨灰" }
   ],
-  "frontendSecurity": {
-    "preventScreenshot": true,
-    "enableWatermark": false,
-    "disableRightClick": false,
-    "disableTextSelect": false,
-    "disableDevTools": false,
-    "disablePrint": false,
-    "disableDrag": false,
-    "blurOnLoseFocus": false,
-    "watermarkText": "© 2025 印章系統 - 版權所有",
-    "watermarkInterval": "60",
-    "watermarkOpacity": "0.03",
-    "watermarkFontSize": "10",
-    "screenshotWarning": "禁止截圖 - 版權所有",
-    "devToolsWarning": "警告：偵測到開發者工具！\n本系統內容受版權保護，禁止任何形式的複製或下載。",
-    "lastUpdate": "2025-07-31T05:47:52.283Z"
+  "previewSettings": {
+    "fontSize": {
+      "min": 24,
+      "max": 72,
+      "default": 48
+    },
+    "lineHeight": {
+      "min": 0.8,
+      "max": 2,
+      "default": 1.2
+    },
+    "borderWidth": {
+      "min": 1,
+      "max": 10,
+      "default": 5
+    },
+    "canvasSize": {
+      "width": 250,
+      "height": 250
+    },
+    "quality": "high",
+    "antiAlias": true,
+    "patternPositions": ["topLeft", "topRight", "bottomLeft", "bottomRight"]
   },
-  "lastUpdate": "2025-07-31T05:49:47.105Z",
-  "version": "3.1.0"
+  "securitySettings": {
+    "disableRightClick": true,
+    "disableTextSelect": true,
+    "disableDrag": true,
+    "disablePrint": true,
+    "disableShortcuts": true,
+    "detectDevTools": false,
+    "preventScreenshot": false,
+    "blurOnLoseFocus": false,
+    "encryptFontPath": true,
+    "requireFontToken": false,
+    "tokenDuration": 60,
+    "fontSecret": "default_secret_key_2025",
+    "enableWatermark": false,
+    "watermarkText": "© 2025 印章系統 - 版權所有",
+    "watermarkOpacity": 0.05,
+    "watermarkFontSize": 20,
+    "rightClickWarning": "禁止右鍵操作",
+    "copyWarning": "禁止複製內容",
+    "screenshotWarning": "禁止截圖 - 版權所有",
+    "devToolsWarningTitle": "⚠️ 警告",
+    "devToolsWarning": "偵測到開發者工具！\n本系統內容受版權保護。"
+  }
 }
