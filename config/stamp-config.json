@@ -1,18 +1,5 @@
 {
-  "fonts": [
-    {
-      "id": "font_1",
-      "name": "標楷體",
-      "filename": "kaiu.ttf",
-      "displayName": "標楷體",
-      "category": "traditional",
-      "weight": "normal",
-      "githubPath": "assets/fonts/kaiu.ttf",
-      "protected": true,
-      "securePath": "secure/Zm9udF8xXzE3MzgzMDM2NTQ5NjhfYWJjZGVmZ2hp",
-      "accessToken": "eyJmb250SWQiOiJmb250XzEiLCJleHBpcmVzIjoxNzUzOTUwOTE0NTA0LCJzaWduYXR1cmUiOiJabTl1ZEY4eFgyUmxabUYxYkhSZmMyVmpjbVYwWDJ0bGVWOHlNREkxWDFSb2RTQktkV3dnTXpFZ01qQXlOUT09In0="
-    }
-  ],
+  "fonts": [],
   "shapes": [
     {
       "id": "circle",
@@ -130,6 +117,6 @@
     "devToolsWarning": "偵測到開發者工具！\n本系統內容受版權保護。",
     "lastUpdate": "2025-07-31T07:35:13.273Z"
   },
-  "lastUpdate": "2025-07-31T07:35:14.504Z",
+  "lastUpdate": "2025-07-31T07:43:03.049Z",
   "version": "4.0.0"
 }
