@@ -2,7 +2,7 @@
  * 印章預覽系統 v13.0.0 - 效能優化版
  * @author DK0124
  * @version 13.0.0
- * @date 2025-07-31
+ * @date 2025-01-31
  * @description 可配置安全功能、優化UI/UX、提升載入速度
  */
 
@@ -2221,7 +2221,7 @@
                 }
             });
         },
-
+        
         // 搜尋字體
         searchFonts(keyword) {
             const items = this.elements.fontsGrid.querySelectorAll('.scfw-font-item');
