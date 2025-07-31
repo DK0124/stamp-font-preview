@@ -1,23 +1,21 @@
 {
   "fonts": [
     {
-      "id": 1753849837213.2207,
+      "id": "1753849837213.2207",
       "name": "辰宇落雁體 等寬版全繁體",
       "filename": "辰宇落雁體 等寬版全繁體.ttf",
       "displayName": "辰宇落雁體 等寬版全繁體",
       "category": "custom",
       "weight": "normal",
-      "systemFont": null,
       "githubPath": "assets/fonts/辰宇落雁體 等寬版全繁體.ttf"
     },
     {
-      "id": 1753850775377.1016,
+      "id": "1753850775377.1016",
       "name": "粉圓體全繁體",
       "filename": "粉圓體全繁體.ttf",
       "displayName": "粉圓體全繁體",
       "category": "custom",
       "weight": "normal",
-      "systemFont": null,
       "githubPath": "assets/fonts/粉圓體全繁體.ttf"
     }
   ],
@@ -25,7 +23,7 @@
     {
       "id": 1753850277387.4475,
       "name": "2k2kvRWJ_400x400",
-      "class": "2k2kvRWJ_400x400",
+      "filename": "2k2kvRWJ_400x400.jpg",
       "githubPath": "assets/shapes/2k2kvRWJ_400x400.jpg"
     }
   ],
@@ -33,84 +31,42 @@
     {
       "id": 1753849898617.7578,
       "name": "伯爵",
+      "filename": "伯爵.png",
       "githubPath": "assets/patterns/伯爵.png"
     },
     {
       "id": 1753849909909.5032,
       "name": "黑貓",
+      "filename": "黑貓.png",
       "githubPath": "assets/patterns/黑貓.png"
     }
   ],
   "colors": [
     {
-      "id": 1753848171841.01,
-      "name": "經典紅",
       "main": "#dc3545",
-      "shades": [
-        "#dc3545",
-        "#b02a37",
-        "#842029",
-        "#58151c"
-      ]
+      "name": "經典紅"
     },
     {
-      "id": 1753848171841.4512,
-      "name": "寶藍色",
       "main": "#0066cc",
-      "shades": [
-        "#0066cc",
-        "#0052a3",
-        "#003d7a",
-        "#002952"
-      ]
+      "name": "寶藍色"
     },
     {
-      "id": 1753848171841.8655,
-      "name": "墨綠色",
       "main": "#2d5a2d",
-      "shades": [
-        "#2d5a2d",
-        "#244824",
-        "#1b361b",
-        "#122412"
-      ]
+      "name": "墨綠色"
     },
     {
-      "id": 1753848171841.3433,
-      "name": "紫羅蘭",
       "main": "#6f42c1",
-      "shades": [
-        "#6f42c1",
-        "#59359a",
-        "#432874",
-        "#2c1a4d"
-      ]
+      "name": "紫羅蘭"
     },
     {
-      "id": 1753848171841.5322,
-      "name": "金黃色",
       "main": "#ffc107",
-      "shades": [
-        "#ffc107",
-        "#cc9a06",
-        "#997404",
-        "#664d03"
-      ]
+      "name": "金黃色"
     },
     {
-      "id": 1753848171841.24,
-      "name": "深灰色",
       "main": "#495057",
-      "shades": [
-        "#495057",
-        "#3a4046",
-        "#2c3034",
-        "#1d2023"
-      ]
+      "name": "深灰色"
     }
   ],
-  "lastUpdate": "2025-07-30T04:47:06.494Z",
-  "version": "3.0.0",
   "frontendSecurity": {
     "preventScreenshot": true,
     "enableWatermark": false,
@@ -126,6 +82,8 @@
     "watermarkFontSize": "10",
     "screenshotWarning": "禁止截圖 - 版權所有",
     "devToolsWarning": "警告：偵測到開發者工具！\n本系統內容受版權保護，禁止任何形式的複製或下載。",
-    "lastUpdate": "2025-07-30T04:47:05.345Z"
-  }
+    "lastUpdate": "2025-07-31T05:47:52.283Z"
+  },
+  "lastUpdate": "2025-07-31T05:47:53.686Z",
+  "version": "3.1.0"
 }
